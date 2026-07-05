@@ -53,7 +53,7 @@ class KeyGridView @JvmOverloads constructor(
     var previewOverlay: KeyPreviewOverlay? = null
 
     /** Emitted after a word boundary is committed. Wired to the bridge. */
-    var onWordCommitted: ((String) -> Unit)? = null
+    var onWordCommitted: ((WordCommitInfo) -> Unit)? = null
 
     /** Opens the system keyboard chooser (long-press 🌐). */
     var onShowImePicker: (() -> Unit)? = null
@@ -787,8 +787,9 @@ class KeyGridView @JvmOverloads constructor(
             }
             KeyAction.Enter -> {
                 haptics.enterClickSound()
+                // Flush word BEFORE send — messengers clear the field on IME_ACTION_SEND.
+                notifyMaybeWordCommitted(" ")
                 inputController.performEnter()
-                notifyMaybeWordCommitted("\n")
                 val wasUpper = state.isUpperCase
                 state.consumeShiftAfterChar()
                 if (wasUpper && !state.isUpperCase) invalidate()
@@ -839,8 +840,8 @@ class KeyGridView @JvmOverloads constructor(
 
     private fun notifyMaybeWordCommitted(justCommitted: CharSequence) {
         val cb = onWordCommitted ?: return
-        val word = inputController.lastCompletedWord(justCommitted) ?: return
-        cb(word)
+        val info = inputController.lastCompletedWordInfo(justCommitted) ?: return
+        cb(info)
     }
 
     // ── Preview & ripple helpers ──────────────────────────────────────

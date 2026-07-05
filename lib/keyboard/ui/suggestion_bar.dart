@@ -1,88 +1,314 @@
-// lib/keyboard/ui/suggestion_bar.dart
-//
-// SuggestionBar — the (currently empty) container above the keys.
-
-import 'dart:convert';
+/// Suggestion bar — matches TACT design: status strip + chips.
+library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-class SuggestionBar extends StatefulWidget {
-  const SuggestionBar({super.key});
+import '../panel/panel_state.dart';
+import '../rules/rule_signal.dart';
+import 'panel_actions.dart';
 
-  @override
-  State<SuggestionBar> createState() => _SuggestionBarState();
+/// Design tokens aligned with companion [PanelPreviewBar].
+abstract final class _TactPanelColors {
+  static const background = Color(0xFF1A1A22);
+  static const chipBg = Color(0xFF2A2A2E);
+  static const text = Color(0xFFE8E8EA);
+  static const textMuted = Color(0xFF9A9AA3);
+  static const action = Color(0xFF7C5CFF);
+  static const spell = Color(0xFFE8913A);
+  static const mat = Color(0xFFC94B4B);
+  static const toxic = Color(0xFFE8B339);
+  static const improve = Color(0xFF7C5CFF);
+  static const undo = Color(0xFF3DDC97);
+  static const border = Color(0xFF2E2E36);
 }
 
-class _SuggestionBarState extends State<SuggestionBar> {
-  static const MethodChannel _bridge =
-      MethodChannel('com.example.tact.ime/bridge');
+class SuggestionBar extends StatelessWidget {
+  const SuggestionBar({
+    super.key,
+    required this.panel,
+    required this.backgroundColor,
+    required this.onAction,
+  });
 
-  Color _backgroundColor = const Color(0xFF171719);
-
-  @override
-  void initState() {
-    super.initState();
-    _bridge.setMethodCallHandler(_onCall);
-    // Wait until the first frame — native bridge may not be ready during initState.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _signalReady());
-  }
-
-  @override
-  void dispose() {
-    _bridge.setMethodCallHandler(null);
-    super.dispose();
-  }
-
-  Future<void> _signalReady() async {
-    try {
-      await _bridge.invokeMethod('ready');
-    } catch (_) {
-      // Bridge not wired yet — theme falls back to the default color.
-    }
-  }
-
-  Future<Object?> _onCall(MethodCall call) async {
-    switch (call.method) {
-      case 'setTheme':
-        _applyTheme(call.arguments);
-        return null;
-      case 'onStartInputView':
-      case 'onFinishInputView':
-      case 'onSelectionChanged':
-      case 'onWordCommitted':
-        return null;
-      default:
-        return null;
-    }
-  }
-
-  void _applyTheme(Object? arguments) {
-    if (arguments is! String) return;
-    Object? decoded;
-    try {
-      decoded = jsonDecode(arguments);
-    } catch (_) {
-      return;
-    }
-    if (decoded is! Map) return;
-    final Object? bg = decoded['background'];
-    final int? argb = switch (bg) {
-      final int v => v,
-      final double v => v.toInt(),
-      _ => null,
-    };
-    if (argb == null || !mounted) return;
-    setState(() {
-      _backgroundColor = Color(argb & 0xFFFFFFFF);
-    });
-  }
+  final PanelState panel;
+  final Color backgroundColor;
+  final Future<void> Function(PanelAction action) onAction;
 
   @override
   Widget build(BuildContext context) {
+    if (panel is PanelIdle) {
+      return ColoredBox(color: backgroundColor);
+    }
+
     return ColoredBox(
-      color: _backgroundColor,
-      child: const SizedBox.expand(),
+      color: backgroundColor,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+        child: _PanelBody(panel: panel, onAction: onAction),
+      ),
+    );
+  }
+}
+
+class _PanelBody extends StatelessWidget {
+  const _PanelBody({required this.panel, required this.onAction});
+
+  final PanelState panel;
+  final Future<void> Function(PanelAction action) onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (panel) {
+      PanelIdle() => const SizedBox.shrink(),
+      PanelUndo(:final label) => _StatusBar(
+          accent: _TactPanelColors.undo,
+          icon: Icons.check_circle_outline,
+          title: label,
+          actionLabel: 'Отменить',
+          onAction: () => onAction(const PanelActionUndo()),
+        ),
+      PanelSpell p => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _StatusBar(
+              accent: _TactPanelColors.spell,
+              icon: Icons.spellcheck,
+              title: 'Найдены ошибки',
+              subtitle: p.word,
+              actionLabel: 'Исправить',
+              onAction: p.candidates.isNotEmpty
+                  ? () => onAction(PanelActionFixSpell(
+                        panel: p,
+                        candidate: p.candidates.first,
+                      ))
+                  : null,
+            ),
+            if (p.candidates.length > 1) ...[
+              const SizedBox(height: 6),
+              _ChipRow(
+                chips: p.candidates
+                    .take(3)
+                    .map(
+                      (c) => _ChipData(
+                        c,
+                        onTap: () => onAction(
+                          PanelActionFixSpell(panel: p, candidate: c),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ],
+        ),
+      PanelMat p => _StatusBar(
+          accent: _TactPanelColors.mat,
+          icon: Icons.block,
+          title: 'Обнаружен мат',
+          subtitle: p.word,
+          actionLabel: 'Смягчить',
+          onAction: () => onAction(PanelActionRemoveMat(panel: p)),
+        ),
+      PanelToxic p => _StatusBar(
+          accent: _TactPanelColors.toxic,
+          icon: Icons.warning_amber_rounded,
+          title: p.level == ToxicLevel.conflict
+              ? 'Возможен конфликт'
+              : 'Резкий тон',
+          subtitle: p.word,
+          actionLabel: 'Смягчить',
+          onAction: () => onAction(PanelActionSoftenToxic(panel: p)),
+        ),
+      PanelImprove() => _StatusBar(
+          accent: _TactPanelColors.improve,
+          icon: Icons.auto_awesome,
+          title: 'Можно улучшить текст',
+          actionLabel: 'Улучшить',
+          onAction: () => onAction(const PanelActionImprove()),
+        ),
+      PanelShortcut(:final trigger, :final expansions) => _ChipRow(
+          chips: expansions
+              .take(3)
+              .map(
+                (e) => _ChipData(
+                  '$trigger → $e',
+                  onTap: () => onAction(PanelActionShortcut(expansion: e)),
+                ),
+              )
+              .toList(),
+        ),
+      PanelSuggestions(:final words) => _ChipRow(
+          chips: words
+              .take(4)
+              .map(
+                (w) => _ChipData(
+                  w,
+                  onTap: () => onAction(PanelActionSuggestion(word: w)),
+                ),
+              )
+              .toList(),
+        ),
+    };
+  }
+}
+
+final class _ChipData {
+  const _ChipData(this.label, {this.onTap});
+  final String label;
+  final VoidCallback? onTap;
+}
+
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({required this.chips});
+
+  final List<_ChipData> chips;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: _TactPanelColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _TactPanelColors.border),
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final chip in chips) ...[
+                _SuggestionChip(chip: chip),
+                const SizedBox(width: 6),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({required this.chip});
+
+  final _ChipData chip;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: chip.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: _TactPanelColors.chipBg,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          chip.label,
+          style: const TextStyle(
+            color: _TactPanelColors.text,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusBar extends StatelessWidget {
+  const _StatusBar({
+    required this.accent,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final Color accent;
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _TactPanelColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: accent, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _TactPanelColors.text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Text(
+                    subtitle!,
+                    style: const TextStyle(
+                      color: _TactPanelColors.textMuted,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          if (onAction != null)
+            GestureDetector(
+              onTap: onAction,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _TactPanelColors.action,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$actionLabel →',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../platform/ime_platform.dart';
+import '../shortcuts/shortcuts_screen.dart';
 import '../state/app_state.dart';
 import '../theme/tact_theme.dart';
 import '../widgets/ime_status_card.dart';
@@ -101,6 +102,22 @@ class KeyboardScreen extends StatelessWidget {
                         onChanged: state.setTextImprovement,
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                TactCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: TactSettingsRow(
+                    title: 'Сокращения (hotwords)',
+                    subtitle: 'др → Добрый день и свои варианты',
+                    showChevron: true,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ShortcutsScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),

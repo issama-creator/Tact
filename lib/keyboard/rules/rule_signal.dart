@@ -1,30 +1,73 @@
-// lib/keyboard/rules/rule_signal.dart
-//
-// RuleSignal — a normalized message emitted by an engine for a TextContext.
-//
-// Engines never talk to the panel directly. They emit RuleSignals; the
-// RulesEngine decides what to show. Adding a new engine is a matter of
-// adding a new SignalKind + a corresponding rule entry in RulesEngine.
-//
-// Contents (planned):
-//   • enum SignalKind {
-//       spellError,     // priority 1
-//       mat,            // priority 2  (profanity)
-//       toxic,          // priority 3
-//       improve,        // priority 4
-//       nextWord,       // priority 5  (normal Gboard-style suggestion)
-//       shortcutMatch,  // trigger → expansion (offered, not auto-applied)
-//     }
-//   • class RuleSignal {
-//       final SignalKind kind;
-//       final int severity;         // 0–100
-//       final double confidence;    // 0.0–1.0
-//       final EditRange range;      // to which text range this refers
-//       final Object? payload;      // e.g. correction candidates
-//     }
-//
-// Depends on: input/text_context.dart (for EditRange).
-// Must NOT: import Flutter or plugins.
-//
-// TODO: implement.
+/// Normalized messages emitted by engines for the rules layer.
 library;
+
+import '../dictionaries/toxic_category.dart';
+import '../input/text_context.dart';
+
+enum SignalKind {
+  undo,
+  spellError,
+  mat,
+  toxic,
+  improve,
+  shortcutMatch,
+  nextWord,
+}
+
+/// Result payload for spell correction.
+final class SpellPayload {
+  const SpellPayload({
+    required this.word,
+    required this.candidates,
+  });
+
+  final String word;
+  final List<String> candidates;
+}
+
+/// Toxic severity tiers — no sentiment analysis, dictionary scoring only.
+enum ToxicLevel {
+  safe,
+  warning,
+  conflict,
+}
+
+final class ToxicPayload {
+  const ToxicPayload({
+    required this.word,
+    required this.level,
+    required this.score,
+    this.category,
+  });
+
+  final String word;
+  final ToxicLevel level;
+  final int score;
+  final ToxicCategory? category;
+}
+
+final class ShortcutPayload {
+  const ShortcutPayload({
+    required this.trigger,
+    required this.expansions,
+  });
+
+  final String trigger;
+  final List<String> expansions;
+}
+
+final class RuleSignal {
+  const RuleSignal({
+    required this.kind,
+    required this.severity,
+    required this.confidence,
+    required this.range,
+    this.payload,
+  });
+
+  final SignalKind kind;
+  final int severity;
+  final double confidence;
+  final EditRange range;
+  final Object? payload;
+}

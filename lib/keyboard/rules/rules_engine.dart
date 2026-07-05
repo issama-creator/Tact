@@ -1,34 +1,120 @@
-// lib/keyboard/rules/rules_engine.dart
-//
-// RulesEngine — the UX brain of TACT.
-//
-// Consumes RuleSignal[] for a TextContext and produces exactly one
-// PanelDecision. Pure, synchronous, deterministic. Trivially testable.
-//
-// Priority (higher wins the highest-priority slot):
-//   1. SpellError
-//   2. Mat (profanity)
-//   3. Toxic
-//   4. Improve
-//   5. NextWord (normal suggestion)
-//
-// Guarantees (see docs/RULES.md):
-//   • Deduplication (Mat + Toxic on same range → one slot).
-//   • Slot budget (N slots max; default 3).
-//   • Hysteresis to prevent panel flicker (a signal must exceed the previous
-//     by a threshold to replace an already-shown slot).
-//   • Passivity — decisions never include an automatic mutation. Only chips.
-//
-// Contents (planned):
-//   • class RulesEngineSettings { final int slotBudget; final Duration hysteresis; }
-//   • class RulesEngine {
-//       PanelDecision evaluate(List<RuleSignal> signals, RulesEngineSettings s);
-//     }
-//   • The priority order is a private const list — modifying it is a design
-//     decision documented in docs/RULES.md.
-//
-// Depends on: rules/rule_signal.dart, panel/panel_state.dart.
-// Must NOT: import Flutter, plugins, or perform I/O.
-//
-// TODO: implement.
+/// Picks exactly one panel state from engine signals.
 library;
+
+import '../input/text_context.dart';
+import '../panel/panel_state.dart';
+import '../rules/rule_signal.dart';
+
+/// Decides which single panel mode to show.
+final class RulesEngine {
+  const RulesEngine();
+
+  PanelDecision evaluate({
+    required List<RuleSignal> signals,
+    required bool undoAvailable,
+    required List<String> defaultSuggestions,
+    required int nowMs,
+    int messageLength = 0,
+  }) {
+    if (undoAvailable) {
+      return PanelDecision(
+        state: const PanelUndo(label: 'Отменить'),
+        producedAtMs: nowMs,
+      );
+    }
+
+    RuleSignal? spell;
+    RuleSignal? mat;
+    RuleSignal? toxic;
+    RuleSignal? improve;
+    RuleSignal? shortcut;
+
+    for (final s in signals) {
+      switch (s.kind) {
+        case SignalKind.spellError:
+          spell ??= s;
+        case SignalKind.mat:
+          mat ??= s;
+        case SignalKind.toxic:
+          toxic ??= s;
+        case SignalKind.improve:
+          improve ??= s;
+        case SignalKind.shortcutMatch:
+          shortcut ??= s;
+        case SignalKind.nextWord:
+        case SignalKind.undo:
+          break;
+      }
+    }
+
+    if (spell != null) {
+      final payload = spell.payload as SpellPayload;
+      return PanelDecision(
+        state: PanelSpell(
+          word: payload.word,
+          candidates: payload.candidates,
+          range: spell.range,
+        ),
+        producedAtMs: nowMs,
+      );
+    }
+
+    if (mat != null) {
+      return PanelDecision(
+        state: PanelMat(
+          word: mat.payload as String? ?? '',
+          range: mat.range,
+        ),
+        producedAtMs: nowMs,
+      );
+    }
+
+    if (toxic != null) {
+      final payload = toxic.payload! as ToxicPayload;
+      return PanelDecision(
+        state: PanelToxic(
+          word: payload.word,
+          level: payload.level,
+          score: payload.score,
+          range: toxic.range,
+        ),
+        producedAtMs: nowMs,
+      );
+    }
+
+    if (improve != null &&
+        spell == null &&
+        mat == null &&
+        toxic == null) {
+      return PanelDecision(
+        state: PanelImprove(messageLength: messageLength),
+        producedAtMs: nowMs,
+      );
+    }
+
+    if (shortcut != null) {
+      final payload = shortcut.payload! as ShortcutPayload;
+      final expansions = payload.expansions.take(3).toList(growable: false);
+      return PanelDecision(
+        state: PanelShortcut(
+          trigger: payload.trigger,
+          expansions: expansions,
+          range: shortcut.range,
+        ),
+        producedAtMs: nowMs,
+      );
+    }
+
+    if (defaultSuggestions.isNotEmpty) {
+      return PanelDecision(
+        state: PanelSuggestions(words: defaultSuggestions),
+        producedAtMs: nowMs,
+      );
+    }
+
+    return PanelDecision(
+      state: const PanelIdle(),
+      producedAtMs: nowMs,
+    );
+  }
+}

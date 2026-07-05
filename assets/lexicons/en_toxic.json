@@ -1,0 +1,84 @@
+{
+  "v": 1,
+  "locale": "en",
+  "warning": 50,
+  "conflict": 75,
+  "entries": {
+    "stupid": {
+      "s": 55,
+      "c": "insult"
+    },
+    "idiot": {
+      "s": 70,
+      "c": "insult"
+    },
+    "moron": {
+      "s": 65,
+      "c": "insult"
+    },
+    "hate": {
+      "s": 60,
+      "c": "hostile"
+    },
+    "kill": {
+      "s": 75,
+      "c": "hostile"
+    },
+    "die": {
+      "s": 72,
+      "c": "hostile"
+    },
+    "loser": {
+      "s": 58,
+      "c": "insult"
+    },
+    "ugly": {
+      "s": 50,
+      "c": "insult"
+    },
+    "shutup": {
+      "s": 52,
+      "c": "dismissive"
+    },
+    "dumb": {
+      "s": 54,
+      "c": "insult"
+    },
+    "trash": {
+      "s": 56,
+      "c": "insult"
+    },
+    "worthless": {
+      "s": 68,
+      "c": "insult"
+    },
+    "pathetic": {
+      "s": 62,
+      "c": "insult"
+    },
+    "disgusting": {
+      "s": 57,
+      "c": "insult"
+    },
+    "annoying": {
+      "s": 51,
+      "c": "dismissive"
+    },
+    "freak": {
+      "s": 59,
+      "c": "insult"
+    },
+    "jerk": {
+      "s": 53,
+      "c": "insult"
+    },
+    "nasty": {
+      "s": 55,
+      "c": "aggressive"
+    },
+    "rude": {
+      "s": 52,
+      "c": "aggressive"
+    }
+  }
+}

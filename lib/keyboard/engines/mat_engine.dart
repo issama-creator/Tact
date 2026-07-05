@@ -1,24 +1,37 @@
-// lib/keyboard/engines/mat_engine.dart
-//
-// MatEngine — implements SignalProvider.
-//
-// Emits SignalKind.mat when the normalized word is a member of the
-// language-specific profanity lexicon (RU / EN / ...).
-//
-// Same shape as ToxicEngine, different lexicon. Kept as a separate class so
-// the two vocabularies and their thresholds can evolve independently.
-//
-// Contents (planned):
-//   • class MatEngine implements SignalProvider {
-//       MatEngine(this._lexicon, this._normalizer);
-//       final Set<String> _lexicon;
-//       final Normalizer _normalizer;
-//       @override List<RuleSignal> analyze(TextContext ctx);
-//     }
-//
-// Depends on: engines/signal_provider.dart, engines/normalizer.dart,
-//             dictionaries/lexicon_loader.dart.
-// Must NOT: import Flutter or plugins.
-//
-// TODO: implement.
+/// Profanity detection — local HashSet membership.
 library;
+
+import '../input/word_length_policy.dart';
+import '../input/text_context.dart';
+import '../rules/rule_signal.dart';
+import 'normalizer.dart';
+import 'signal_provider.dart';
+import 'text_skip.dart';
+
+final class MatEngine implements SignalProvider {
+  MatEngine(this._lexicon, this._normalizer);
+
+  final Set<String> _lexicon;
+  final Normalizer _normalizer;
+
+  @override
+  List<RuleSignal> analyze(TextContext ctx) {
+    final word = ctx.word;
+    if (!shouldRunLexiconAnalysis(word)) return const [];
+    if (TextSkip.shouldSkip(word)) return const [];
+
+    final normalized = _normalizer.normalizeForLexicon(word);
+    if (normalized.length < 3) return const [];
+    if (!_lexicon.contains(normalized)) return const [];
+
+    return [
+      RuleSignal(
+        kind: SignalKind.mat,
+        severity: 90,
+        confidence: 0.95,
+        range: ctx.range,
+        payload: word,
+      ),
+    ];
+  }
+}

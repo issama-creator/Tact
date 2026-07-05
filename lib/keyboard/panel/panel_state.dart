@@ -1,33 +1,135 @@
-// lib/keyboard/panel/panel_state.dart
-//
-// PanelState — the live state of the suggestion panel.
-//
-// The panel is the heart of TACT's UX. It is a domain distinct from
-// KeyboardState: the keyboard can be in `Typing` while the panel is
-// `Showing[SpellError, NextWord, NextWord]`.
-//
-// This module owns:
-//   • PanelSlot        — one entry on the panel.
-//   • PanelDecision    — the RulesEngine's output for the current context.
-//   • PanelState       — the currently visible panel + hysteresis / dismiss.
-//
-// Slot kinds (in priority order — see docs/RULES.md):
-//   1. spellError → chip "📝 Mistake found"      button [Fix]
-//   2. mat        → chip "⚠ Profanity detected"  button [Remove]
-//   3. toxic      → chip "⚠ Possible conflict"   button [Soften]
-//   4. improve    → chip "✨ Improve text"       button [Improve]
-//   5. nextWord   → normal word candidate         (tap inserts)
-//   +  undo       → chip "↶ Undo"                overlay when UndoAvailable
-//
-// Contents (planned):
-//   • sealed class PanelSlot with subclasses (spellError, mat, toxic, improve, nextWord, undo).
-//   • class PanelDecision  { List<PanelSlot> slots; DateTime producedAt; }
-//   • class PanelState     { List<PanelSlot> visible; bool dismissedByUser; }
-//   • PanelState reduce(PanelState prev, PanelDecision next, PanelSettings s)
-//         — applies hysteresis (anti-flicker) and slot budget.
-//
-// Depends on: rules/rule_signal.dart (for SignalKind types referenced in slots).
-// Must NOT: import Flutter or plugins. Pure data + a pure reducer.
-//
-// TODO: implement.
+/// Exactly one visible panel mode — no boolean explosion.
 library;
+
+import '../input/text_context.dart';
+import '../rules/rule_signal.dart';
+
+/// The single panel state shown in the suggestion bar.
+sealed class PanelState {
+  const PanelState();
+}
+
+/// No actionable panel — bar may stay empty or show passive hints.
+final class PanelIdle extends PanelState {
+  const PanelIdle();
+}
+
+final class PanelUndo extends PanelState {
+  const PanelUndo({required this.label});
+
+  final String label;
+}
+
+final class PanelSpell extends PanelState {
+  const PanelSpell({
+    required this.word,
+    required this.candidates,
+    required this.range,
+  });
+
+  final String word;
+  final List<String> candidates;
+  final EditRange range;
+}
+
+final class PanelMat extends PanelState {
+  const PanelMat({
+    required this.word,
+    required this.range,
+  });
+
+  final String word;
+  final EditRange range;
+}
+
+final class PanelToxic extends PanelState {
+  const PanelToxic({
+    required this.word,
+    required this.level,
+    required this.score,
+    required this.range,
+  });
+
+  final String word;
+  final ToxicLevel level;
+  final int score;
+  final EditRange range;
+}
+
+final class PanelImprove extends PanelState {
+  const PanelImprove({required this.messageLength});
+
+  final int messageLength;
+}
+
+final class PanelShortcut extends PanelState {
+  const PanelShortcut({
+    required this.trigger,
+    required this.expansions,
+    required this.range,
+  });
+
+  final String trigger;
+  final List<String> expansions;
+  final EditRange range;
+}
+
+final class PanelSuggestions extends PanelState {
+  const PanelSuggestions({required this.words});
+
+  final List<String> words;
+}
+
+/// Output of [RulesEngine] — wraps the winning [PanelState].
+final class PanelDecision {
+  const PanelDecision({
+    required this.state,
+    required this.producedAtMs,
+  });
+
+  final PanelState state;
+  final int producedAtMs;
+}
+
+/// Settings for panel reduction / hysteresis.
+final class PanelSettings {
+  const PanelSettings({
+    this.hysteresisMs = 200,
+  });
+
+  final int hysteresisMs;
+}
+
+/// Applies hysteresis so the panel does not flicker between modes.
+PanelState reducePanel({
+  required PanelState previous,
+  required PanelDecision next,
+  required PanelSettings settings,
+  required int nowMs,
+  int? lastChangeMs,
+}) {
+  if (previous is PanelIdle) return next.state;
+  if (lastChangeMs == null) return next.state;
+  if (nowMs - lastChangeMs < settings.hysteresisMs) return previous;
+  return next.state;
+}
+
+bool panelModesEqual(PanelState a, PanelState b) {
+  if (a.runtimeType != b.runtimeType) return false;
+  return switch ((a, b)) {
+    (PanelIdle(), PanelIdle()) => true,
+    (PanelUndo la, PanelUndo lb) => la.label == lb.label,
+    (PanelSpell sa, PanelSpell sb) =>
+      sa.word == sb.word && sa.candidates.length == sb.candidates.length,
+    (PanelMat ma, PanelMat mb) => ma.word == mb.word,
+    (PanelToxic ta, PanelToxic tb) =>
+      ta.word == tb.word && ta.level == tb.level,
+    (PanelImprove ia, PanelImprove ib) =>
+      ia.messageLength == ib.messageLength,
+    (PanelShortcut sa, PanelShortcut sb) =>
+      sa.trigger == sb.trigger && sa.expansions.length == sb.expansions.length,
+    (PanelSuggestions sa, PanelSuggestions sb) =>
+      sa.words.length == sb.words.length,
+    _ => false,
+  };
+}

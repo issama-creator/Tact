@@ -1,22 +1,68 @@
-// lib/keyboard/input/text_context.dart
-//
-// TextContext — the immutable snapshot of "what was just typed".
-//
-// Emitted by the InputPipeline at word boundaries and consumed by engines
-// and RulesEngine. Immutable so it is safe to share and cache.
-//
-// Contents (planned):
-//   • class TextContext {
-//       final String word;         // the completed word (already trimmed)
-//       final String before;       // limited text before the word (~64 chars)
-//       final String after;        // limited text after the cursor (~16 chars)
-//       final EditRange range;     // where in the target field
-//       final String locale;       // active language tag
-//     }
-//   • class EditRange { final int start; final int end; }
-//
-// Depends on: nothing.
-// Must NOT: import Flutter or plugins.
-//
-// TODO: implement.
+/// Immutable snapshot of a completed word and its surrounding field text.
 library;
+
+/// Half-open range `[start, end)` in the target text field.
+final class EditRange {
+  const EditRange(this.start, this.end);
+
+  final int start;
+  final int end;
+
+  int get length => end - start;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EditRange && start == other.start && end == other.end;
+
+  @override
+  int get hashCode => Object.hash(start, end);
+}
+
+/// Context emitted at word boundaries and consumed by engines.
+final class TextContext {
+  const TextContext({
+    required this.word,
+    required this.before,
+    required this.after,
+    required this.range,
+    required this.locale,
+    required this.fullMessage,
+  });
+
+  /// The completed word as typed (trimmed, not normalized).
+  final String word;
+
+  /// Up to ~64 characters before [word].
+  final String before;
+
+  /// Up to ~16 characters after the cursor.
+  final String after;
+
+  /// Where [word] sits in the field.
+  final EditRange range;
+
+  /// Active language tag, e.g. `en` or `ru`.
+  final String locale;
+
+  /// `before + word + after` — used by ImproveEngine.
+  final String fullMessage;
+
+  TextContext copyWith({
+    String? word,
+    String? before,
+    String? after,
+    EditRange? range,
+    String? locale,
+    String? fullMessage,
+  }) {
+    return TextContext(
+      word: word ?? this.word,
+      before: before ?? this.before,
+      after: after ?? this.after,
+      range: range ?? this.range,
+      locale: locale ?? this.locale,
+      fullMessage: fullMessage ?? this.fullMessage,
+    );
+  }
+}

@@ -1,9 +1,12 @@
 package com.example.tact.ime
 
+import android.os.Handler
+import android.os.Looper
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
+import android.view.View
 
 /**
  * Minimal, working MethodChannel bridge between the native IME and Dart.
@@ -28,10 +31,14 @@ import org.json.JSONObject
 class ImeBridgeImpl(
     engine: FlutterEngine,
     private val inputController: InputController,
+    private val haptics: KeyboardHaptics? = null,
+    private val hapticView: View? = null,
 ) : MethodChannel.MethodCallHandler {
 
     private val channel: MethodChannel =
         MethodChannel(engine.dartExecutor.binaryMessenger, BRIDGE_CHANNEL)
+
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     init {
         channel.setMethodCallHandler(this)
@@ -53,10 +60,15 @@ class ImeBridgeImpl(
 
     fun onFinishInputView() = invokeDart("onFinishInputView", null)
 
-    fun onWordCommitted(word: String, locale: String) {
+    fun onWordCommitted(info: WordCommitInfo, locale: String) {
         val payload = JSONObject().apply {
-            put("word", word)
+            put("word", info.word)
             put("locale", locale)
+            put("deleteBefore", info.deleteBefore)
+            put("deleteAfter", info.deleteAfter)
+            put("boundary", info.boundary)
+            put("before", info.before)
+            put("after", info.after)
         }.toString()
         invokeDart("onWordCommitted", payload)
     }
@@ -77,10 +89,12 @@ class ImeBridgeImpl(
         }.toString()
 
     private fun invokeDart(method: String, arguments: Any?) {
-        try {
-            channel.invokeMethod(method, arguments)
-        } catch (t: Throwable) {
-            android.util.Log.w("ImeBridge", "invokeDart $method failed", t)
+        mainHandler.post {
+            try {
+                channel.invokeMethod(method, arguments)
+            } catch (t: Throwable) {
+                android.util.Log.w("ImeBridge", "invokeDart $method failed", t)
+            }
         }
     }
 
@@ -101,12 +115,51 @@ class ImeBridgeImpl(
                 "deleteSurrounding" -> {
                     val before = call.argument<Int>("before") ?: 0
                     val after = call.argument<Int>("after") ?: 0
-                    // The controller only exposes 1-char backward delete for the
-                    // MVP. When richer edits are needed, extend InputController.
-                    repeat(before) { inputController.deleteBackward() }
-                    if (after > 0) {
-                        // Best-effort forward delete via keycode.
-                        // Kept minimal: current MVP does not use it.
+                    inputController.deleteSurroundingText(before, after)
+                    result.success(null)
+                }
+                "replaceSurrounding" -> {
+                    val before = call.argument<Int>("deleteBefore") ?: 0
+                    val after = call.argument<Int>("deleteAfter") ?: 0
+                    val replacement = call.argument<String>("replacement") ?: ""
+                    val outcome = inputController.replaceSurrounding(before, after, replacement)
+                    if (outcome == null) {
+                        result.success(null)
+                    } else {
+                        result.success(
+                            JSONObject().apply {
+                                put("selectionStart", outcome.selectionStart)
+                                put("selectionEnd", outcome.selectionEnd)
+                                put("replacedText", outcome.replacedText)
+                                put("insertedLength", outcome.insertedLength)
+                                put("previousSelectionStart", outcome.previousSelectionStart)
+                                put("previousSelectionEnd", outcome.previousSelectionEnd)
+                            }.toString(),
+                        )
+                    }
+                }
+                "getSurroundingText" -> {
+                    val before = call.argument<Int>("before") ?: 256
+                    val after = call.argument<Int>("after") ?: 64
+                    val snap = inputController.getSurroundingText(before, after)
+                    if (snap == null) {
+                        result.success(null)
+                    } else {
+                        result.success(
+                            JSONObject().apply {
+                                put("before", snap.before)
+                                put("after", snap.after)
+                                put("selectionStart", snap.selectionStart)
+                                put("selectionEnd", snap.selectionEnd)
+                                put("isPassword", snap.isPassword)
+                            }.toString(),
+                        )
+                    }
+                }
+                "actionHaptic" -> {
+                    val view = hapticView
+                    if (view != null && haptics != null) {
+                        haptics.actionSuccess(view)
                     }
                     result.success(null)
                 }

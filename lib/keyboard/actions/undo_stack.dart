@@ -1,28 +1,31 @@
-// lib/keyboard/actions/undo_stack.dart
-//
-// UndoStack — bounded stack of reversible text edits.
-//
-// Every mutation applied by TACT — typed characters, shortcut expansion,
-// spell fix, AI improvement, tone softening, mat removal — pushes an inverse
-// TextEdit onto this stack. The `Undo` action pops and re-applies the
-// inverse via ImeBridge.replaceRange.
-//
-// Coalescing:
-//   Consecutive character insertions within a short window (~500 ms) are
-//   coalesced into a single undo unit — so pressing Undo once reverts the
-//   whole word, not one letter.
-//
-// Contents (planned):
-//   • class UndoStack {
-//       UndoStack({int capacity = 64});
-//       void push(TextEdit inverse);
-//       TextEdit? pop();
-//       bool get isEmpty;
-//       int get length;
-//     }
-//
-// Depends on: actions/text_actions.dart (for TextEdit).
-// Must NOT: import Flutter or plugins.
-//
-// TODO: implement.
+/// Bounded stack of reversible text edits with cursor restoration.
 library;
+
+import 'text_replacement.dart';
+
+final class UndoStack {
+  UndoStack({this.capacity = 32});
+
+  final int capacity;
+  final List<TextEdit> _stack = [];
+
+  bool get isEmpty => _stack.isEmpty;
+  bool get isNotEmpty => _stack.isNotEmpty;
+  int get length => _stack.length;
+
+  void push(TextEdit inverse) {
+    if (_stack.length >= capacity) {
+      _stack.removeAt(0);
+    }
+    _stack.add(inverse);
+  }
+
+  TextEdit? peek() => _stack.isEmpty ? null : _stack.last;
+
+  TextEdit? pop() {
+    if (_stack.isEmpty) return null;
+    return _stack.removeLast();
+  }
+
+  void clear() => _stack.clear();
+}

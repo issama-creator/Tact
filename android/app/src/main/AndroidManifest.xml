@@ -31,6 +31,11 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- TextureView in the IME is unstable with Impeller enabled. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+
         <!-- TACT — Input Method Service.
              The keyboard itself. The launcher activity above is the
              companion (onboarding + settings). Enabling TACT as a system

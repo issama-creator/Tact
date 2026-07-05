@@ -8,7 +8,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import io.flutter.embedding.android.FlutterSurfaceView
+import io.flutter.embedding.android.FlutterTextureView
 import io.flutter.embedding.android.FlutterView
 import io.flutter.embedding.engine.FlutterEngine
 
@@ -42,6 +42,8 @@ class KeyboardRootView(
     private var bridge: ImeBridgeImpl? = null
     private var engineAttached = false
 
+    private var suggestionBarContainer: FrameLayout? = null
+
     init {
         orientation = VERTICAL
         setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
@@ -54,9 +56,18 @@ class KeyboardRootView(
         val barHeight = metrics.dpInt(Theme.suggestionBarHeightDp(cfg))
 
         // ── Suggestion bar ────────────────────────────────────────────
-        val suggestionBar = createSuggestionBar(context)
-        addView(
+        val barContainer = FrameLayout(context)
+        suggestionBarContainer = barContainer
+        val suggestionBar = createSuggestionBar(context, barContainer)
+        barContainer.addView(
             suggestionBar,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        addView(
+            barContainer,
             LayoutParams(LayoutParams.MATCH_PARENT, barHeight),
         )
 
@@ -89,39 +100,58 @@ class KeyboardRootView(
         keyContainer.addView(keyGridView, fill)
         keyContainer.addView(previewOverlay, fill)
 
-        keyGridView.onWordCommitted = { word ->
-            bridge?.onWordCommitted(word, keyboardState.language.tag)
+        keyGridView.onWordCommitted = { info ->
+            bridge?.onWordCommitted(info, keyboardState.language.tag)
         }
 
         Log.i(TAG, "KeyboardRootView built (flutter=${flutterView != null})")
     }
 
-    private fun createSuggestionBar(context: Context): View {
+    private fun createSuggestionBar(context: Context, container: FrameLayout): View {
         val engine = FlutterEngineHost.tryPrewarm(context)
         if (engine == null) {
-            return View(context).apply {
-                setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
-            }
+            return nativeSuggestionBar(context)
         }
 
         return try {
-            // SurfaceView is more stable than TextureView inside an IME window
-            // (TextureView + Impeller has caused Dart NoSuchMethodError on attach).
-            val view = FlutterView(context, FlutterSurfaceView(context))
+            val view = FlutterView(context, FlutterTextureView(context))
             view.setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
             flutterView = view
 
-            val impl = ImeBridgeImpl(engine, inputController)
+            val impl = ImeBridgeImpl(engine, inputController, haptics, this@KeyboardRootView)
             bridge = impl
             onBridgeReady(impl)
 
             view
         } catch (t: Throwable) {
             Log.e(TAG, "FlutterView creation failed — using native fallback", t)
-            View(context).apply {
-                setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
-            }
+            nativeSuggestionBar(context)
         }
+    }
+
+    private fun nativeSuggestionBar(context: Context): View =
+        View(context).apply {
+            setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+        }
+
+    /** Replace a broken Flutter surface with a plain native bar. */
+    private fun fallbackSuggestionBarToNative() {
+        val container = suggestionBarContainer ?: return
+        if (container.childCount == 0 || container.getChildAt(0) !is FlutterView) return
+        try {
+            flutterView?.detachFromFlutterEngine()
+        } catch (_: Throwable) { }
+        engineAttached = false
+        flutterView = null
+        container.removeAllViews()
+        container.addView(
+            nativeSuggestionBar(context),
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        Log.w(TAG, "Suggestion bar fell back to native view")
     }
 
     override fun onAttachedToWindow() {
@@ -136,6 +166,7 @@ class KeyboardRootView(
                 Log.i(TAG, "FlutterView attached to engine")
             } catch (t: Throwable) {
                 Log.e(TAG, "FlutterView attach failed", t)
+                fallbackSuggestionBarToNative()
             }
         }
     }

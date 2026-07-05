@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "locales": ["en", "ru"],
+  "files": {
+    "en": {
+      "spell": "en_spell.json",
+      "typo": "en_typo.json",
+      "mat": "../lexicons/en_mat.json",
+      "toxic": "../lexicons/en_toxic.json"
+    },
+    "ru": {
+      "spell": "ru_spell.json",
+      "typo": "ru_typo.json",
+      "mat": "../lexicons/ru_mat.json",
+      "toxic": "../lexicons/ru_toxic.json"
+    }
+  },
+  "shortcuts": "../shortcuts/builtin.json"
+}

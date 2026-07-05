@@ -1,18 +1,31 @@
-// lib/core/kv_store.dart
-//
-// Thin key-value store wrapper.
-//
-// Purpose:
-//   Repositories (settings, statistics, personal shortcuts index) depend on
-//   this small interface instead of `shared_preferences` directly. Keeps
-//   swapping the backend a one-file change.
-//
-// Contents (planned):
-//   • abstract class KvStore { getString/setString/getInt/setInt/getBool/setBool/remove/keys }
-//   • class SharedPrefsKvStore implements KvStore  (default impl)
-//
-// Depends on: shared_preferences (added when this is implemented).
-// Must NOT: leak the underlying package outside this file.
-//
-// TODO: implement.
+/// Thin key-value store — hides shared_preferences behind a small API.
 library;
+
+import 'package:shared_preferences/shared_preferences.dart';
+
+abstract interface class KvStore {
+  Future<String?> getString(String key);
+  Future<void> setString(String key, String value);
+  Future<bool> remove(String key);
+}
+
+final class SharedPrefsKvStore implements KvStore {
+  SharedPrefsKvStore(this._prefs);
+
+  final SharedPreferences _prefs;
+
+  static Future<SharedPrefsKvStore> open() async {
+    return SharedPrefsKvStore(await SharedPreferences.getInstance());
+  }
+
+  @override
+  Future<String?> getString(String key) async => _prefs.getString(key);
+
+  @override
+  Future<void> setString(String key, String value) async {
+    await _prefs.setString(key, value);
+  }
+
+  @override
+  Future<bool> remove(String key) async => _prefs.remove(key);
+}

@@ -1,25 +1,73 @@
-// lib/keyboard/engines/spell_engine.dart
-//
-// SpellEngine — implements SignalProvider.
-//
-// Emits SignalKind.spellError when:
-//   • ctx.word.length >= 3, AND
-//   • ctx.word is not in the active-language Dictionary, AND
-//   • ctx.word is not in the user's personal dictionary, AND
-//   • a bounded Damerau-Levenshtein search over the Dictionary yields
-//     at least one candidate within edit distance 2.
-//
-// Contents (planned):
-//   • class SpellEngine implements SignalProvider {
-//       SpellEngine(this._dict, this._userDict);
-//       final Dictionary _dict;
-//       final Dictionary _userDict;
-//       @override List<RuleSignal> analyze(TextContext ctx);
-//     }
-//   • Candidate list is attached to the RuleSignal.payload as List<String>.
-//
-// Depends on: engines/signal_provider.dart, dictionaries/dictionary.dart.
-// Must NOT: import Flutter or plugins.
-//
-// TODO: implement.
+/// Local spell detection for completed words.
 library;
+
+import '../dictionaries/dictionary.dart';
+import '../input/word_length_policy.dart';
+import '../dictionaries/typo_dictionary.dart';
+import '../input/text_context.dart';
+import '../rules/rule_signal.dart';
+import 'normalizer.dart';
+import 'signal_provider.dart';
+import 'text_skip.dart';
+
+final class SpellEngine implements SignalProvider {
+  SpellEngine(
+    this._dictionary, {
+    TypoDictionary? typo,
+    this.personalWords = const {},
+    this.skipTokens = const {},
+    Normalizer? normalizer,
+  })  : _typo = typo ?? TypoDictionary.empty(),
+        _normalizer = normalizer ?? Normalizer();
+
+  final Dictionary _dictionary;
+  final TypoDictionary _typo;
+  final Set<String> personalWords;
+  final Set<String> skipTokens;
+  final Normalizer _normalizer;
+
+  @override
+  List<RuleSignal> analyze(TextContext ctx) {
+    final word = ctx.word;
+    if (!shouldRunLexiconAnalysis(word)) return const [];
+    if (TextSkip.shouldSkip(word)) return const [];
+
+    final lower = _lowerWord(word);
+    final lexiconKey = _normalizer.normalizeForLexicon(word);
+    if (lexiconKey.isNotEmpty && skipTokens.contains(lexiconKey)) {
+      return const [];
+    }
+    if (_dictionary.contains(lower) || personalWords.contains(lower)) {
+      return const [];
+    }
+
+    final typoFix = _typo.lookup(lower);
+    final candidates = typoFix != null
+        ? [typoFix]
+        : _dictionary.candidates(lower);
+    if (candidates.isEmpty) return const [];
+
+    return [
+      RuleSignal(
+        kind: SignalKind.spellError,
+        severity: 80,
+        confidence: 0.85,
+        range: ctx.range,
+        payload: SpellPayload(word: word, candidates: candidates),
+      ),
+    ];
+  }
+
+  static String _lowerWord(String word) {
+    final buf = StringBuffer();
+    for (var i = 0; i < word.length; i++) {
+      final cu = word.codeUnitAt(i);
+      if (cu >= 0x41 && cu <= 0x5A) {
+        buf.writeCharCode(cu + 32);
+      } else {
+        buf.writeCharCode(cu);
+      }
+    }
+    return buf.toString();
+  }
+}

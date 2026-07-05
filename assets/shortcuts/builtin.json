@@ -1,6 +1,128 @@
 {
-  "$schema": "See lib/keyboard/engines/shortcut_engine.dart for the loader.",
-  "locale_default": "en",
+  "v": 1,
+  "locale_default": "ru",
   "shortcuts": [
+    {
+      "trigger": "др",
+      "expansions": [
+        "Добрый день",
+        "Доброе утро",
+        "Добрый вечер"
+      ]
+    },
+    {
+      "trigger": "пж",
+      "expansions": [
+        "пожалуйста"
+      ]
+    },
+    {
+      "trigger": "спс",
+      "expansions": [
+        "спасибо"
+      ]
+    },
+    {
+      "trigger": "СА",
+      "expansions": [
+        "Салам алейкум"
+      ]
+    },
+    {
+      "trigger": "кст",
+      "expansions": [
+        "кстати"
+      ]
+    },
+    {
+      "trigger": "лол",
+      "expansions": [
+        "лол"
+      ]
+    },
+    {
+      "trigger": "омг",
+      "expansions": [
+        "о боже"
+      ]
+    },
+    {
+      "trigger": "т.к.",
+      "expansions": [
+        "так как"
+      ]
+    },
+    {
+      "trigger": "т.д.",
+      "expansions": [
+        "так далее"
+      ]
+    },
+    {
+      "trigger": "т.п.",
+      "expansions": [
+        "тому подобное"
+      ]
+    },
+    {
+      "trigger": "thx",
+      "expansions": [
+        "thanks"
+      ]
+    },
+    {
+      "trigger": "pls",
+      "expansions": [
+        "please"
+      ]
+    },
+    {
+      "trigger": "btw",
+      "expansions": [
+        "by the way"
+      ]
+    },
+    {
+      "trigger": "imo",
+      "expansions": [
+        "in my opinion"
+      ]
+    },
+    {
+      "trigger": "omg",
+      "expansions": [
+        "oh my god"
+      ]
+    },
+    {
+      "trigger": "lol",
+      "expansions": [
+        "lol"
+      ]
+    },
+    {
+      "trigger": "brb",
+      "expansions": [
+        "be right back"
+      ]
+    },
+    {
+      "trigger": "idk",
+      "expansions": [
+        "I do not know"
+      ]
+    },
+    {
+      "trigger": "tbh",
+      "expansions": [
+        "to be honest"
+      ]
+    },
+    {
+      "trigger": "np",
+      "expansions": [
+        "no problem"
+      ]
+    }
   ]
 }

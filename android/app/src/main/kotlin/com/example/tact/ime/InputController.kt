@@ -24,6 +24,10 @@ import android.view.inputmethod.InputConnection
  */
 class InputController(private val ime: InputMethodService) {
 
+    /** Tracks characters committed through this IME when [InputConnection]
+     *  does not expose surrounding text (Chrome, Google Search, etc.). */
+    private val commitBuffer = StringBuilder(512)
+
     /** Cached at [restart] and consulted for enter-key behavior. */
     var editorInfo: EditorInfo? = null
         private set
@@ -40,6 +44,7 @@ class InputController(private val ime: InputMethodService) {
     // ── Lifecycle ─────────────────────────────────────────────────────
 
     fun restart(info: EditorInfo?) {
+        commitBuffer.setLength(0)
         editorInfo = info
         isPasswordField = info?.let {
             val cls = it.inputType and android.text.InputType.TYPE_MASK_CLASS
@@ -61,19 +66,35 @@ class InputController(private val ime: InputMethodService) {
     }
 
     fun finish() {
+        commitBuffer.setLength(0)
         editorInfo = null
     }
 
     // ── Text mutations ────────────────────────────────────────────────
 
-    fun commitChar(char: CharSequence) {
-        val ic = ime.currentInputConnection ?: return
-        ic.commitText(char, 1)
-    }
+    fun commitChar(char: CharSequence) = commitText(char)
 
     fun commitText(text: CharSequence) {
         val ic = ime.currentInputConnection ?: return
         ic.commitText(text, 1)
+        trackCommitted(text)
+    }
+
+    private fun trackCommitted(text: CharSequence) {
+        for (i in 0 until text.length) {
+            commitBuffer.append(text[i])
+        }
+        if (commitBuffer.length > 512) {
+            commitBuffer.delete(0, commitBuffer.length - 384)
+        }
+    }
+
+    private fun trackDeleted(count: Int) {
+        var n = count
+        while (n > 0 && commitBuffer.isNotEmpty()) {
+            commitBuffer.deleteCharAt(commitBuffer.length - 1)
+            n--
+        }
     }
 
     fun deleteBackward() {
@@ -81,8 +102,10 @@ class InputController(private val ime: InputMethodService) {
         val selectedLength = getSelectionLength(ic)
         if (selectedLength > 0) {
             ic.commitText("", 1)
+            trackDeleted(selectedLength.coerceAtMost(commitBuffer.length))
         } else {
             ic.deleteSurroundingText(1, 0)
+            trackDeleted(1)
         }
     }
 
@@ -104,8 +127,10 @@ class InputController(private val ime: InputMethodService) {
         val toDelete = before.length - i
         if (toDelete > 0) {
             ic.deleteSurroundingText(toDelete, 0)
+            trackDeleted(toDelete.coerceAtMost(commitBuffer.length))
         } else {
             ic.deleteSurroundingText(1, 0)
+            trackDeleted(1)
         }
     }
 
@@ -114,8 +139,7 @@ class InputController(private val ime: InputMethodService) {
      * placement (the underlying editor may adjust).
      */
     fun commitSpace() {
-        val ic = ime.currentInputConnection ?: return
-        ic.commitText(" ", 1)
+        commitText(" ")
     }
 
     /**
@@ -170,7 +194,118 @@ class InputController(private val ime: InputMethodService) {
 
     fun setSelection(start: Int, end: Int) {
         val ic = ime.currentInputConnection ?: return
-        ic.setSelection(start, end)
+        ic.setSelection(start.coerceAtLeast(0), end.coerceAtLeast(0))
+    }
+
+    /**
+     * Atomically replaces text around the cursor. Returns metadata for undo,
+     * or null when the connection is gone or the edit is invalid.
+     */
+    fun replaceSurrounding(
+        deleteBefore: Int,
+        deleteAfter: Int,
+        replacement: CharSequence,
+    ): ReplaceOutcome? {
+        if (deleteBefore < 0 || deleteAfter < 0) return null
+        val ic = ime.currentInputConnection ?: return null
+
+        val extractedBefore = ic.getExtractedText(
+            android.view.inputmethod.ExtractedTextRequest(),
+            0,
+        )
+        val prevStart = extractedBefore?.selectionStart ?: 0
+        val prevEnd = extractedBefore?.selectionEnd ?: prevStart
+
+        val replacedText = buildString {
+            if (deleteBefore > 0) {
+                append(ic.getTextBeforeCursor(deleteBefore, 0) ?: return null)
+            }
+            if (deleteAfter > 0) {
+                append(ic.getTextAfterCursor(deleteAfter, 0) ?: return null)
+            }
+        }
+
+        ic.beginBatchEdit()
+        try {
+            ic.finishComposingText()
+            if (deleteBefore > 0 || deleteAfter > 0) {
+                ic.deleteSurroundingText(deleteBefore, deleteAfter)
+            }
+            ic.commitText(replacement, 1)
+        } finally {
+            ic.endBatchEdit()
+        }
+
+        val extracted = ic.getExtractedText(
+            android.view.inputmethod.ExtractedTextRequest(),
+            0,
+        )
+        val selStart = extracted?.selectionStart ?: -1
+        val selEnd = extracted?.selectionEnd ?: selStart
+        syncBufferReplace(deleteBefore, replacement)
+        return ReplaceOutcome(
+            ok = true,
+            selectionStart = selStart,
+            selectionEnd = selEnd,
+            replacedText = replacedText,
+            insertedLength = replacement.length,
+            previousSelectionStart = prevStart,
+            previousSelectionEnd = prevEnd,
+        )
+    }
+
+    /** Snapshot of text around the cursor for improve / undo planning. */
+    fun getSurroundingText(beforeChars: Int, afterChars: Int): SurroundingSnapshot? {
+        val ic = ime.currentInputConnection
+        val limitBefore = beforeChars.coerceAtLeast(0)
+        val limitAfter = afterChars.coerceAtLeast(0)
+
+        var before = ic?.getTextBeforeCursor(limitBefore, 0)?.toString() ?: ""
+        var after = ic?.getTextAfterCursor(limitAfter, 0)?.toString() ?: ""
+
+        if (before.isEmpty() && commitBuffer.isNotEmpty()) {
+            before = commitBuffer.toString().takeLast(limitBefore.coerceAtMost(commitBuffer.length))
+        }
+
+        if (before.isEmpty() && ic != null) {
+            val extracted = ic.getExtractedText(
+                android.view.inputmethod.ExtractedTextRequest(),
+                0,
+            )
+            val text = extracted?.text?.toString()
+            val sel = extracted?.selectionStart ?: -1
+            if (!text.isNullOrEmpty() && sel > 0) {
+                before = text.substring(0, sel.coerceAtMost(text.length))
+                    .takeLast(limitBefore.coerceAtMost(sel))
+            }
+        }
+
+        val extracted = ic?.getExtractedText(
+            android.view.inputmethod.ExtractedTextRequest(),
+            0,
+        )
+        val selStart = extracted?.selectionStart ?: before.length
+        val selEnd = extracted?.selectionEnd ?: selStart
+        return SurroundingSnapshot(
+            before = before,
+            after = after,
+            selectionStart = selStart,
+            selectionEnd = selEnd,
+            isPassword = isPasswordField,
+        )
+    }
+
+    fun deleteSurroundingText(before: Int, after: Int) {
+        if (before <= 0 && after <= 0) return
+        val ic = ime.currentInputConnection ?: return
+        ic.beginBatchEdit()
+        try {
+            ic.finishComposingText()
+            ic.deleteSurroundingText(before, after)
+            if (before > 0) trackDeleted(before)
+        } finally {
+            ic.endBatchEdit()
+        }
     }
 
     // ── Word-boundary helpers (for future engines) ────────────────────
@@ -183,21 +318,97 @@ class InputController(private val ime: InputMethodService) {
     fun lastCompletedWord(justCommitted: CharSequence): String? {
         val ch = justCommitted.firstOrNull() ?: return null
         if (!isWordBoundary(ch)) return null
-        val ic = ime.currentInputConnection ?: return null
-        // Grab enough characters to safely capture a whole word.
-        val before = ic.getTextBeforeCursor(96, 0)?.toString() ?: return null
-        // The just-committed boundary char is included at the end; skip it.
-        val end = before.length - 1
+        parseLastWordFromBuffer()?.word?.let { return it }
+        return parseLastWordFromConnection()
+    }
+
+    /**
+     * Word-boundary metadata for the suggestion-bar action pipeline.
+     * [deleteBefore] includes the just-committed boundary character(s).
+     */
+    fun lastCompletedWordInfo(justCommitted: CharSequence): WordCommitInfo? {
+        val ch = justCommitted.firstOrNull() ?: return null
+        if (!isWordBoundary(ch)) return null
+        val fromBuffer = parseLastWordFromBuffer()
+        val parsed = fromBuffer ?: parseLastWordFromConnectionParsed() ?: return null
+        val boundary = justCommitted.toString()
+        val beforeCtx = when {
+            fromBuffer != null && fromBuffer.start > 0 ->
+                commitBuffer.substring(0, fromBuffer.start)
+            fromBuffer == null -> {
+                val icBefore = ime.currentInputConnection
+                    ?.getTextBeforeCursor(256, 0)?.toString() ?: ""
+                if (parsed.start > 0 && parsed.start <= icBefore.length) {
+                    icBefore.substring(0, parsed.start)
+                } else {
+                    ""
+                }
+            }
+            else -> ""
+        }
+        return WordCommitInfo(
+            word = parsed.word,
+            deleteBefore = parsed.word.length + boundary.length,
+            deleteAfter = 0,
+            boundary = boundary,
+            before = beforeCtx,
+            after = "",
+        )
+    }
+
+    private data class ParsedWord(val word: String, val start: Int, val end: Int)
+
+    private fun parseLastWordFromBuffer(): ParsedWord? {
+        if (commitBuffer.isEmpty()) return null
+        var end = commitBuffer.length
+        while (end > 0 && isWordBoundary(commitBuffer[end - 1])) end--
         if (end <= 0) return null
         var start = end
+        while (start > 0 && !isWordBoundary(commitBuffer[start - 1])) start--
+        if (end - start < 2) return null
+        return ParsedWord(commitBuffer.substring(start, end), start, end)
+    }
+
+    private fun parseLastWordFromConnection(): String? =
+        parseLastWordFromConnectionParsed()?.word
+
+    private fun parseLastWordFromConnectionParsed(): ParsedWord? {
+        val ic = ime.currentInputConnection ?: return null
+        var before = ic.getTextBeforeCursor(96, 0)?.toString()
+        if (before.isNullOrEmpty()) {
+            val extracted = ic.getExtractedText(
+                android.view.inputmethod.ExtractedTextRequest(),
+                0,
+            )
+            val text = extracted?.text?.toString()
+            val sel = extracted?.selectionStart ?: -1
+            if (!text.isNullOrEmpty() && sel > 0) {
+                before = text.substring(0, sel.coerceAtMost(text.length))
+            }
+        }
+        if (before.isNullOrEmpty()) return null
+        var end = before.length - 1
+        while (end >= 0 && isWordBoundary(before[end])) end--
+        if (end < 0) return null
+        var start = end
         while (start > 0 && !isWordBoundary(before[start - 1])) start--
-        if (end - start < 3) return null
-        return before.substring(start, end)
+        if (end - start < 2) return null
+        return ParsedWord(before.substring(start, end + 1), start, end + 1)
+    }
+
+    private fun syncBufferReplace(deleteBefore: Int, replacement: CharSequence) {
+        val delete = deleteBefore.coerceIn(0, commitBuffer.length)
+        if (delete > 0) {
+            commitBuffer.delete(commitBuffer.length - delete, commitBuffer.length)
+        }
+        trackCommitted(replacement)
     }
 
     private fun isWordBoundary(ch: Char): Boolean =
         ch.isWhitespace() || ch == '.' || ch == ',' || ch == '!' || ch == '?' ||
-            ch == ';' || ch == ':' || ch == '\n' || ch == '\t'
+            ch == ';' || ch == ':' || ch == '\n' || ch == '\t' ||
+            ch == '…' || ch == '—' || ch == '-' || ch == ')' || ch == '(' ||
+            ch == '"' || ch == '\''
 
     // ── Utilities ─────────────────────────────────────────────────────
 
@@ -242,6 +453,36 @@ class InputController(private val ime: InputMethodService) {
         )
     }
 }
+
+/** Result of a batched surrounding-text replacement. */
+data class ReplaceOutcome(
+    val ok: Boolean,
+    val selectionStart: Int,
+    val selectionEnd: Int,
+    val replacedText: String,
+    val insertedLength: Int,
+    val previousSelectionStart: Int,
+    val previousSelectionEnd: Int,
+)
+
+/** Text around the cursor returned to Dart. */
+data class SurroundingSnapshot(
+    val before: String,
+    val after: String,
+    val selectionStart: Int,
+    val selectionEnd: Int,
+    val isPassword: Boolean,
+)
+
+/** Metadata for a completed word at the cursor. */
+data class WordCommitInfo(
+    val word: String,
+    val deleteBefore: Int,
+    val deleteAfter: Int,
+    val boundary: String,
+    val before: String = "",
+    val after: String = "",
+)
 
 /** Small indirection so tests can override the clock if needed later. */
 internal object SystemClockAdapter {

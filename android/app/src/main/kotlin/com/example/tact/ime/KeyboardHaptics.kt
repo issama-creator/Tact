@@ -83,6 +83,24 @@ class KeyboardHaptics(context: Context) {
     fun enterClickSound() {
         audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 0.35f)
     }
+
+    /** Subtle confirmation after a successful suggestion-bar action. */
+    fun actionSuccess(view: View) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            view.performHapticFeedback(
+                HapticFeedbackConstants.CONFIRM,
+                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
+            )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            view.performHapticFeedback(
+                HapticFeedbackConstants.KEYBOARD_TAP,
+                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+    }
 }
 
 /**
