@@ -55,6 +55,7 @@ class KeyGridView @JvmOverloads constructor(
     /** Emitted after a word boundary is committed. Wired to the bridge. */
     var onWordCommitted: ((WordCommitInfo) -> Unit)? = null
     var onPartialWord: ((WordCommitInfo?) -> Unit)? = null
+    var onTextEdited: (() -> Unit)? = null
 
     /** Opens the system keyboard chooser (long-press 🌐). */
     var onShowImePicker: (() -> Unit)? = null
@@ -744,6 +745,7 @@ class KeyGridView @JvmOverloads constructor(
                 } else {
                     inputController.deleteBackward()
                 }
+                onTextEdited?.invoke()
                 handler.postDelayed(this, Theme.BACKSPACE_REPEAT_INTERVAL_MS)
             }
         }
@@ -751,6 +753,7 @@ class KeyGridView @JvmOverloads constructor(
         handler.postDelayed(runnable, Theme.BACKSPACE_REPEAT_INTERVAL_MS)
         // First delete (the visible one at long-press moment).
         inputController.deleteBackward()
+        onTextEdited?.invoke()
     }
 
     private fun isPointerActive(ps: PointerState): Boolean {
@@ -786,6 +789,7 @@ class KeyGridView @JvmOverloads constructor(
                 haptics.deleteClickSound()
                 inputController.deleteBackward()
                 notifyMaybePartialWord()
+                onTextEdited?.invoke()
             }
             KeyAction.Enter -> {
                 haptics.enterClickSound()

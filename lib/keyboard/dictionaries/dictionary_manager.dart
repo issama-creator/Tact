@@ -26,6 +26,7 @@ final class DictionaryManager {
         _builtinShortcuts = Map<String, TextShortcut>.unmodifiable(builtinShortcuts);
 
   static DictionaryManager? _instance;
+  static Future<DictionaryManager>? _opening;
 
   /// Active manager — embedded fallback until [open] completes.
   static DictionaryManager get shared => _instance ??= _fromEmbedded();
@@ -37,9 +38,19 @@ final class DictionaryManager {
   Map<String, TextShortcut> get builtinShortcuts => _builtinShortcuts;
 
   /// Loads all dictionary assets once at keyboard startup.
-  static Future<DictionaryManager> open({bool force = false}) async {
-    if (_instance != null && !force) return _instance!;
+  static Future<DictionaryManager> open({bool force = false}) {
+    if (_instance != null && !force) return Future.value(_instance!);
+    if (!force && _opening != null) return _opening!;
 
+    final future = _openInternal(force: force);
+    _opening = future;
+    return future.whenComplete(() {
+      if (identical(_opening, future)) _opening = null;
+    });
+  }
+
+  static Future<DictionaryManager> _openInternal({required bool force}) async {
+    if (_instance != null && !force) return _instance!;
     final sw = Stopwatch()..start();
     try {
       final builtinJson =
@@ -226,5 +237,8 @@ final class DictionaryManager {
   }
 
   @visibleForTesting
-  static void resetForTests() => _instance = null;
+  static void resetForTests() {
+    _instance = null;
+    _opening = null;
+  }
 }

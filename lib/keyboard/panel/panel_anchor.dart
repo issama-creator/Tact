@@ -42,5 +42,31 @@ bool _containsWordToken(String text, String word) {
 }
 
 bool _isTokenBoundary(String char) {
-  return RegExp(r'[\s.,!?;:\-—()\[\]"«»…]').hasMatch(char);
+  if (char.isEmpty) return true;
+  final code = char.codeUnitAt(0);
+  switch (code) {
+    case 0x20: // space
+    case 0x09: // \t
+    case 0x0A: // \n
+    case 0x0D: // \r
+    case 0x2E: // .
+    case 0x2C: // ,
+    case 0x21: // !
+    case 0x3F: // ?
+    case 0x3B: // ;
+    case 0x3A: // :
+    case 0x2D: // -
+    case 0x2014: // —
+    case 0x28: // (
+    case 0x29: // )
+    case 0x5B: // [
+    case 0x5D: // ]
+    case 0x22: // "
+    case 0x00AB: // «
+    case 0x00BB: // »
+    case 0x2026: // …
+      return true;
+    default:
+      return false;
+  }
 }

@@ -57,12 +57,10 @@ class ImeBridgeImpl(
     fun onPartialWordCommitted(info: WordCommitInfo?, locale: String) {
         if (info == null) {
             invokeDart("onPartialWordClear", null)
-            invokeDart("onTextEdited", null)
             return
         }
         val payload = wordPayload(info, locale, partial = true)
         invokeDart("onPartialWord", payload)
-        invokeDart("onTextEdited", null)
     }
 
     fun onTextEdited() = invokeDart("onTextEdited", null)
@@ -109,9 +107,7 @@ class ImeBridgeImpl(
     private fun dispatchDart(method: String, arguments: Any?) {
         try {
             channel.invokeMethod(method, arguments)
-            if (method == "onWordCommitted" || method == "onPartialWord" ||
-                method == "onTextEdited" || method == "onSelectionChanged"
-            ) {
+            if (method == "onWordCommitted" || method == "onPartialWord" || method == "onTextEdited") {
                 onRequestRepaint?.invoke()
             }
         } catch (t: Throwable) {

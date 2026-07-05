@@ -117,6 +117,9 @@ class KeyboardRootView(
         keyGridView.onPartialWord = { info ->
             bridge?.onPartialWordCommitted(info, keyboardState.language.tag)
         }
+        keyGridView.onTextEdited = {
+            bridge?.onTextEdited()
+        }
 
         Log.i(TAG, "KeyboardRootView built (flutter=${flutterView != null})")
     }

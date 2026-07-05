@@ -90,11 +90,9 @@ class InputController(private val ime: InputMethodService) {
     }
 
     private fun trackDeleted(count: Int) {
-        var n = count
-        while (n > 0 && commitBuffer.isNotEmpty()) {
-            commitBuffer.deleteCharAt(commitBuffer.length - 1)
-            n--
-        }
+        if (count <= 0 || commitBuffer.isEmpty()) return
+        val keep = (commitBuffer.length - count).coerceAtLeast(0)
+        commitBuffer.setLength(keep)
     }
 
     fun deleteBackward() {
@@ -264,7 +262,8 @@ class InputController(private val ime: InputMethodService) {
         var after = ic?.getTextAfterCursor(limitAfter, 0)?.toString() ?: ""
 
         if (before.isEmpty() && commitBuffer.isNotEmpty()) {
-            before = commitBuffer.toString().takeLast(limitBefore.coerceAtMost(commitBuffer.length))
+            val start = (commitBuffer.length - limitBefore).coerceAtLeast(0)
+            before = commitBuffer.substring(start, commitBuffer.length)
         }
 
         if (before.isEmpty() && ic != null) {

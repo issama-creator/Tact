@@ -149,16 +149,18 @@ class ImeBridge {
   }
 
   Future<void> commitText(String text) async {
-    if (_fake != null) {
-      _fake!.insert(text);
+    final fake = _fake;
+    if (fake != null) {
+      fake.insert(text);
       return;
     }
     await _channel.invokeMethod<void>('commitText', {'text': text});
   }
 
   Future<void> deleteSurrounding(int before, int after) async {
-    if (_fake != null) {
-      _fake!.deleteSurrounding(before, after);
+    final fake = _fake;
+    if (fake != null) {
+      fake.deleteSurrounding(before, after);
       return;
     }
     await _channel.invokeMethod<void>('deleteSurrounding', {
@@ -172,8 +174,9 @@ class ImeBridge {
     required int deleteAfter,
     required String replacement,
   }) async {
-    if (_fake != null) {
-      return _fake!.replaceSurrounding(
+    final fake = _fake;
+    if (fake != null) {
+      return fake.replaceSurrounding(
         deleteBefore: deleteBefore,
         deleteAfter: deleteAfter,
         replacement: replacement,
@@ -191,7 +194,8 @@ class ImeBridge {
     int before = 512,
     int after = 128,
   }) async {
-    if (_fake != null) return _fake!.snapshot();
+    final fake = _fake;
+    if (fake != null) return fake.snapshot();
     final raw = await _channel.invokeMethod<Object?>('getSurroundingText', {
       'before': before,
       'after': after,
@@ -208,8 +212,9 @@ class ImeBridge {
   }
 
   Future<void> setSelection(int start, int end) async {
-    if (_fake != null) {
-      _fake!.setSelection(start, end);
+    final fake = _fake;
+    if (fake != null) {
+      fake.setSelection(start, end);
       return;
     }
     await _channel.invokeMethod<void>('setSelection', {
@@ -246,7 +251,6 @@ class ImeBridge {
         onFieldFinished?.call();
         return null;
       case 'onSelectionChanged':
-        if (!_textEdits.isClosed) _textEdits.add(null);
         return null;
       case 'onTextEdited':
         if (!_textEdits.isClosed) _textEdits.add(null);

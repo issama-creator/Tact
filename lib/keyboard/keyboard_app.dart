@@ -98,6 +98,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
 
   void _onTheme(Color color) {
     if (!mounted) return;
+    if (_backgroundColor.value == color.value) return;
     setState(() => _backgroundColor = color);
     unawaited(_bridge.requestRepaint());
   }

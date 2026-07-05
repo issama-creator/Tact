@@ -42,6 +42,7 @@ final class InputPipeline {
   StreamSubscription<WordEvent>? _partialSub;
   StreamSubscription<void>? _partialClearSub;
   StreamSubscription<void>? _textEditSub;
+  Timer? _anchorValidationDebounce;
   PanelState _panel = const PanelIdle();
   /// True when [PanelShortcut] was shown by live partial-word typing only.
   bool _panelFromPartialOnly = false;
@@ -55,9 +56,7 @@ final class InputPipeline {
     _partialSub ??= _bridge.onPartialWord.listen(_onPartialWord);
     _partialClearSub ??=
         _bridge.onPartialWordClear.listen((_) => _clearPartialPanel());
-    _textEditSub ??= _bridge.onTextEdited.listen((_) {
-      unawaited(_validatePanelAnchor());
-    });
+    _textEditSub ??= _bridge.onTextEdited.listen((_) => _scheduleAnchorValidation());
   }
 
   void stop() {
@@ -69,6 +68,8 @@ final class InputPipeline {
     _partialClearSub = null;
     _textEditSub?.cancel();
     _textEditSub = null;
+    _anchorValidationDebounce?.cancel();
+    _anchorValidationDebounce = null;
   }
 
   void _onWord(WordEvent event) {
@@ -161,6 +162,18 @@ final class InputPipeline {
     _panelFromPartialOnly = false;
     _panel = const PanelIdle();
     _onPanel?.call(_panel);
+  }
+
+  void _scheduleAnchorValidation() {
+    final panel = _panel;
+    if (panel is PanelUndo || panel is PanelIdle) return;
+    if (!panelTracksAnchoredWord(panel)) return;
+
+    _anchorValidationDebounce?.cancel();
+    _anchorValidationDebounce = Timer(
+      const Duration(milliseconds: 40),
+      () => unawaited(_validatePanelAnchor()),
+    );
   }
 
   Future<void> _enrichActionContext(WordEvent event, String word) async {

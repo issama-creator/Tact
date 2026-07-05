@@ -142,7 +142,7 @@ void main() {
 
     field.deleteSurrounding(4, 0);
     bridge.emitTextEdited();
-    await flush();
+    await Future<void>.delayed(const Duration(milliseconds: 60));
 
     expect(states.last, isA<PanelIdle>());
   });
