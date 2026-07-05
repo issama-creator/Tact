@@ -88,6 +88,24 @@ abstract final class TextReplacement {
     );
   }
 
+  /// Removes the committed word (and its boundary char, e.g. trailing space).
+  static Result<ReplacementPlan, ActionError> planWordDelete({
+    required ActionContext ctx,
+  }) {
+    if (ctx.deleteBefore <= 0) return const Result.err(ActionError.invalidRange);
+    final expected = '${ctx.word}${ctx.boundary}';
+    return Result.ok(
+      ReplacementPlan(
+        deleteBefore: ctx.deleteBefore,
+        deleteAfter: ctx.deleteAfter,
+        replacement: '',
+        expectedReplacedText: expected,
+        selectionStart: -1,
+        selectionEnd: -1,
+      ),
+    );
+  }
+
   static Result<ReplacementPlan, ActionError> planFullMessageReplace({
     required String before,
     required String after,

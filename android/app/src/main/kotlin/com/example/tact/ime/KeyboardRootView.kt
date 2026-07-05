@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import io.flutter.embedding.android.FlutterTextureView
 import io.flutter.embedding.android.FlutterView
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.renderer.FlutterUiDisplayListener
 
 /**
  * Root IME view: suggestion bar (Flutter or native fallback) + key grid.
@@ -39,10 +40,21 @@ class KeyboardRootView(
     val previewOverlay: KeyPreviewOverlay
 
     private var flutterView: FlutterView? = null
+    private var flutterEngine: FlutterEngine? = null
     private var bridge: ImeBridgeImpl? = null
     private var engineAttached = false
 
     private var suggestionBarContainer: FrameLayout? = null
+
+    private val flutterUiListener = object : FlutterUiDisplayListener {
+        override fun onFlutterUiDisplayed() {
+            Log.i(TAG, "Flutter suggestion bar displayed first frame")
+        }
+
+        override fun onFlutterUiNoLongerDisplayed() {
+            Log.w(TAG, "Flutter suggestion bar UI hidden")
+        }
+    }
 
     init {
         orientation = VERTICAL
@@ -51,14 +63,14 @@ class KeyboardRootView(
         clipToPadding = false
 
         val cfg = context.resources.configuration
-        // Lift the whole keyboard a touch off the bottom edge.
         setPadding(0, 0, 0, metrics.dpInt(Theme.keyboardBottomPaddingDp(cfg)))
         val barHeight = metrics.dpInt(Theme.suggestionBarHeightDp(cfg))
 
-        // ── Suggestion bar ────────────────────────────────────────────
-        val barContainer = FrameLayout(context)
+        val barContainer = FrameLayout(context).apply {
+            setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+        }
         suggestionBarContainer = barContainer
-        val suggestionBar = createSuggestionBar(context, barContainer)
+        val suggestionBar = createSuggestionBar(context)
         barContainer.addView(
             suggestionBar,
             FrameLayout.LayoutParams(
@@ -71,7 +83,6 @@ class KeyboardRootView(
             LayoutParams(LayoutParams.MATCH_PARENT, barHeight),
         )
 
-        // ── Key area ──────────────────────────────────────────────────
         val keyContainer = FrameLayout(context).apply {
             clipChildren = false
             clipToPadding = false
@@ -103,25 +114,47 @@ class KeyboardRootView(
         keyGridView.onWordCommitted = { info ->
             bridge?.onWordCommitted(info, keyboardState.language.tag)
         }
+        keyGridView.onPartialWord = { info ->
+            bridge?.onPartialWordCommitted(info, keyboardState.language.tag)
+        }
 
         Log.i(TAG, "KeyboardRootView built (flutter=${flutterView != null})")
     }
 
-    private fun createSuggestionBar(context: Context, container: FrameLayout): View {
+    /**
+     * TextureView composites inside the IME window hierarchy.
+     * SurfaceView often stays an empty black hole in InputMethodService.
+     */
+    private fun createSuggestionBar(context: Context): View {
         val engine = FlutterEngineHost.tryPrewarm(context)
         if (engine == null) {
             return nativeSuggestionBar(context)
         }
 
         return try {
-            val view = FlutterView(context, FlutterTextureView(context))
-            view.setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+            val textureView = FlutterTextureView(context).apply {
+                isOpaque = true
+            }
+            val view = FlutterView(context, textureView).apply {
+                setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+                isFocusable = true
+                isFocusableInTouchMode = true
+            }
             flutterView = view
+            flutterEngine = engine
 
             val impl = ImeBridgeImpl(engine, inputController, haptics, this@KeyboardRootView)
+            impl.onRequestRepaint = { bumpFlutterRender() }
             bridge = impl
             onBridgeReady(impl)
 
+            view.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                if (engineAttached && v.width > 0 && v.height > 0) {
+                    bumpFlutterRender()
+                }
+            }
+
+            view.post { attachFlutterEngineIfNeeded() }
             view
         } catch (t: Throwable) {
             Log.e(TAG, "FlutterView creation failed — using native fallback", t)
@@ -129,16 +162,49 @@ class KeyboardRootView(
         }
     }
 
+    private fun attachFlutterEngineIfNeeded() {
+        val view = flutterView ?: return
+        val engine = flutterEngine ?: return
+        if (engineAttached) {
+            bumpFlutterRender()
+            return
+        }
+        try {
+            engine.lifecycleChannel.appIsResumed()
+            view.attachToFlutterEngine(engine)
+            engine.renderer.addIsDisplayingFlutterUiListener(flutterUiListener)
+            engineAttached = true
+            bridge?.sendTheme()
+            bumpFlutterRender()
+            Log.i(
+                TAG,
+                "FlutterView attached (texture) size=${view.width}x${view.height}",
+            )
+        } catch (t: Throwable) {
+            Log.e(TAG, "FlutterView attach failed", t)
+            fallbackSuggestionBarToNative()
+        }
+    }
+
+    /** Force a raster pass — Dart setState alone is not enough in IME windows. */
+    fun bumpFlutterRender() {
+        val view = flutterView ?: return
+        val engine = flutterEngine ?: return
+        if (!engineAttached) return
+        engine.lifecycleChannel.appIsResumed()
+        view.invalidate()
+    }
+
     private fun nativeSuggestionBar(context: Context): View =
         View(context).apply {
             setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
         }
 
-    /** Replace a broken Flutter surface with a plain native bar. */
     private fun fallbackSuggestionBarToNative() {
         val container = suggestionBarContainer ?: return
         if (container.childCount == 0 || container.getChildAt(0) !is FlutterView) return
         try {
+            flutterEngine?.renderer?.removeIsDisplayingFlutterUiListener(flutterUiListener)
             flutterView?.detachFromFlutterEngine()
         } catch (_: Throwable) { }
         engineAttached = false
@@ -156,25 +222,14 @@ class KeyboardRootView(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        val view = flutterView ?: return
-        val engine = FlutterEngineHost.getOrNull() ?: return
-        if (!engineAttached) {
-            try {
-                view.attachToFlutterEngine(engine)
-                engineAttached = true
-                bridge?.sendTheme()
-                Log.i(TAG, "FlutterView attached to engine")
-            } catch (t: Throwable) {
-                Log.e(TAG, "FlutterView attach failed", t)
-                fallbackSuggestionBarToNative()
-            }
-        }
+        flutterView?.post { attachFlutterEngineIfNeeded() }
     }
 
     override fun onDetachedFromWindow() {
         flutterView?.let { view ->
             if (engineAttached) {
                 try {
+                    flutterEngine?.renderer?.removeIsDisplayingFlutterUiListener(flutterUiListener)
                     view.detachFromFlutterEngine()
                 } catch (t: Throwable) {
                     Log.e(TAG, "FlutterView detach failed", t)
@@ -231,5 +286,6 @@ class KeyboardRootView(
 
         requestLayout()
         keyGridView.refreshFromState()
+        flutterView?.post { bumpFlutterRender() }
     }
 }

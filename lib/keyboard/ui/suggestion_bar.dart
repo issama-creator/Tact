@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../actions/local_text_transform.dart';
 import '../panel/panel_state.dart';
 import '../rules/rule_signal.dart';
 import 'panel_actions.dart';
@@ -36,16 +37,17 @@ class SuggestionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (panel is PanelIdle) {
-      return ColoredBox(color: backgroundColor);
-    }
-
     return ColoredBox(
+      key: const Key('suggestion_bar_root'),
       color: backgroundColor,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-        child: _PanelBody(panel: panel, onAction: onAction),
-      ),
+      child: panel is PanelIdle
+          ? const SizedBox.expand()
+          : SizedBox.expand(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(6, 2, 6, 2),
+                child: _PanelBody(panel: panel, onAction: onAction),
+              ),
+            ),
     );
   }
 }
@@ -67,11 +69,8 @@ class _PanelBody extends StatelessWidget {
           actionLabel: 'Отменить',
           onAction: () => onAction(const PanelActionUndo()),
         ),
-      PanelSpell p => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _StatusBar(
+      PanelSpell p => p.candidates.length <= 1
+          ? _StatusBar(
               accent: _TactPanelColors.spell,
               icon: Icons.spellcheck,
               title: 'Найдены ошибки',
@@ -83,31 +82,18 @@ class _PanelBody extends StatelessWidget {
                         candidate: p.candidates.first,
                       ))
                   : null,
+            )
+          : _SpellChipRow(
+              word: p.word,
+              candidates: p.candidates.take(3).toList(),
+              onPick: (c) => onAction(PanelActionFixSpell(panel: p, candidate: c)),
             ),
-            if (p.candidates.length > 1) ...[
-              const SizedBox(height: 6),
-              _ChipRow(
-                chips: p.candidates
-                    .take(3)
-                    .map(
-                      (c) => _ChipData(
-                        c,
-                        onTap: () => onAction(
-                          PanelActionFixSpell(panel: p, candidate: c),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-          ],
-        ),
       PanelMat p => _StatusBar(
           accent: _TactPanelColors.mat,
           icon: Icons.block,
           title: 'Обнаружен мат',
-          subtitle: p.word,
-          actionLabel: 'Смягчить',
+          subtitle: LocalTextTransform.censorForDisplay(p.word),
+          actionLabel: 'Убрать',
           onAction: () => onAction(PanelActionRemoveMat(panel: p)),
         ),
       PanelToxic p => _StatusBar(
@@ -116,7 +102,7 @@ class _PanelBody extends StatelessWidget {
           title: p.level == ToxicLevel.conflict
               ? 'Возможен конфликт'
               : 'Резкий тон',
-          subtitle: p.word,
+          subtitle: LocalTextTransform.censorForDisplay(p.word),
           actionLabel: 'Смягчить',
           onAction: () => onAction(PanelActionSoftenToxic(panel: p)),
         ),
@@ -153,6 +139,79 @@ class _PanelBody extends StatelessWidget {
   }
 }
 
+/// Single-row spell panel: label + candidate chips (fits 52dp IME bar).
+class _SpellChipRow extends StatelessWidget {
+  const _SpellChipRow({
+    required this.word,
+    required this.candidates,
+    required this.onPick,
+  });
+
+  final String word;
+  final List<String> candidates;
+  final void Function(String candidate) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 36),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: _TactPanelColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _TactPanelColors.spell.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: _TactPanelColors.spell.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(
+              Icons.spellcheck,
+              color: _TactPanelColors.spell,
+              size: 14,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            word,
+            style: const TextStyle(
+              color: _TactPanelColors.textMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final c in candidates) ...[
+                    _SuggestionChip(
+                      chip: _ChipData(
+                        c,
+                        onTap: () => onPick(c),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 final class _ChipData {
   const _ChipData(this.label, {this.onTap});
   final String label;
@@ -167,8 +226,8 @@ class _ChipRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      constraints: const BoxConstraints(minHeight: 36),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
         color: _TactPanelColors.background,
         borderRadius: BorderRadius.circular(10),
@@ -241,8 +300,8 @@ class _StatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      constraints: const BoxConstraints(minHeight: 36),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: _TactPanelColors.background,
         borderRadius: BorderRadius.circular(10),
@@ -251,15 +310,15 @@ class _StatusBar extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 24,
+            height: 24,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(icon, color: accent, size: 16),
+            child: Icon(icon, color: accent, size: 14),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,8 +328,9 @@ class _StatusBar extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: _TactPanelColors.text,
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
+                    height: 1.1,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -279,7 +339,8 @@ class _StatusBar extends StatelessWidget {
                     subtitle!,
                     style: const TextStyle(
                       color: _TactPanelColors.textMuted,
-                      fontSize: 12,
+                      fontSize: 11,
+                      height: 1.1,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -292,7 +353,7 @@ class _StatusBar extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: _TactPanelColors.action,
                   borderRadius: BorderRadius.circular(8),
@@ -301,7 +362,7 @@ class _StatusBar extends StatelessWidget {
                   '$actionLabel →',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

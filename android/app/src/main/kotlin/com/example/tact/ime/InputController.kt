@@ -356,7 +356,39 @@ class InputController(private val ime: InputMethodService) {
         )
     }
 
+    /**
+     * Trailing word at the cursor without a terminating boundary — used for
+     * live shortcut chips (e.g. «др» before space).
+     */
+    fun trailingWordFragment(): WordCommitInfo? {
+        val parsed = parseTrailingWordFromBuffer() ?: return null
+        val beforeCtx = if (parsed.start > 0) {
+            commitBuffer.substring(0, parsed.start)
+        } else {
+            ""
+        }
+        return WordCommitInfo(
+            word = parsed.word,
+            deleteBefore = parsed.word.length,
+            deleteAfter = 0,
+            boundary = "",
+            before = beforeCtx,
+            after = "",
+        )
+    }
+
     private data class ParsedWord(val word: String, val start: Int, val end: Int)
+
+    private fun parseTrailingWordFromBuffer(): ParsedWord? {
+        if (commitBuffer.isEmpty()) return null
+        var end = commitBuffer.length
+        while (end > 0 && isWordBoundary(commitBuffer[end - 1])) end--
+        if (end <= 0) return null
+        var start = end
+        while (start > 0 && !isWordBoundary(commitBuffer[start - 1])) start--
+        if (end - start < 2) return null
+        return ParsedWord(commitBuffer.substring(start, end), start, end)
+    }
 
     private fun parseLastWordFromBuffer(): ParsedWord? {
         if (commitBuffer.isEmpty()) return null

@@ -1,6 +1,9 @@
 /// Composition root for the IME suggestion bar.
 library;
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/bridge/ime_bridge_facade.dart';
@@ -12,6 +15,7 @@ import 'input/input_pipeline.dart';
 import 'intelligence/local_intelligence_engine.dart';
 import 'intelligence/undo_tracker.dart';
 import 'panel/panel_state.dart';
+import 'theme/keyboard_theme.dart';
 import 'ui/panel_actions.dart';
 import 'ui/suggestion_bar.dart';
 
@@ -32,7 +36,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
   late final UndoStack _undoStack;
   late final HotwordsLoader _hotwords;
   PanelState _panel = const PanelIdle();
-  Color _backgroundColor = const Color(0xFF171719);
+  Color _backgroundColor = KeyboardTheme.keyboardBackground;
 
   @override
   void initState() {
@@ -63,8 +67,8 @@ class _KeyboardAppState extends State<KeyboardApp> {
       _actions.onFieldCleared();
     };
     _pipeline.start();
+    unawaited(_bridge.signalReady());
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _bridge.signalReady();
       await DictionaryManager.open();
       _engine.reloadDictionaries();
       await _reloadHotwords();
@@ -75,6 +79,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
 
   @override
   void dispose() {
+    _actions.dispose();
     _pipeline.dispose();
     _bridge.dispose();
     super.dispose();
@@ -82,12 +87,19 @@ class _KeyboardAppState extends State<KeyboardApp> {
 
   void _onPanel(PanelState state) {
     if (!mounted) return;
+    _pipeline.adoptPanel(state);
+    if (kDebugMode) {
+      debugPrint('[TACT UI] render panel=${state.runtimeType}');
+    }
     setState(() => _panel = state);
+    WidgetsBinding.instance.scheduleFrame();
+    unawaited(_bridge.requestRepaint());
   }
 
   void _onTheme(Color color) {
     if (!mounted) return;
     setState(() => _backgroundColor = color);
+    unawaited(_bridge.requestRepaint());
   }
 
   Future<void> _onPanelTap(PanelAction action) async {
@@ -113,10 +125,12 @@ class _KeyboardAppState extends State<KeyboardApp> {
   Widget build(BuildContext context) {
     return Material(
       color: _backgroundColor,
-      child: SuggestionBar(
-        panel: _panel,
-        backgroundColor: _backgroundColor,
-        onAction: _onPanelTap,
+      child: SizedBox.expand(
+        child: SuggestionBar(
+          panel: _panel,
+          backgroundColor: _backgroundColor,
+          onAction: _onPanelTap,
+        ),
       ),
     );
   }

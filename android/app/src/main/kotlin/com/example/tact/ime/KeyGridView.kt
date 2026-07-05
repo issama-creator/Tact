@@ -54,6 +54,7 @@ class KeyGridView @JvmOverloads constructor(
 
     /** Emitted after a word boundary is committed. Wired to the bridge. */
     var onWordCommitted: ((WordCommitInfo) -> Unit)? = null
+    var onPartialWord: ((WordCommitInfo?) -> Unit)? = null
 
     /** Opens the system keyboard chooser (long-press 🌐). */
     var onShowImePicker: (() -> Unit)? = null
@@ -784,6 +785,7 @@ class KeyGridView @JvmOverloads constructor(
             KeyAction.Backspace -> {
                 haptics.deleteClickSound()
                 inputController.deleteBackward()
+                notifyMaybePartialWord()
             }
             KeyAction.Enter -> {
                 haptics.enterClickSound()
@@ -827,6 +829,7 @@ class KeyGridView @JvmOverloads constructor(
     private fun commitCharacter(chr: String) {
         haptics.keyClickSound()
         inputController.commitText(chr)
+        notifyMaybePartialWord()
         notifyMaybeWordCommitted(chr)
         val wasUpper = state.isUpperCase
         state.consumeShiftAfterChar()
@@ -842,6 +845,10 @@ class KeyGridView @JvmOverloads constructor(
         val cb = onWordCommitted ?: return
         val info = inputController.lastCompletedWordInfo(justCommitted) ?: return
         cb(info)
+    }
+
+    private fun notifyMaybePartialWord() {
+        onPartialWord?.invoke(inputController.trailingWordFragment())
     }
 
     // ── Preview & ripple helpers ──────────────────────────────────────

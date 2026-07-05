@@ -42,8 +42,8 @@ object Theme {
 
     // --- Dimensions (dp) ----------------------------------------------------
 
-    const val SUGGESTION_BAR_HEIGHT_DP_PHONE: Float = 46f
-    const val SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND: Float = 40f
+    const val SUGGESTION_BAR_HEIGHT_DP_PHONE: Float = 52f
+    const val SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND: Float = 46f
     const val SUGGESTION_BAR_HEIGHT_DP_TABLET: Float = 54f
 
     // Key area height is computed adaptively from the current screen height

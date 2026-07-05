@@ -40,12 +40,20 @@ void main() {
     expect(plan.valueOrNull!.replacement, 'hello ');
   });
 
-  test('mat removal masks word', () {
+  test('mat removal deletes word', () {
     final plan = TextActions.removeMat(
       panel: const PanelMat(word: 'bad', range: EditRange(0, 3)),
       ctx: baseCtx(),
     );
-    expect(plan.valueOrNull!.replacement.contains('*'), isTrue);
+    expect(plan.valueOrNull!.replacement, isEmpty);
+    expect(plan.valueOrNull!.expectedReplacedText, 'helo ');
+  });
+
+  test('censor masks last letters for panel display', () {
+    expect(LocalTextTransform.censorForDisplay('хуй'), 'х**');
+    expect(LocalTextTransform.censorForDisplay('bad'), 'b**');
+    expect(LocalTextTransform.censorForDisplay('xy'), 'x*');
+    expect(LocalTextTransform.censorForDisplay('a'), '*');
   });
 
   test('soften uses local transform', () {

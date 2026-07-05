@@ -2,31 +2,15 @@ package com.example.tact.ime
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.view.View
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
-import android.view.View
 
 /**
  * Minimal, working MethodChannel bridge between the native IME and Dart.
- *
- * The bridge is DELIBERATELY narrow at this stage — the Dart side hosts
- * only an empty suggestion-bar container. The bridge is set up so that:
- *
- *   1. Dart can call INTO native for text mutations
- *      (`commitText`, `deleteSurrounding`, `replaceRange`, `setComposing`).
- *      For the current scope these delegate to [InputController].
- *
- *   2. Native can call INTO Dart for lifecycle notifications
- *      (`onStartInputView`, `onFinishInputView`, `onSelectionChanged`,
- *      `onWordCommitted`) — used later by the engines when they ship.
- *
- *   3. Native can push a theme snapshot into Dart so the suggestion bar
- *      background matches the key grid on first paint.
- *
- * When Pigeon lands, [BRIDGE_CHANNEL] becomes the channel of a generated,
- * typed API. Nothing above this file changes.
  */
 class ImeBridgeImpl(
     engine: FlutterEngine,
@@ -39,6 +23,10 @@ class ImeBridgeImpl(
         MethodChannel(engine.dartExecutor.binaryMessenger, BRIDGE_CHANNEL)
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val pending = ArrayDeque<Pair<String, Any?>>()
+
+    /** Native repaint hook — IME FlutterView may not paint after Dart setState alone. */
+    var onRequestRepaint: (() -> Unit)? = null
 
     init {
         channel.setMethodCallHandler(this)
@@ -61,17 +49,23 @@ class ImeBridgeImpl(
     fun onFinishInputView() = invokeDart("onFinishInputView", null)
 
     fun onWordCommitted(info: WordCommitInfo, locale: String) {
-        val payload = JSONObject().apply {
-            put("word", info.word)
-            put("locale", locale)
-            put("deleteBefore", info.deleteBefore)
-            put("deleteAfter", info.deleteAfter)
-            put("boundary", info.boundary)
-            put("before", info.before)
-            put("after", info.after)
-        }.toString()
+        val payload = wordPayload(info, locale, partial = false)
+        Log.d(TAG, "word committed: '${info.word}' locale=$locale")
         invokeDart("onWordCommitted", payload)
     }
+
+    fun onPartialWordCommitted(info: WordCommitInfo?, locale: String) {
+        if (info == null) {
+            invokeDart("onPartialWordClear", null)
+            invokeDart("onTextEdited", null)
+            return
+        }
+        val payload = wordPayload(info, locale, partial = true)
+        invokeDart("onPartialWord", payload)
+        invokeDart("onTextEdited", null)
+    }
+
+    fun onTextEdited() = invokeDart("onTextEdited", null)
 
     fun onSelectionChanged(oldStart: Int, oldEnd: Int, newStart: Int, newEnd: Int) {
         val payload = JSONObject().apply {
@@ -80,6 +74,18 @@ class ImeBridgeImpl(
         }.toString()
         invokeDart("onSelectionChanged", payload)
     }
+
+    private fun wordPayload(info: WordCommitInfo, locale: String, partial: Boolean): String =
+        JSONObject().apply {
+            put("word", info.word)
+            put("locale", locale)
+            put("deleteBefore", info.deleteBefore)
+            put("deleteAfter", info.deleteAfter)
+            put("boundary", info.boundary)
+            put("before", info.before)
+            put("after", info.after)
+            put("partial", partial)
+        }.toString()
 
     private fun themePayload(): String =
         JSONObject().apply {
@@ -90,16 +96,42 @@ class ImeBridgeImpl(
 
     private fun invokeDart(method: String, arguments: Any?) {
         mainHandler.post {
-            try {
-                channel.invokeMethod(method, arguments)
-            } catch (t: Throwable) {
-                android.util.Log.w("ImeBridge", "invokeDart $method failed", t)
+            if (!FlutterEngineHost.isDartReady()) {
+                pending.addLast(method to arguments)
+                if (pending.size > MAX_PENDING) pending.removeFirst()
+                Log.d(TAG, "queued $method (pending=${pending.size})")
+                return@post
+            }
+            dispatchDart(method, arguments)
+        }
+    }
+
+    private fun dispatchDart(method: String, arguments: Any?) {
+        try {
+            channel.invokeMethod(method, arguments)
+            if (method == "onWordCommitted" || method == "onPartialWord" ||
+                method == "onTextEdited" || method == "onSelectionChanged"
+            ) {
+                onRequestRepaint?.invoke()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "invokeDart $method failed", t)
+        }
+    }
+
+    private fun flushPending() {
+        mainHandler.post {
+            if (!FlutterEngineHost.isDartReady()) return@post
+            while (pending.isNotEmpty()) {
+                val (method, args) = pending.removeFirst()
+                dispatchDart(method, args)
             }
         }
     }
 
     fun dispose() {
         channel.setMethodCallHandler(null)
+        pending.clear()
     }
 
     // ── Dart → Native ─────────────────────────────────────────────────
@@ -175,8 +207,14 @@ class ImeBridgeImpl(
                     result.success(null)
                 }
                 "ready" -> {
-                    // Dart signals the bar is up. Push initial theme.
+                    FlutterEngineHost.markDartReady()
                     sendTheme()
+                    flushPending()
+                    onRequestRepaint?.invoke()
+                    result.success(null)
+                }
+                "requestRepaint" -> {
+                    onRequestRepaint?.invoke()
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -188,5 +226,8 @@ class ImeBridgeImpl(
 
     companion object {
         const val BRIDGE_CHANNEL: String = "com.example.tact.ime/bridge"
+        private const val TAG = "ImeBridge"
+        private const val MAX_PENDING = 32
     }
 }
+

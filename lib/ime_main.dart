@@ -1,19 +1,29 @@
-// lib/ime_main.dart
-//
-// IME Flutter entrypoint — separate from companion `main()`.
+// lib/ime_main.dart — IME bootstrap (invoked from [main.dart] entrypoint).
 
 import 'package:flutter/material.dart';
 
 import 'keyboard/dictionaries/dictionary_manager.dart';
 import 'keyboard/keyboard_app.dart';
+import 'keyboard/theme/keyboard_theme.dart';
 
-@pragma('vm:entry-point')
-void imeMain() {
+/// Starts the suggestion-bar Flutter tree inside the IME isolate.
+void runImeKeyboard() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MaterialApp(
+  debugPrint('[TACT IME] imeMain started');
+  runApp(MaterialApp(
     debugShowCheckedModeBanner: false,
-    home: KeyboardApp(),
+    theme: ThemeData(
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: KeyboardTheme.keyboardBackground,
+    ),
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: TextScaler.noScaling,
+        platformBrightness: Brightness.dark,
+      ),
+      child: child ?? const SizedBox.shrink(),
+    ),
+    home: const KeyboardApp(),
   ));
-  // Upgrade embedded → asset dictionaries without blocking first frame.
   DictionaryManager.open();
 }

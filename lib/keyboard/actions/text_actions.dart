@@ -31,10 +31,8 @@ abstract final class TextActions {
   static Result<ReplacementPlan, ActionError> removeMat({
     required PanelMat panel,
     required ActionContext ctx,
-  }) {
-    final masked = LocalTextTransform.matReplacement(panel.word);
-    return TextReplacement.planWordReplace(ctx: ctx, newWord: masked);
-  }
+  }) =>
+      TextReplacement.planWordDelete(ctx: ctx);
 
   static Result<ReplacementPlan, ActionError> softenToxic({
     required PanelToxic panel,

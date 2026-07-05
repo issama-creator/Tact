@@ -92,6 +92,7 @@ class TactInputMethodService : InputMethodService() {
         bridge?.dispose()
         bridge = null
         rootView = null
+        FlutterEngineHost.release()
         super.onDestroy()
     }
 

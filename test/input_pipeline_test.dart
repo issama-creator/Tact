@@ -69,6 +69,83 @@ void main() {
     pipeline.dispose();
   });
 
+  test('shows shortcut chip while typing partial trigger', () async {
+    final bridge = ImeBridge(fakeField: FakeTextField());
+    final engine = LocalIntelligenceEngine();
+    PanelState? last;
+    final pipeline = InputPipeline(
+      bridge: bridge,
+      engine: engine,
+      onPanel: (s) => last = s,
+      settings: const PanelSettings(hysteresisMs: 0),
+    );
+    pipeline.start();
+    bridge.emitWord(const WordEvent(
+      word: 'др',
+      locale: 'ru',
+      partial: true,
+      deleteBefore: 2,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(last, isA<PanelShortcut>());
+    pipeline.dispose();
+  });
+
+  test('partial shortcut does not replace committed mat panel', () async {
+    final bridge = ImeBridge(fakeField: FakeTextField());
+    final engine = LocalIntelligenceEngine();
+    PanelState? last;
+    final pipeline = InputPipeline(
+      bridge: bridge,
+      engine: engine,
+      onPanel: (s) => last = s,
+      settings: const PanelSettings(hysteresisMs: 0),
+    );
+    pipeline.start();
+    bridge.emitWord(const WordEvent(
+      word: 'хуй',
+      locale: 'ru',
+      boundary: ' ',
+      deleteBefore: 4,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(last, isA<PanelMat>());
+    bridge.emitWord(const WordEvent(
+      word: 'др',
+      locale: 'ru',
+      partial: true,
+      deleteBefore: 2,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(last, isA<PanelMat>());
+    pipeline.dispose();
+  });
+
+  test('committed shortcut survives partial clear after space', () async {
+    final bridge = ImeBridge(fakeField: FakeTextField());
+    final engine = LocalIntelligenceEngine();
+    PanelState? last;
+    final pipeline = InputPipeline(
+      bridge: bridge,
+      engine: engine,
+      onPanel: (s) => last = s,
+      settings: const PanelSettings(hysteresisMs: 0),
+    );
+    pipeline.start();
+    bridge.emitWord(const WordEvent(
+      word: 'др',
+      locale: 'ru',
+      boundary: ' ',
+      deleteBefore: 3,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(last, isA<PanelShortcut>());
+    bridge.emitPartialWordClear();
+    await Future<void>.delayed(Duration.zero);
+    expect(last, isA<PanelShortcut>());
+    pipeline.dispose();
+  });
+
   test('keystroke clears panel', () {
     final bridge = ImeBridge(fakeField: FakeTextField());
     final engine = LocalIntelligenceEngine();

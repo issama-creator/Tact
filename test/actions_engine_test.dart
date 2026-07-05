@@ -72,7 +72,7 @@ void main() {
     expect(tracker.available, isFalse);
   });
 
-  test('remove mat masks profanity', () async {
+  test('remove mat deletes profanity word', () async {
     field.text = 'oh хуй ';
     field.selectionStart = 7;
     field.selectionEnd = 7;
@@ -80,7 +80,7 @@ void main() {
     await actions.removeMat(
       const PanelMat(word: 'хуй', range: EditRange(3, 6)),
     );
-    expect(field.text.contains('***'), isTrue);
+    expect(field.text, 'oh ');
     expect(field.text.contains('хуй'), isFalse);
   });
 

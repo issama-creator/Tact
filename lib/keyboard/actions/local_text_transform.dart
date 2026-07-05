@@ -32,6 +32,16 @@ abstract final class LocalTextTransform {
     return stars;
   }
 
+  /// Panel subtitle: show start of word, mask last 1–2 letters.
+  static String censorForDisplay(String word) {
+    final runes = word.runes.toList();
+    if (runes.isEmpty) return word;
+    if (runes.length == 1) return '*';
+    final maskCount = runes.length <= 2 ? 1 : 2;
+    final visible = runes.length - maskCount;
+    return '${String.fromCharCodes(runes.take(visible))}${'*' * maskCount}';
+  }
+
   static String _mildPlaceholder(String word) {
     if (word.isEmpty) return word;
     return '...';

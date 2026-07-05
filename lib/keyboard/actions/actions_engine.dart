@@ -1,6 +1,8 @@
 /// Executes panel actions through [ImeBridge] with undo and haptics.
 library;
 
+import 'dart:async';
+
 import '../../core/bridge/ime_bridge_facade.dart';
 import '../../core/result.dart';
 import '../intelligence/undo_tracker.dart';
@@ -27,6 +29,8 @@ final class ActionsEngine {
   final UndoStack _undo;
   final UndoTracker _undoTracker;
   final PanelSetter? _onPanel;
+
+  Timer? _undoHideTimer;
 
   ActionContext? _lastContext;
 
@@ -129,6 +133,7 @@ final class ActionsEngine {
   }
 
   Future<Result<void, ActionError>> undo() async {
+    _cancelUndoTimer();
     final edit = _undo.pop();
     if (edit == null) {
       _undoTracker.clear();
@@ -159,12 +164,34 @@ final class ActionsEngine {
   }
 
   void onFieldCleared() {
+    _cancelUndoTimer();
     _undo.clear();
     _undoTracker.clear();
     _lastContext = null;
   }
 
+  void dispose() {
+    _cancelUndoTimer();
+  }
+
+  void _cancelUndoTimer() {
+    _undoHideTimer?.cancel();
+    _undoHideTimer = null;
+  }
+
+  void _onUndoWindowExpired() {
+    _undoHideTimer = null;
+    _undo.clear();
+    _undoTracker.clear();
+    _onPanel?.call(const PanelIdle());
+  }
+
   void _showUndoPanel() {
-    _onPanel?.call(const PanelUndo(label: 'Отменить'));
+    _cancelUndoTimer();
+    _onPanel?.call(const PanelUndo(label: 'Изменение применено'));
+    _undoHideTimer = Timer(
+      const Duration(milliseconds: kUndoWindowMs),
+      _onUndoWindowExpired,
+    );
   }
 }

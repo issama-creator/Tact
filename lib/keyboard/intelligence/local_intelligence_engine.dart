@@ -137,6 +137,25 @@ final class LocalIntelligenceEngine {
     );
   }
 
+  /// Live shortcut chips while typing (before space).
+  IntelligenceResult processShortcutOnly(TextContext ctx, {int? nowMs}) {
+    final clock = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+    final signals = _shortcut.analyze(ctx);
+    final decision = _rules.evaluate(
+      signals: signals,
+      undoAvailable: false,
+      defaultSuggestions: const [],
+      nowMs: clock,
+      messageLength: ctx.fullMessage.length,
+    );
+    return IntelligenceResult(
+      normalized: ctx.word,
+      dictionary: const DictionaryLookup(known: false, nextWords: []),
+      signals: List.unmodifiable(signals),
+      decision: decision,
+    );
+  }
+
   void setUserShortcuts(Iterable<TextShortcut> shortcuts) {
     _shortcuts = ShortcutTable(
       builtin: defaultBuiltinShortcuts,

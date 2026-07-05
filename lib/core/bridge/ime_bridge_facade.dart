@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../keyboard/actions/text_replacement.dart';
@@ -18,6 +19,7 @@ final class WordEvent {
     this.deleteBefore = 0,
     this.deleteAfter = 0,
     this.boundary = '',
+    this.partial = false,
   });
 
   final String word;
@@ -27,6 +29,7 @@ final class WordEvent {
   final int deleteBefore;
   final int deleteAfter;
   final String boundary;
+  final bool partial;
 
   TextContext toContext() {
     final start = before.length;
@@ -94,17 +97,30 @@ class ImeBridge {
   final MethodChannel _channel;
   final FakeTextField? _fake;
   final StreamController<WordEvent> _words = StreamController.broadcast();
+  final StreamController<void> _partialClears = StreamController.broadcast();
+  final StreamController<void> _textEdits = StreamController.broadcast();
 
   void Function(int argb)? onThemeArgb;
   void Function()? onInputViewStarted;
   void Function()? onFieldFinished;
 
-  Stream<WordEvent> get onWordCommitted => _words.stream;
+  Stream<WordEvent> get onWordCommitted => _words.stream.where((e) => !e.partial);
+  Stream<WordEvent> get onPartialWord => _words.stream.where((e) => e.partial);
+  Stream<void> get onPartialWordClear => _partialClears.stream;
+  Stream<void> get onTextEdited => _textEdits.stream;
 
   bool get isFake => _fake != null;
 
   void emitWord(WordEvent event) {
     if (!_words.isClosed) _words.add(event);
+  }
+
+  void emitPartialWordClear() {
+    if (!_partialClears.isClosed) _partialClears.add(null);
+  }
+
+  void emitTextEdited() {
+    if (!_textEdits.isClosed) _textEdits.add(null);
   }
 
   void attachHandler() {
@@ -121,6 +137,14 @@ class ImeBridge {
     if (_fake != null) return;
     try {
       await _channel.invokeMethod<void>('ready');
+    } catch (_) {}
+  }
+
+  /// Ask native side to schedule a Flutter raster pass (IME Surface/Texture).
+  Future<void> requestRepaint() async {
+    if (_fake != null) return;
+    try {
+      await _channel.invokeMethod<void>('requestRepaint');
     } catch (_) {}
   }
 
@@ -204,7 +228,13 @@ class ImeBridge {
   Future<Object?> _onCall(MethodCall call) async {
     switch (call.method) {
       case 'onWordCommitted':
-        _handleWord(call.arguments);
+        _handleWord(call.arguments, partial: false);
+        return null;
+      case 'onPartialWord':
+        _handleWord(call.arguments, partial: true);
+        return null;
+      case 'onPartialWordClear':
+        if (!_partialClears.isClosed) _partialClears.add(null);
         return null;
       case 'setTheme':
         _handleTheme(call.arguments);
@@ -216,18 +246,25 @@ class ImeBridge {
         onFieldFinished?.call();
         return null;
       case 'onSelectionChanged':
+        if (!_textEdits.isClosed) _textEdits.add(null);
+        return null;
+      case 'onTextEdited':
+        if (!_textEdits.isClosed) _textEdits.add(null);
         return null;
       default:
         return null;
     }
   }
 
-  void _handleWord(Object? arguments) {
+  void _handleWord(Object? arguments, {required bool partial}) {
     final map = _asMap(arguments);
     if (map == null) return;
     final word = map['word'];
     final locale = map['locale'];
     if (word is! String || locale is! String) return;
+    if (kDebugMode && !partial) {
+      debugPrint('[TACT IME] word="$word" locale=$locale');
+    }
     _words.add(
       WordEvent(
         word: word,
@@ -237,6 +274,7 @@ class ImeBridge {
         deleteBefore: map['deleteBefore'] as int? ?? word.length,
         deleteAfter: map['deleteAfter'] as int? ?? 0,
         boundary: map['boundary'] as String? ?? '',
+        partial: partial,
       ),
     );
   }
@@ -281,6 +319,8 @@ class ImeBridge {
   void dispose() {
     detachHandler();
     _words.close();
+    _partialClears.close();
+    _textEdits.close();
   }
 }
 
