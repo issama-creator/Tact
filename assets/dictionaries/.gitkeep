@@ -1,0 +1,2 @@
+# Binary dictionary files live here (en.bin, ru.bin, ...).
+# See lib/keyboard/dictionaries/dictionary_loader.dart for the expected format.

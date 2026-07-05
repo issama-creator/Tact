@@ -1,0 +1,41 @@
+{
+  "@@locale": "ru",
+
+  "app_name": "TACT",
+
+  "onboarding_welcome_title": "TACT",
+  "onboarding_welcome_subtitle": "Клавиатура, которая тихо помогает писать лучше.",
+  "onboarding_enable_ime": "Включить TACT",
+
+  "settings_title": "Настройки",
+  "settings_language": "Язык",
+  "settings_engines": "Движки",
+  "settings_ai": "AI",
+  "settings_shortcuts": "Сокращения",
+  "settings_panel": "Панель",
+  "settings_theme": "Тема",
+
+  "shortcuts_title": "Сокращения",
+  "shortcuts_builtin": "Встроенные",
+  "shortcuts_yours": "Ваши",
+  "shortcuts_add": "Добавить сокращение",
+
+  "stats_title": "Статистика",
+  "stats_wpm": "Слов в минуту",
+  "stats_corrections": "Принятые исправления",
+  "stats_softenings": "Смягчения",
+  "stats_removes": "Удалено мата",
+  "stats_improvements": "Улучшения",
+  "stats_shortcuts_expanded": "Использовано сокращений",
+
+  "panel_mistake": "Найдена ошибка",
+  "panel_profanity": "Обнаружен мат",
+  "panel_conflict": "Возможен конфликт",
+  "panel_improve": "Улучшить текст",
+
+  "action_fix": "Исправить",
+  "action_soften": "Смягчить",
+  "action_remove": "Удалить",
+  "action_improve": "Улучшить",
+  "action_undo": "Отменить"
+}

@@ -1,0 +1,6 @@
+{
+  "$schema": "See lib/keyboard/engines/shortcut_engine.dart for the loader.",
+  "locale_default": "en",
+  "shortcuts": [
+  ]
+}

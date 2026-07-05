@@ -1,0 +1,2 @@
+# Binary lexicon hashsets live here (toxic_en.bin, toxic_ru.bin, mat_en.bin, mat_ru.bin).
+# See lib/keyboard/dictionaries/lexicon_loader.dart for the expected format.

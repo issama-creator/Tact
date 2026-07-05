@@ -1,0 +1,41 @@
+{
+  "@@locale": "en",
+
+  "app_name": "TACT",
+
+  "onboarding_welcome_title": "TACT",
+  "onboarding_welcome_subtitle": "A keyboard that quietly helps you type better.",
+  "onboarding_enable_ime": "Enable TACT",
+
+  "settings_title": "Settings",
+  "settings_language": "Language",
+  "settings_engines": "Engines",
+  "settings_ai": "AI",
+  "settings_shortcuts": "Shortcuts",
+  "settings_panel": "Panel",
+  "settings_theme": "Theme",
+
+  "shortcuts_title": "Shortcuts",
+  "shortcuts_builtin": "Built-in",
+  "shortcuts_yours": "Yours",
+  "shortcuts_add": "Add shortcut",
+
+  "stats_title": "Statistics",
+  "stats_wpm": "Words per minute",
+  "stats_corrections": "Corrections accepted",
+  "stats_softenings": "Softenings",
+  "stats_removes": "Removes",
+  "stats_improvements": "Improvements",
+  "stats_shortcuts_expanded": "Shortcuts expanded",
+
+  "panel_mistake": "Mistake found",
+  "panel_profanity": "Profanity detected",
+  "panel_conflict": "Possible conflict",
+  "panel_improve": "Improve text",
+
+  "action_fix": "Fix",
+  "action_soften": "Soften",
+  "action_remove": "Remove",
+  "action_improve": "Improve",
+  "action_undo": "Undo"
+}

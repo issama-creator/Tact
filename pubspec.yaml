@@ -1,0 +1,28 @@
+name: tact
+description: "TACT — a daily communication keyboard."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # NOTE: Additional dependencies (flutter_riverpod, http, sqflite/isar,
+  # shared_preferences, intl, flutter_localizations, pigeon, ...) are added
+  # when the corresponding module begins implementation. Kept minimal on
+  # purpose so this deliverable stays reproducible.
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/shortcuts/
+    - assets/layouts/

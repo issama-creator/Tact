@@ -1,0 +1,7 @@
+{
+  "$schema": "See lib/keyboard/theme/key_layout.dart for the parser.",
+  "id": "jcuken_ru",
+  "locale": "ru",
+  "rows": [
+  ]
+}
