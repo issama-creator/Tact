@@ -2,6 +2,8 @@
 library;
 
 import 'dictionary.dart';
+import 'mat_lexicon.dart';
+import 'phrase_spell.dart';
 import 'toxic_category.dart';
 import 'typo_dictionary.dart';
 
@@ -12,6 +14,7 @@ final class BundleStats {
     required this.typoEntries,
     required this.matTokens,
     required this.toxicEntries,
+    required this.phraseSpellEntries,
     required this.nextWordKeys,
     required this.estimatedBytes,
   });
@@ -20,11 +23,17 @@ final class BundleStats {
   final int typoEntries;
   final int matTokens;
   final int toxicEntries;
+  final int phraseSpellEntries;
   final int nextWordKeys;
   final int estimatedBytes;
 
   int get totalEntries =>
-      spellWords + typoEntries + matTokens + toxicEntries + nextWordKeys;
+      spellWords +
+      typoEntries +
+      matTokens +
+      toxicEntries +
+      phraseSpellEntries +
+      nextWordKeys;
 }
 
 /// All dictionary data for one locale — loaded once, never mutated.
@@ -36,6 +45,7 @@ final class LocaleBundle {
     required this.typo,
     required this.mat,
     required this.toxic,
+    required this.phraseSpell,
     required this.stats,
   });
 
@@ -43,7 +53,8 @@ final class LocaleBundle {
   final int version;
   final Dictionary spell;
   final TypoDictionary typo;
-  final Set<String> mat;
+  final MatLexicon mat;
   final ToxicLexicon toxic;
+  final PhraseSpellLexicon phraseSpell;
   final BundleStats stats;
 }

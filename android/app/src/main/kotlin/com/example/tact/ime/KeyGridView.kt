@@ -137,6 +137,8 @@ class KeyGridView @JvmOverloads constructor(
     private val handler = Handler(Looper.getMainLooper())
     private val spaceSlideThresholdPx by lazy { metrics.dp(Theme.SPACE_CURSOR_SLIDE_THRESHOLD_DP) }
     private val spaceStepPx by lazy { metrics.dp(9f) }
+    private var pendingSpaceSteps = 0
+    private var spaceStepsPosted = false
 
     // ── Ripples ───────────────────────────────────────────────────────
 
@@ -584,14 +586,16 @@ class KeyGridView @JvmOverloads constructor(
                 val stepDx = x - ps.spaceLastX
                 ps.spaceLastX = x
                 ps.spaceAccum += stepDx
+                var steps = 0
                 while (ps.spaceAccum >= spaceStepPx) {
-                    inputController.moveCursorBy(1)
+                    steps++
                     ps.spaceAccum -= spaceStepPx
                 }
                 while (ps.spaceAccum <= -spaceStepPx) {
-                    inputController.moveCursorBy(-1)
+                    steps--
                     ps.spaceAccum += spaceStepPx
                 }
+                if (steps != 0) scheduleSpaceCursorMove(steps)
                 return
             }
         }
@@ -972,6 +976,25 @@ class KeyGridView @JvmOverloads constructor(
         invalidate()
     }
 
+    private fun scheduleSpaceCursorMove(delta: Int) {
+        pendingSpaceSteps += delta
+        if (spaceStepsPosted) return
+        spaceStepsPosted = true
+        handler.post {
+            spaceStepsPosted = false
+            val steps = pendingSpaceSteps
+            pendingSpaceSteps = 0
+            if (steps != 0) inputController.moveCursorBy(steps)
+        }
+    }
+
+    private fun cancelRipples() {
+        for (i in ripples.indices) {
+            ripples[i].animator.cancel()
+        }
+        ripples.clear()
+    }
+
     private fun invalidateRect(r: RectF) {
         tmpRect.set(
             (r.left - 4).toInt(),
@@ -983,6 +1006,9 @@ class KeyGridView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
+        cancelRipples()
+        pendingSpaceSteps = 0
+        spaceStepsPosted = false
         super.onDetachedFromWindow()
         handler.removeCallbacksAndMessages(null)
     }

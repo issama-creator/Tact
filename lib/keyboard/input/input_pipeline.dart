@@ -48,6 +48,7 @@ final class InputPipeline {
   bool _panelFromPartialOnly = false;
   int? _lastChangeMs;
   int _generation = 0;
+  bool _disposed = false;
 
   PanelState get panel => _panel;
 
@@ -60,6 +61,7 @@ final class InputPipeline {
   }
 
   void stop() {
+    _disposed = true;
     _sub?.cancel();
     _sub = null;
     _partialSub?.cancel();
@@ -73,6 +75,7 @@ final class InputPipeline {
   }
 
   void _onWord(WordEvent event) {
+    if (_disposed || _bridge.isPasswordField) return;
     final word = event.word.trim();
     if (!shouldProcessWordBoundary(word)) return;
     if (kDebugMode) {
@@ -91,6 +94,10 @@ final class InputPipeline {
   }
 
   void _onPartialWord(WordEvent event) {
+    if (_disposed || _bridge.isPasswordField) {
+      _clearPartialPanel();
+      return;
+    }
     final word = event.word.trim();
     if (word.length < kMinShortcutTriggerLength) {
       _clearPartialPanel();
@@ -177,6 +184,7 @@ final class InputPipeline {
 
   /// Hides mat/spell/toxic/shortcut panels when the user erased the word.
   Future<void> _validatePanelAnchor() async {
+    if (_disposed) return;
     final panel = _panel;
     if (panel is PanelUndo || panel is PanelIdle) return;
     if (!panelTracksAnchoredWord(panel)) return;
@@ -185,7 +193,7 @@ final class InputPipeline {
     if (word == null || word.isEmpty) return;
 
     final snap = await _bridge.getSurroundingText();
-    if (snap == null) return;
+    if (_disposed || snap == null) return;
 
     if (isAnchoredWordPresent(snap, word)) return;
 
@@ -210,8 +218,9 @@ final class InputPipeline {
   }
 
   Future<void> _enrichActionContext(WordEvent event, String word) async {
+    if (_disposed) return;
     final snap = await _bridge.getSurroundingText();
-    if (snap == null || snap.before.isEmpty) return;
+    if (_disposed || snap == null || snap.before.isEmpty) return;
     _onActionContext?.call(
       ActionContext(
         word: word,

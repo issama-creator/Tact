@@ -33,6 +33,8 @@ class InputController(private val ime: InputMethodService) {
     /** Cached from [onSelectionChanged] — avoids [getSelectedText] IPC per backspace. */
     private var cachedSelStart = -1
     private var cachedSelEnd = -1
+    private var cachedTextLength = -1
+    private var warmMoveCount = 0
 
     /** Cached at [restart] and consulted for enter-key behavior. */
     var editorInfo: EditorInfo? = null
@@ -53,6 +55,8 @@ class InputController(private val ime: InputMethodService) {
         commitBuffer.setLength(0)
         cachedSelStart = -1
         cachedSelEnd = -1
+        cachedTextLength = -1
+        warmMoveCount = 0
         editorInfo = info
         isPasswordField = info?.let {
             val cls = it.inputType and android.text.InputType.TYPE_MASK_CLASS
@@ -77,6 +81,8 @@ class InputController(private val ime: InputMethodService) {
         commitBuffer.setLength(0)
         cachedSelStart = -1
         cachedSelEnd = -1
+        cachedTextLength = -1
+        warmMoveCount = 0
         editorInfo = null
     }
 
@@ -94,6 +100,8 @@ class InputController(private val ime: InputMethodService) {
         val ic = ime.currentInputConnection ?: return
         ic.commitText(text, 1)
         trackCommitted(text)
+        cachedTextLength = -1
+        warmMoveCount = 0
         if (cachedSelStart >= 0) {
             cachedSelStart += text.length
             cachedSelEnd = cachedSelStart
@@ -237,13 +245,20 @@ class InputController(private val ime: InputMethodService) {
                 return
             }
             val max = info.text?.length ?: current
+            cachedTextLength = max
             val target = (current + delta).coerceIn(0, max)
             ic.setSelection(target, target)
             cachedSelStart = target
             cachedSelEnd = target
             return
         }
-        val target = (current + delta).coerceAtLeast(0)
+        if (warmMoveCount++ >= 16 || cachedTextLength < 0) {
+            val info = ic.getExtractedText(extractedRequest, 0)
+            cachedTextLength = info?.text?.length ?: Int.MAX_VALUE
+            warmMoveCount = 0
+        }
+        val max = if (cachedTextLength >= 0) cachedTextLength else Int.MAX_VALUE
+        val target = (current + delta).coerceIn(0, max)
         ic.setSelection(target, target)
         cachedSelStart = target
         cachedSelEnd = target

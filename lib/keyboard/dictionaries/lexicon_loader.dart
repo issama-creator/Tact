@@ -2,6 +2,7 @@
 library;
 
 import 'dictionary_manager.dart';
+import 'mat_lexicon.dart';
 import 'toxic_category.dart';
 
 enum LexiconKind { mat, toxic }
@@ -12,10 +13,10 @@ final class LexiconLoader {
       : _manager = manager ?? DictionaryManager.shared;
 
   final DictionaryManager _manager;
-  final Map<String, Set<String>> _mat = {};
+  final Map<String, MatLexicon> _mat = {};
   final Map<String, ToxicLexicon> _toxic = {};
 
-  Set<String> matForLocale(String locale) {
+  MatLexicon matForLocale(String locale) {
     final key = _localeKey(locale);
     return _mat.putIfAbsent(key, () => _manager.matFor(key));
   }

@@ -6,7 +6,9 @@ import 'dart:convert';
 import '../engines/shortcut_table.dart';
 import 'dictionary.dart';
 import 'locale_bundle.dart';
+import 'mat_lexicon.dart';
 import 'toxic_category.dart';
+import 'phrase_spell.dart';
 import 'typo_dictionary.dart';
 
 /// Thrown when a dictionary asset fails validation.
@@ -77,10 +79,28 @@ final class DictionaryFormat {
       }
     }
 
-    final spell = Dictionary.fromWords(words, nextWords: next);
+    final freqRaw = root['freq'] ?? root['frequency'];
+    final frequency = <String, int>{};
+    if (freqRaw is Map) {
+      for (final e in freqRaw.entries) {
+        if (e.key is! String) continue;
+        final v = e.value;
+        if (v is int && v > 0) {
+          frequency[(e.key as String).toLowerCase()] = v;
+        }
+      }
+    }
+
+    final spell = Dictionary.fromWords(
+      words,
+      nextWords: next,
+      frequency: frequency,
+      locale: locale,
+    );
     final typo = TypoDictionary.empty();
-    final mat = const <String>{};
+    final mat = MatLexicon.fromTokens(const []);
     final toxic = ToxicLexicon.fromEntries(const {});
+    final phraseSpell = PhraseSpellLexicon.empty();
 
     return LocaleBundle(
       locale: locale,
@@ -89,8 +109,38 @@ final class DictionaryFormat {
       typo: typo,
       mat: mat,
       toxic: toxic,
-      stats: _stats(spell: spell, typo: typo, mat: mat, toxic: toxic),
+      phraseSpell: phraseSpell,
+      stats: _stats(
+        spell: spell,
+        typo: typo,
+        mat: mat,
+        toxic: toxic,
+        phraseSpell: phraseSpell,
+      ),
     );
+  }
+
+  static PhraseSpellLexicon parsePhraseSpell(String json) {
+    final root = decodeObject(json);
+    readVersion(root);
+    readLocale(root);
+
+    final corrections = <String, String>{};
+    final corrRaw = root['corrections'] ?? root['phrases'];
+    if (corrRaw is Map) {
+      for (final e in corrRaw.entries) {
+        if (e.key is! String || e.value is! String) continue;
+        corrections[e.key as String] = e.value as String;
+      }
+    }
+
+    final valid = <String>[];
+    final validRaw = root['valid'];
+    if (validRaw is List) {
+      valid.addAll(_readStringList(validRaw));
+    }
+
+    return PhraseSpellLexicon.fromMap(corrections: corrections, valid: valid);
   }
 
   static TypoDictionary parseTypo(String json) {
@@ -110,7 +160,7 @@ final class DictionaryFormat {
     return TypoDictionary.fromMap(corrections);
   }
 
-  static Set<String> parseMat(String json) {
+  static MatLexicon parseMat(String json) {
     final root = decodeObject(json);
     readVersion(root);
     readLocale(root);
@@ -119,13 +169,24 @@ final class DictionaryFormat {
     if (tokensRaw is! List) {
       throw DictionaryFormatException('mat.tokens must be a list');
     }
-    final tokens = <String>{};
+    final tokens = <String>[];
     for (final t in tokensRaw) {
       if (t is! String) continue;
       final key = t.toLowerCase().trim();
       if (key.length >= 2) tokens.add(key);
     }
-    return Set<String>.unmodifiable(tokens);
+
+    final stemsRaw = root['stems'];
+    final stems = <String>[];
+    if (stemsRaw is List) {
+      for (final s in stemsRaw) {
+        if (s is! String) continue;
+        final key = s.toLowerCase().trim();
+        if (key.length >= 3) stems.add(key);
+      }
+    }
+
+    return MatLexicon.fromParts(tokens: tokens, stems: stems);
   }
 
   static ToxicLexicon parseToxic(String json) {
@@ -147,26 +208,41 @@ final class DictionaryFormat {
       final token = (e.key as String).toLowerCase().trim();
       if (token.isEmpty) continue;
 
-      if (e.value is int) {
-        entries[token] = ToxicEntry(score: e.value as int);
-        continue;
+      final entry = _parseToxicEntry(e.value);
+      if (entry != null) entries[token] = entry;
+    }
+
+    final phrases = <String, ToxicEntry>{};
+    final phrasesRaw = root['phrases'];
+    if (phrasesRaw is Map) {
+      for (final e in phrasesRaw.entries) {
+        if (e.key is! String) continue;
+        final phrase = (e.key as String).toLowerCase().trim();
+        if (phrase.length < 4) continue;
+        final entry = _parseToxicEntry(e.value);
+        if (entry != null) phrases[phrase] = entry;
       }
-      if (e.value is! Map) continue;
-      final obj = Map<String, dynamic>.from(e.value as Map);
-      final score = obj['s'] ?? obj['score'];
-      if (score is! int) continue;
-      entries[token] = ToxicEntry(
-        score: score,
-        category: ToxicCategory.parse(
-          obj['c'] as String? ?? obj['category'] as String?,
-        ),
-      );
     }
 
     return ToxicLexicon.fromEntries(
       entries,
+      phrases: phrases,
       warningThreshold: warning,
       conflictThreshold: conflict,
+    );
+  }
+
+  static ToxicEntry? _parseToxicEntry(Object? raw) {
+    if (raw is int) return ToxicEntry(score: raw);
+    if (raw is! Map) return null;
+    final obj = Map<String, dynamic>.from(raw);
+    final score = obj['s'] ?? obj['score'];
+    if (score is! int) return null;
+    return ToxicEntry(
+      score: score,
+      category: ToxicCategory.parse(
+        obj['c'] as String? ?? obj['category'] as String?,
+      ),
     );
   }
 
@@ -199,12 +275,14 @@ final class DictionaryFormat {
   static LocaleBundle mergeBundle({
     required LocaleBundle base,
     TypoDictionary? typo,
-    Set<String>? mat,
+    MatLexicon? mat,
     ToxicLexicon? toxic,
+    PhraseSpellLexicon? phraseSpell,
   }) {
     final t = typo ?? base.typo;
     final m = mat ?? base.mat;
     final x = toxic ?? base.toxic;
+    final p = phraseSpell ?? base.phraseSpell;
     return LocaleBundle(
       locale: base.locale,
       version: base.version,
@@ -212,26 +290,36 @@ final class DictionaryFormat {
       typo: t,
       mat: m,
       toxic: x,
-      stats: _stats(spell: base.spell, typo: t, mat: m, toxic: x),
+      phraseSpell: p,
+      stats: _stats(
+        spell: base.spell,
+        typo: t,
+        mat: m,
+        toxic: x,
+        phraseSpell: p,
+      ),
     );
   }
 
   static BundleStats _stats({
     required Dictionary spell,
     required TypoDictionary typo,
-    required Set<String> mat,
+    required MatLexicon mat,
     required ToxicLexicon toxic,
+    required PhraseSpellLexicon phraseSpell,
   }) {
     var bytes = 0;
     bytes += spell.size * 6;
     bytes += typo.size * 10;
-    bytes += mat.length * 6;
+    bytes += mat.size * 6;
     bytes += toxic.size * 12;
+    bytes += phraseSpell.size * 16;
     return BundleStats(
       spellWords: spell.size,
       typoEntries: typo.size,
-      matTokens: mat.length,
+      matTokens: mat.size,
       toxicEntries: toxic.size,
+      phraseSpellEntries: phraseSpell.size,
       nextWordKeys: spell.nextWordKeyCount,
       estimatedBytes: bytes,
     );

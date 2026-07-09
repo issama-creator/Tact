@@ -24,14 +24,7 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: 'Статистика и лимиты использования',
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Лимиты на сегодня',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
-                  ),
-                ),
+                const TactSectionLabel('Лимиты на сегодня'),
                 const SizedBox(height: 12),
                 TactCard(
                   child: Column(

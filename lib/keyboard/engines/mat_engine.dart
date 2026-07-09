@@ -1,6 +1,7 @@
 /// Profanity detection — local HashSet membership.
 library;
 
+import '../dictionaries/mat_lexicon.dart';
 import '../input/word_length_policy.dart';
 import '../input/text_context.dart';
 import '../rules/rule_signal.dart';
@@ -11,7 +12,7 @@ import 'text_skip.dart';
 final class MatEngine implements SignalProvider {
   MatEngine(this._lexicon, this._normalizer);
 
-  final Set<String> _lexicon;
+  final MatLexicon _lexicon;
   final Normalizer _normalizer;
 
   @override

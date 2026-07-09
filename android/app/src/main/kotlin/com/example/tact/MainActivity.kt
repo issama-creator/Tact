@@ -91,6 +91,12 @@ class MainActivity : FlutterActivity() {
         )
     }
 
+    override fun onDestroy() {
+        channel?.setMethodCallHandler(null)
+        channel = null
+        super.onDestroy()
+    }
+
     companion object {
         private const val CHANNEL = "com.example.tact/companion"
     }

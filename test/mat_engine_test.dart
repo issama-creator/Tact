@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tact/keyboard/dictionaries/mat_lexicon.dart';
 import 'package:tact/keyboard/engines/mat_engine.dart';
 import 'package:tact/keyboard/engines/normalizer.dart';
 import 'package:tact/keyboard/input/text_context.dart';
@@ -15,7 +16,10 @@ TextContext ctx(String word, {String locale = 'ru'}) => TextContext(
 
 void main() {
   final normalizer = Normalizer();
-  final lexicon = {'хуй', 'блядь', 'shit'};
+  final lexicon = MatLexicon.fromParts(
+    tokens: {'хуй', 'блядь', 'shit'},
+    stems: {'пизд'},
+  );
 
   test('detects exact mat match case-insensitively', () {
     final engine = MatEngine(lexicon, normalizer);
@@ -31,6 +35,11 @@ void main() {
   test('ignores short words', () {
     final engine = MatEngine(lexicon, normalizer);
     expect(engine.analyze(ctx('xy')), isEmpty);
+  });
+
+  test('detects stem prefix match', () {
+    final engine = MatEngine(lexicon, normalizer);
+    expect(engine.analyze(ctx('пиздец')).first.kind, SignalKind.mat);
   });
 
   test('safe words produce no signal', () {

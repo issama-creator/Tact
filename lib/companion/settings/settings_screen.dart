@@ -3,6 +3,7 @@ import '../platform/ime_platform.dart';
 import '../state/app_state.dart';
 import '../theme/tact_theme.dart';
 import '../widgets/tact_widgets.dart';
+import 'personal_words_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.state});
@@ -20,12 +21,13 @@ class SettingsScreen extends StatelessWidget {
         ),
         title: const Text('Настройки'),
       ),
-      body: ListenableBuilder(
-        listenable: state,
-        builder: (context, _) {
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
+      body: SafeArea(
+        child: ListenableBuilder(
+          listenable: state,
+          builder: (context, _) {
+            return ListView(
+              padding: const EdgeInsets.all(TactLayout.screenPadding),
+              children: [
               _sectionTitle('Клавиатура'),
               TactCard(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -88,6 +90,23 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              _sectionTitle('Словари'),
+              TactCard(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: TactSettingsRow(
+                  title: 'Личный словарь',
+                  subtitle: 'Имена, бренды, сленг',
+                  showChevron: true,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const PersonalWordsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
               _sectionTitle('Конфиденциальность'),
               TactCard(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -125,8 +144,9 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -137,9 +157,10 @@ class SettingsScreen extends StatelessWidget {
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
           color: TactColors.textSecondary,
+          letterSpacing: 0.2,
         ),
       ),
     );
@@ -148,34 +169,47 @@ class SettingsScreen extends StatelessWidget {
   void _pickLanguage(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: TactColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      useSafeArea: true,
       builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('Русский',
-                    style: TextStyle(color: TactColors.textPrimary)),
-                onTap: () {
-                  state.setKeyboardLanguage('Русский');
-                  Navigator.pop(ctx);
-                },
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 8, 20, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Язык клавиатуры',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: TactColors.textPrimary,
+                  ),
+                ),
               ),
-              ListTile(
-                title: const Text('English',
-                    style: TextStyle(color: TactColors.textPrimary)),
-                onTap: () {
-                  state.setKeyboardLanguage('English');
-                  Navigator.pop(ctx);
-                },
-              ),
-            ],
-          ),
+            ),
+            _languageTile(ctx, 'Русский'),
+            _languageTile(ctx, 'English'),
+            const SizedBox(height: 8),
+          ],
         );
+      },
+    );
+  }
+
+  Widget _languageTile(BuildContext context, String label) {
+    final selected = state.keyboardLanguage == label;
+    return ListTile(
+      title: Text(
+        label,
+        style: const TextStyle(color: TactColors.textPrimary),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_rounded, color: TactColors.purple)
+          : null,
+      onTap: () {
+        state.setKeyboardLanguage(label);
+        Navigator.pop(context);
       },
     );
   }

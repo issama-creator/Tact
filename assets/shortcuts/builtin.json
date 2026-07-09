@@ -17,15 +17,27 @@
       ]
     },
     {
+      "trigger": "пжлст",
+      "expansions": [
+        "пожалуйста"
+      ]
+    },
+    {
       "trigger": "спс",
       "expansions": [
         "спасибо"
       ]
     },
     {
-      "trigger": "СА",
+      "trigger": "спасиб",
       "expansions": [
-        "Салам алейкум"
+        "спасибо"
+      ]
+    },
+    {
+      "trigger": "имхо",
+      "expansions": [
+        "имхо"
       ]
     },
     {
@@ -47,6 +59,24 @@
       ]
     },
     {
+      "trigger": "мб",
+      "expansions": [
+        "может быть"
+      ]
+    },
+    {
+      "trigger": "нзч",
+      "expansions": [
+        "не за что"
+      ]
+    },
+    {
+      "trigger": "ок",
+      "expansions": [
+        "окей"
+      ]
+    },
+    {
       "trigger": "т.к.",
       "expansions": [
         "так как"
@@ -65,15 +95,28 @@
       ]
     },
     {
+      "trigger": "т.е.",
+      "expansions": [
+        "то есть"
+      ]
+    },
+    {
       "trigger": "thx",
       "expansions": [
-        "thanks"
+        "thanks",
+        "thank you"
       ]
     },
     {
       "trigger": "pls",
       "expansions": [
         "please"
+      ]
+    },
+    {
+      "trigger": "ty",
+      "expansions": [
+        "thank you"
       ]
     },
     {
@@ -122,6 +165,66 @@
       "trigger": "np",
       "expansions": [
         "no problem"
+      ]
+    },
+    {
+      "trigger": "asap",
+      "expansions": [
+        "as soon as possible"
+      ]
+    },
+    {
+      "trigger": "fyi",
+      "expansions": [
+        "for your information"
+      ]
+    },
+    {
+      "trigger": "rn",
+      "expansions": [
+        "right now"
+      ]
+    },
+    {
+      "trigger": "nvm",
+      "expansions": [
+        "never mind"
+      ]
+    },
+    {
+      "trigger": "lmk",
+      "expansions": [
+        "let me know"
+      ]
+    },
+    {
+      "trigger": "gtg",
+      "expansions": [
+        "got to go"
+      ]
+    },
+    {
+      "trigger": "ttyl",
+      "expansions": [
+        "talk to you later"
+      ]
+    },
+    {
+      "trigger": "c u",
+      "expansions": [
+        "see you"
+      ]
+    },
+    {
+      "trigger": "до связи",
+      "expansions": [
+        "до связи"
+      ]
+    },
+    {
+      "trigger": "на связи",
+      "expansions": [
+        "на связи"
       ]
     }
   ]

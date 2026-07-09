@@ -39,13 +39,36 @@ class _ShortcutsScreenState extends State<ShortcutsScreen> {
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TactColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      useSafeArea: true,
       builder: (ctx) => _HotwordEditorSheet(existing: existing),
     );
     if (saved == true) await _load();
+  }
+
+  Future<void> _confirmDelete(UserHotword item) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TactColors.surface,
+        title: const Text('Удалить сокращение?'),
+        content: Text(
+          '«${item.trigger}» → ${item.expansion}',
+          style: const TextStyle(color: TactColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: TactColors.red),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _delete(item);
   }
 
   Future<void> _delete(UserHotword item) async {
@@ -84,10 +107,32 @@ class _ShortcutsScreenState extends State<ShortcutsScreen> {
                 ),
                 const SizedBox(height: 16),
                 if (_items.isEmpty)
-                  const TactCard(
-                    child: Text(
-                      'Пока пусто. Например: др → Добрый день',
-                      style: TextStyle(color: TactColors.textSecondary),
+                  TactCard(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: TactColors.purple.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.short_text_rounded,
+                            color: TactColors.purple,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Text(
+                            'Пока пусто. Например: др → Добрый день',
+                            style: TextStyle(
+                              color: TactColors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 else
@@ -100,21 +145,14 @@ class _ShortcutsScreenState extends State<ShortcutsScreen> {
                           _HotwordRow(
                             item: _items[i],
                             onEdit: () => _openEditor(existing: _items[i]),
-                            onDelete: () => _delete(_items[i]),
+                            onDelete: () => _confirmDelete(_items[i]),
                           ),
                         ],
                       ],
                     ),
                   ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Как это работает',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
-                  ),
-                ),
+                const TactSectionLabel('Как это работает'),
                 const SizedBox(height: 8),
                 const TactCard(
                   child: Text(
@@ -148,33 +186,39 @@ class _HotwordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        item.trigger,
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-          color: TactColors.purple,
+    return Semantics(
+      label: '${item.trigger} → ${item.expansion}',
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        minVerticalPadding: 8,
+        title: Text(
+          item.trigger,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            color: TactColors.purple,
+          ),
         ),
-      ),
-      subtitle: Text(
-        '→ ${item.expansion}',
-        style: const TextStyle(color: TactColors.textPrimary),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 20),
-            color: TactColors.textMuted,
-            onPressed: onEdit,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, size: 20),
-            color: TactColors.red,
-            onPressed: onDelete,
-          ),
-        ],
+        subtitle: Text(
+          '→ ${item.expansion}',
+          style: const TextStyle(color: TactColors.textPrimary),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              color: TactColors.textMuted,
+              tooltip: 'Изменить',
+              onPressed: onEdit,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, size: 20),
+              color: TactColors.red,
+              tooltip: 'Удалить',
+              onPressed: onDelete,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -225,52 +269,57 @@ class _HotwordEditorSheetState extends State<_HotwordEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.existing == null ? 'Новое сокращение' : 'Изменить',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: TactColors.textPrimary,
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 8, 20, 16 + bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.existing == null ? 'Новое сокращение' : 'Изменить',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: TactColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _trigger,
-            decoration: const InputDecoration(
-              labelText: 'Сокращение',
-              hintText: 'др',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _trigger,
+              decoration: const InputDecoration(
+                labelText: 'Сокращение',
+                hintText: 'др',
+              ),
+              textInputAction: TextInputAction.next,
+              autocorrect: false,
             ),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _expansion,
-            decoration: const InputDecoration(
-              labelText: 'Текст',
-              hintText: 'Добрый день',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _expansion,
+              decoration: const InputDecoration(
+                labelText: 'Текст',
+                hintText: 'Добрый день',
+              ),
+              minLines: 1,
+              maxLines: 3,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _save(),
             ),
-            minLines: 1,
-            maxLines: 3,
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: TactColors.red, fontSize: 12)),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: const TextStyle(color: TactColors.red, fontSize: 12),
+              ),
+            ],
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _save,
+              child: const Text('Сохранить'),
+            ),
           ],
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: _save,
-            style: FilledButton.styleFrom(backgroundColor: TactColors.purple),
-            child: const Text('Сохранить'),
-          ),
-        ],
+        ),
       ),
     );
   }

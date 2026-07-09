@@ -11,6 +11,7 @@ import 'actions/actions_engine.dart';
 import 'actions/undo_stack.dart';
 import 'dictionaries/dictionary_manager.dart';
 import 'dictionaries/hotwords_loader.dart';
+import 'dictionaries/personal_words_loader.dart';
 import 'input/input_pipeline.dart';
 import 'intelligence/local_intelligence_engine.dart';
 import 'intelligence/undo_tracker.dart';
@@ -35,6 +36,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
   late final ActionsEngine _actions;
   late final UndoStack _undoStack;
   late final HotwordsLoader _hotwords;
+  late final PersonalWordsLoader _personalWords;
   /// Panel-only listenable — updates never call [setState] on the app shell.
   final ValueNotifier<PanelState> _panel =
       ValueNotifier<PanelState>(const PanelIdle());
@@ -49,6 +51,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
     _undoStack = UndoStack();
     _engine = LocalIntelligenceEngine(undo: _undoTracker);
     _hotwords = HotwordsLoader(_engine);
+    _personalWords = PersonalWordsLoader(_engine);
     _actions = ActionsEngine(
       bridge: _bridge,
       undoStack: _undoStack,
@@ -63,7 +66,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
       onFieldCleared: _actions.onFieldCleared,
     );
     _bridge.attachHandler();
-    _bridge.onInputViewStarted = _reloadHotwords;
+    _bridge.onInputViewStarted = _reloadUserLexicon;
     _bridge.onFieldFinished = () {
       _pipeline.onFieldFinished();
       _actions.onFieldCleared();
@@ -73,8 +76,13 @@ class _KeyboardAppState extends State<KeyboardApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await DictionaryManager.open();
       _engine.reloadDictionaries();
-      await _reloadHotwords();
+      await _reloadUserLexicon();
     });
+  }
+
+  Future<void> _reloadUserLexicon() async {
+    await _reloadHotwords();
+    await _personalWords.reload();
   }
 
   Future<void> _reloadHotwords() => _hotwords.reload();

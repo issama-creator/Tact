@@ -113,8 +113,8 @@ class _ImeStatusCardState extends State<ImeStatusCard>
                   IconButton(
                     icon: const Icon(Icons.refresh_rounded, size: 20),
                     color: TactColors.textMuted,
+                    tooltip: 'Обновить статус',
                     onPressed: _refresh,
-                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),

@@ -258,21 +258,32 @@ class _SuggestionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: chip.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: _TactPanelColors.chipBg,
+    return Semantics(
+      button: chip.onTap != null,
+      label: chip.label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: chip.onTap,
           borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          chip.label,
-          style: const TextStyle(
-            color: _TactPanelColors.text,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 40),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _TactPanelColors.chipBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                chip.label,
+                style: const TextStyle(
+                  color: _TactPanelColors.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -348,22 +359,38 @@ class _StatusBar extends StatelessWidget {
             ),
           ),
           if (onAction != null)
-            GestureDetector(
-              onTap: onAction,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _TactPanelColors.action,
+            Semantics(
+              button: true,
+              label: actionLabel,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onAction,
                   borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '$actionLabel →',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: 40,
+                      minWidth: 44,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _TactPanelColors.action,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$actionLabel →',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

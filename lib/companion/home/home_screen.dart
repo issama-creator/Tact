@@ -27,6 +27,7 @@ class HomeScreen extends StatelessWidget {
                         IconButton(
                           icon: const Icon(Icons.menu_rounded,
                               color: TactColors.textPrimary),
+                          tooltip: 'Настройки',
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
@@ -51,6 +52,7 @@ class HomeScreen extends StatelessWidget {
                         IconButton(
                           icon: const Icon(Icons.workspace_premium_rounded,
                               color: TactColors.gold, size: 26),
+                          tooltip: 'Премиум',
                           onPressed: () {},
                         ),
                       ],
@@ -118,35 +120,65 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _statsRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: _statTile(
-            icon: Icons.edit_rounded,
-            color: TactColors.purple,
-            label: 'Исправлено',
-            value: '${state.correctedCount}',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statTile(
-            icon: Icons.favorite_rounded,
-            color: TactColors.orange,
-            label: 'Смягчено',
-            value: '${state.softenedCount}',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _statTile(
-            icon: Icons.auto_awesome_rounded,
-            color: TactColors.blue,
-            label: 'Улучшено',
-            value: '${state.improvedCount}',
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 340) {
+          return Column(
+            children: [
+              _statTile(
+                icon: Icons.edit_rounded,
+                color: TactColors.purple,
+                label: 'Исправлено',
+                value: '${state.correctedCount}',
+              ),
+              const SizedBox(height: 10),
+              _statTile(
+                icon: Icons.favorite_rounded,
+                color: TactColors.orange,
+                label: 'Смягчено',
+                value: '${state.softenedCount}',
+              ),
+              const SizedBox(height: 10),
+              _statTile(
+                icon: Icons.auto_awesome_rounded,
+                color: TactColors.blue,
+                label: 'Улучшено',
+                value: '${state.improvedCount}',
+              ),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(
+              child: _statTile(
+                icon: Icons.edit_rounded,
+                color: TactColors.purple,
+                label: 'Исправлено',
+                value: '${state.correctedCount}',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statTile(
+                icon: Icons.favorite_rounded,
+                color: TactColors.orange,
+                label: 'Смягчено',
+                value: '${state.softenedCount}',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statTile(
+                icon: Icons.auto_awesome_rounded,
+                color: TactColors.blue,
+                label: 'Улучшено',
+                value: '${state.improvedCount}',
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -24,6 +24,7 @@ void main() {
 
   test('lexicon path folds leetspeak', () {
     expect(normalizer.normalizeForLexicon('sh1t'), 'shit');
+    expect(normalizer.normalizeForLexicon('a55'), 'ass');
     expect(normalizer.normalizeForLexicon('x*y'), 'xy');
   });
 

@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
 import '../theme/tact_theme.dart';
 
+/// Consistent section title used below page headers.
+class TactSectionLabel extends StatelessWidget {
+  const TactSectionLabel(this.title, {super.key});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: TactColors.textPrimary,
+        letterSpacing: -0.2,
+      ),
+    );
+  }
+}
+
 class TactCard extends StatelessWidget {
   const TactCard({
     super.key,
@@ -91,45 +111,64 @@ class TactToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
+    return Semantics(
+      toggled: value,
+      label: '$title. $subtitle',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => onChanged(!value),
+          borderRadius: BorderRadius.circular(12),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: TactLayout.minTouchTarget),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 20),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: TactColors.textSecondary,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: TactColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: TactColors.textSecondary,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                  Switch(
+                    value: value,
+                    onChanged: onChanged,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ],
+              ),
             ),
           ),
-          Switch(value: value, onChanged: onChanged),
-        ],
+        ),
       ),
     );
   }
@@ -155,40 +194,61 @@ class TactSettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: titleColor ?? TactColors.textPrimary,
-                ),
+    final interactive = onTap != null;
+    return Semantics(
+      button: interactive,
+      label: subtitle != null ? '$title, $subtitle' : title,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          splashColor: interactive ? null : Colors.transparent,
+          highlightColor: interactive ? null : Colors.transparent,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: TactLayout.minTouchTarget),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: titleColor ?? TactColors.textPrimary,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: TactColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (trailing != null) trailing!,
+                  if (showChevron && interactive) ...[
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: TactColors.textMuted,
+                      size: 22,
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (subtitle != null)
-              Text(
-                subtitle!,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: TactColors.textSecondary,
-                ),
-              ),
-            if (trailing != null) trailing!,
-            if (showChevron && onTap != null) ...[
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right,
-                color: TactColors.textMuted,
-                size: 20,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

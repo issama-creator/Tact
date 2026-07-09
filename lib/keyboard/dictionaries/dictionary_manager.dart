@@ -13,6 +13,8 @@ import 'dictionary.dart';
 import 'dictionary_format.dart';
 import 'dictionary_profiler.dart';
 import 'locale_bundle.dart';
+import 'mat_lexicon.dart';
+import 'phrase_spell.dart';
 import 'toxic_category.dart';
 import 'typo_dictionary.dart';
 
@@ -112,14 +114,16 @@ final class DictionaryManager {
 
   LocaleBundle bundleFor(String locale) {
     final key = _localeKey(locale);
-    return _bundles[key] ?? _bundles['en']!;
+    return _bundles[key] ??
+        _bundles['en'] ??
+        _bundles.values.first;
   }
 
   Dictionary spellFor(String locale) => bundleFor(locale).spell;
 
   TypoDictionary typoFor(String locale) => bundleFor(locale).typo;
 
-  Set<String> matFor(String locale) => bundleFor(locale).mat;
+  MatLexicon matFor(String locale) => bundleFor(locale).mat;
 
   ToxicLexicon toxicFor(String locale) => bundleFor(locale).toxic;
 
@@ -139,19 +143,22 @@ final class DictionaryManager {
     final results = await Future.wait([
       rootBundle.loadString('assets/dictionaries/${locale}_spell.json'),
       rootBundle.loadString('assets/dictionaries/${locale}_typo.json'),
+      rootBundle.loadString('assets/dictionaries/${locale}_phrases_spell.json'),
       rootBundle.loadString('assets/lexicons/${locale}_mat.json'),
       rootBundle.loadString('assets/lexicons/${locale}_toxic.json'),
     ]);
     final base = DictionaryFormat.parseSpellBundle(results[0]);
     final typo = DictionaryFormat.parseTypo(results[1]);
-    final mat = DictionaryFormat.parseMat(results[2]);
-    final toxic = DictionaryFormat.parseToxic(results[3]);
+    final phraseSpell = DictionaryFormat.parsePhraseSpell(results[2]);
+    final mat = DictionaryFormat.parseMat(results[3]);
+    final toxic = DictionaryFormat.parseToxic(results[4]);
 
     return DictionaryFormat.mergeBundle(
       base: base,
       typo: typo,
       mat: mat,
       toxic: toxic,
+      phraseSpell: phraseSpell,
     );
   }
 
@@ -170,19 +177,26 @@ final class DictionaryManager {
       final spell = Dictionary.fromWords(
         embeddedRuWords,
         nextWords: embeddedRuNext,
+        locale: 'ru',
       );
+      final phraseSpell = PhraseSpellLexicon.empty();
       return LocaleBundle(
         locale: 'ru',
         version: 1,
         spell: spell,
         typo: embeddedRuTypos,
-        mat: Set<String>.unmodifiable(embeddedMatRu),
+        mat: MatLexicon.fromParts(
+          tokens: embeddedMatRu,
+          stems: embeddedMatRuStems,
+        ),
         toxic: embeddedToxicRuLexicon,
+        phraseSpell: phraseSpell,
         stats: BundleStats(
           spellWords: spell.size,
           typoEntries: embeddedRuTypos.size,
-          matTokens: embeddedMatRu.length,
+          matTokens: embeddedMatRu.length + embeddedMatRuStems.length,
           toxicEntries: embeddedToxicRuLexicon.size,
+          phraseSpellEntries: 0,
           nextWordKeys: spell.nextWordKeyCount,
           estimatedBytes: spell.size * 6,
         ),
@@ -192,19 +206,26 @@ final class DictionaryManager {
     final spell = Dictionary.fromWords(
       embeddedEnWords,
       nextWords: embeddedEnNext,
+      locale: 'en',
     );
+    final phraseSpell = PhraseSpellLexicon.empty();
     return LocaleBundle(
       locale: 'en',
       version: 1,
       spell: spell,
       typo: embeddedEnTypos,
-      mat: Set<String>.unmodifiable(embeddedMatEn),
+      mat: MatLexicon.fromParts(
+        tokens: embeddedMatEn,
+        stems: embeddedMatEnStems,
+      ),
       toxic: embeddedToxicEnLexicon,
+      phraseSpell: phraseSpell,
       stats: BundleStats(
         spellWords: spell.size,
         typoEntries: embeddedEnTypos.size,
-        matTokens: embeddedMatEn.length,
+        matTokens: embeddedMatEn.length + embeddedMatEnStems.length,
         toxicEntries: embeddedToxicEnLexicon.size,
+        phraseSpellEntries: 0,
         nextWordKeys: spell.nextWordKeyCount,
         estimatedBytes: spell.size * 6,
       ),

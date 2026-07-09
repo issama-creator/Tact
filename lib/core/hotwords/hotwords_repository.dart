@@ -56,9 +56,26 @@ final class HotwordsRepository {
     }
   }
 
-  Future<void> saveAll(List<UserHotword> items) async {
-    final encoded = jsonEncode(items.map((e) => e.toJson()).toList());
-    await _store.setString(storageKey, encoded);
+  /// Merges with stored rows so concurrent companion + IME writes do not drop entries.
+  Future<void> saveAll(
+    List<UserHotword> items, {
+    Set<String> deletedIds = const {},
+  }) async {
+    final existing = await loadAll();
+    final map = {for (final h in existing) h.id: h};
+    for (final id in deletedIds) {
+      map.remove(id);
+    }
+    for (final item in items) {
+      final prev = map[item.id];
+      if (prev == null || item.updatedAtMs >= prev.updatedAtMs) {
+        map[item.id] = item;
+      }
+    }
+    final merged = map.values.toList()
+      ..sort((a, b) => b.updatedAtMs.compareTo(a.updatedAtMs));
+    final encoded = jsonEncode(merged.map((e) => e.toJson()).toList());
+    await _store.setStringAtomic(storageKey, encoded);
   }
 
   Future<UserHotword> upsert({
@@ -96,8 +113,6 @@ final class HotwordsRepository {
   }
 
   Future<void> delete(String id) async {
-    final all = List<UserHotword>.from(await loadAll())
-      ..removeWhere((h) => h.id == id);
-    await saveAll(all);
+    await saveAll(const [], deletedIds: {id});
   }
 }

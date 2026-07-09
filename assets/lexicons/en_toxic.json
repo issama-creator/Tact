@@ -16,24 +16,12 @@
       "s": 65,
       "c": "insult"
     },
-    "hate": {
-      "s": 60,
-      "c": "hostile"
-    },
     "kill": {
-      "s": 75,
-      "c": "hostile"
-    },
-    "die": {
-      "s": 72,
+      "s": 78,
       "c": "hostile"
     },
     "loser": {
       "s": 58,
-      "c": "insult"
-    },
-    "ugly": {
-      "s": 50,
       "c": "insult"
     },
     "shutup": {
@@ -60,10 +48,6 @@
       "s": 57,
       "c": "insult"
     },
-    "annoying": {
-      "s": 51,
-      "c": "dismissive"
-    },
     "freak": {
       "s": 59,
       "c": "insult"
@@ -76,9 +60,43 @@
       "s": 55,
       "c": "aggressive"
     },
-    "rude": {
-      "s": 52,
+    "damn": {
+      "s": 42,
       "c": "aggressive"
+    },
+    "hell": {
+      "s": 40,
+      "c": "aggressive"
+    }
+  },
+  "phrases": {
+    "shut up": {
+      "s": 55,
+      "c": "dismissive"
+    },
+    "go die": {
+      "s": 80,
+      "c": "hostile"
+    },
+    "hate you": {
+      "s": 72,
+      "c": "hostile"
+    },
+    "kill yourself": {
+      "s": 90,
+      "c": "hostile"
+    },
+    "you suck": {
+      "s": 62,
+      "c": "insult"
+    },
+    "get lost": {
+      "s": 58,
+      "c": "dismissive"
+    },
+    "nobody cares": {
+      "s": 60,
+      "c": "dismissive"
     }
   }
 }

@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 
+/// Spacing and touch-target constants (Material / HIG: 48dp minimum).
+abstract final class TactLayout {
+  static const minTouchTarget = 48.0;
+  static const screenPadding = 16.0;
+  static const sectionGap = 24.0;
+  static const itemGap = 12.0;
+  static const cardRadius = 16.0;
+}
+
 /// Design tokens matching the TACT companion mockups.
 abstract final class TactColors {
   static const background = Color(0xFF07070A);
@@ -71,5 +80,66 @@ ThemeData buildTactTheme() {
     ),
     dividerColor: TactColors.surfaceBorder,
     fontFamily: 'Roboto',
+    splashFactory: InkSparkle.splashFactory,
+    highlightColor: TactColors.purple.withValues(alpha: 0.08),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        minimumSize: const Size(TactLayout.minTouchTarget, TactLayout.minTouchTarget),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(64, TactLayout.minTouchTarget),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(64, TactLayout.minTouchTarget),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: TactColors.surfaceElevated,
+      labelStyle: const TextStyle(color: TactColors.textSecondary),
+      hintStyle: const TextStyle(color: TactColors.textMuted),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: TactColors.surfaceBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: TactColors.surfaceBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: TactColors.purple, width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: TactColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      showDragHandle: true,
+      dragHandleColor: TactColors.textMuted,
+    ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+    ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 }

@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "locale": "en",
+  "corrections": {
+    "thank yo": "thank you",
+    "thank u": "thank you",
+    "how ar": "how are",
+    "how are yo": "how are you",
+    "good mornin": "good morning",
+    "see yo": "see you",
+    "let me kno": "let me know",
+    "talk to yo": "talk to you",
+    "nice to met": "nice to meet"
+  },
+  "valid": [
+    "thank you",
+    "how are you",
+    "good morning",
+    "see you",
+    "let me know",
+    "talk to you",
+    "nice to meet you",
+    "have a good day"
+  ]
+}

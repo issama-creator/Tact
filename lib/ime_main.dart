@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 
-import 'keyboard/dictionaries/dictionary_manager.dart';
 import 'keyboard/keyboard_app.dart';
 import 'keyboard/theme/keyboard_theme.dart';
 
@@ -25,5 +24,4 @@ void runImeKeyboard() {
     ),
     home: const KeyboardApp(),
   ));
-  DictionaryManager.open();
 }

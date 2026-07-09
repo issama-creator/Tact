@@ -17,6 +17,11 @@ final class _MemoryKvStore implements KvStore {
   }
 
   @override
+  Future<void> setStringAtomic(String key, String value) async {
+    await setString(key, value);
+  }
+
+  @override
   Future<bool> remove(String key) async => _data.remove(key) != null;
 }
 

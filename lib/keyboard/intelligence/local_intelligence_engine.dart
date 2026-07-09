@@ -30,25 +30,21 @@ final class IntelligenceResult {
 /// Heart of TACT — processes every completed word synchronously.
 final class LocalIntelligenceEngine {
   LocalIntelligenceEngine({
-    DictionaryManager? dictionaryManager,
     ShortcutTable? shortcuts,
     RulesEngine? rules,
     UndoTracker? undo,
     Set<String>? personalWords,
     WordBoundaryAnalyzer? analyzer,
-  })  : _manager = dictionaryManager ?? DictionaryManager.shared,
-        _rules = rules ?? const RulesEngine(),
+  })  : _rules = rules ?? const RulesEngine(),
         _undo = undo ?? UndoTracker(),
         _analyzer = analyzer ??
             WordBoundaryAnalyzer(
-              manager: dictionaryManager ?? DictionaryManager.shared,
               shortcuts: shortcuts,
               personalWords: personalWords ?? const {},
             ) {
-    _loadedSource = _manager.source;
+    _loadedSource = DictionaryManager.shared.source;
   }
 
-  final DictionaryManager _manager;
   final RulesEngine _rules;
   final UndoTracker _undo;
   final WordBoundaryAnalyzer _analyzer;
@@ -117,9 +113,11 @@ final class LocalIntelligenceEngine {
     );
   }
 
+  void setPersonalWords(Set<String> words) => _analyzer.setPersonalWords(words);
+
   /// Refreshes when [DictionaryManager.open] loads new assets.
   void reloadDictionaries() {
-    final source = _manager.source;
+    final source = DictionaryManager.shared.source;
     if (_loadedSource == source) return;
     _loadedSource = source;
   }

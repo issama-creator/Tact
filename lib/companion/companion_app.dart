@@ -33,7 +33,12 @@ class _CompanionShellState extends State<CompanionShell> {
 
     return Scaffold(
       backgroundColor: TactColors.background,
-      body: IndexedStack(index: _index, children: screens),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: IndexedStack(index: _index, children: screens),
+        ),
+      ),
       bottomNavigationBar: TactBottomNav(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
@@ -71,6 +76,15 @@ class _CompanionAppState extends State<CompanionApp> {
       debugShowCheckedModeBanner: false,
       title: 'TACT',
       theme: buildTactTheme(),
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler.clamp(maxScaleFactor: 1.35),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: CompanionShell(state: _state),
     );
   }

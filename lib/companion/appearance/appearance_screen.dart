@@ -30,6 +30,9 @@ class AppearanceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final crossCount = width >= 720 ? 4 : width >= 480 ? 3 : 2;
+
     return Scaffold(
       backgroundColor: TactColors.background,
       body: SafeArea(
@@ -37,27 +40,20 @@ class AppearanceScreen extends StatelessWidget {
           listenable: state,
           builder: (context, _) {
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(TactLayout.screenPadding),
               children: [
                 const TactSectionHeader(
                   title: 'Внешний вид',
                   subtitle: 'Настройте внешний вид клавиатуры и панели',
                 ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Темы клавиатуры',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: TactLayout.sectionGap),
+                const TactSectionLabel('Темы клавиатуры'),
+                const SizedBox(height: TactLayout.itemGap),
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossCount,
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                     childAspectRatio: 0.85,
@@ -66,83 +62,103 @@ class AppearanceScreen extends StatelessWidget {
                   itemBuilder: (context, i) {
                     final theme = _themes[i];
                     final selected = state.selectedThemeIndex == i;
-                    return GestureDetector(
-                      onTap: () => state.setThemeIndex(i),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: theme.bg,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: selected
-                                      ? TactColors.purple
-                                      : TactColors.surfaceBorder,
-                                  width: selected ? 2 : 0.5,
+                    return Semantics(
+                      button: true,
+                      selected: selected,
+                      label: 'Тема ${theme.name}',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => state.setThemeIndex(i),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOutCubic,
+                                  decoration: BoxDecoration(
+                                    color: theme.bg,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: selected
+                                          ? TactColors.purple
+                                          : TactColors.surfaceBorder,
+                                      width: selected ? 2 : 0.5,
+                                    ),
+                                  ),
+                                  child: _miniKeys(theme.keyColor),
                                 ),
                               ),
-                              child: _miniKeys(theme.keyColor),
-                            ),
+                              const SizedBox(height: 6),
+                              Text(
+                                theme.name,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: selected
+                                      ? TactColors.purple
+                                      : TactColors.textSecondary,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            theme.name,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: selected
-                                  ? TactColors.purple
-                                  : TactColors.textSecondary,
-                              fontWeight: selected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     );
                   },
                 ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Фон панели',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: TactLayout.sectionGap),
+                const TactSectionLabel('Фон панели'),
+                const SizedBox(height: TactLayout.itemGap),
                 SizedBox(
-                  height: 44,
+                  height: TactLayout.minTouchTarget,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _panelColors.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (context, i) {
                       final selected = state.selectedPanelColorIndex == i;
                       final color = _panelColors[i];
-                      return GestureDetector(
-                        onTap: () => state.setPanelColorIndex(i),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: color ?? TactColors.purple,
-                            gradient: color == null
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFF8B5CF6),
-                                      Color(0xFF3B82F6),
-                                    ],
-                                  )
-                                : null,
-                            border: Border.all(
-                              color: selected
-                                  ? Colors.white
-                                  : Colors.transparent,
-                              width: 2,
+                      return Semantics(
+                        button: true,
+                        selected: selected,
+                        label: color == null ? 'Градиент' : 'Цвет панели',
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => state.setPanelColorIndex(i),
+                            customBorder: const CircleBorder(),
+                            child: SizedBox(
+                              width: TactLayout.minTouchTarget,
+                              height: TactLayout.minTouchTarget,
+                              child: Center(
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: color ?? TactColors.purple,
+                                    gradient: color == null
+                                        ? const LinearGradient(
+                                            colors: [
+                                              Color(0xFF8B5CF6),
+                                              Color(0xFF3B82F6),
+                                            ],
+                                          )
+                                        : null,
+                                    border: Border.all(
+                                      color: selected
+                                          ? Colors.white
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -150,29 +166,25 @@ class AppearanceScreen extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Высота панели',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
-                  ),
-                ),
+                const SizedBox(height: TactLayout.sectionGap),
+                const TactSectionLabel('Высота панели'),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: TactColors.textMuted, size: 20),
-                    Expanded(
-                      child: Slider(
-                        value: state.panelHeight,
-                        onChanged: state.setPanelHeight,
+                Semantics(
+                  label: 'Высота панели',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.keyboard_arrow_down_rounded,
+                          color: TactColors.textMuted, size: 20),
+                      Expanded(
+                        child: Slider(
+                          value: state.panelHeight,
+                          onChanged: state.setPanelHeight,
+                        ),
                       ),
-                    ),
-                    const Icon(Icons.keyboard_arrow_up_rounded,
-                        color: TactColors.textMuted, size: 20),
-                  ],
+                      const Icon(Icons.keyboard_arrow_up_rounded,
+                          color: TactColors.textMuted, size: 20),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(

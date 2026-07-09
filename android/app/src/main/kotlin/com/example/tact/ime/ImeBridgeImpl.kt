@@ -52,6 +52,7 @@ class ImeBridgeImpl(
                 "inputType" to inputType,
                 "imeOptions" to imeOptions,
                 "locale" to locale,
+                "isPassword" to inputController.isPasswordField,
             ),
         )
     }
@@ -132,8 +133,7 @@ class ImeBridgeImpl(
     private fun invokeDart(method: String, arguments: Any?) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             if (!FlutterEngineHost.isDartReady()) {
-                pending.addLast(method to arguments)
-                if (pending.size > MAX_PENDING) pending.removeFirst()
+                enqueuePending(method, arguments)
                 return
             }
             dispatchDart(method, arguments)
@@ -141,12 +141,26 @@ class ImeBridgeImpl(
         }
         mainHandler.post {
             if (!FlutterEngineHost.isDartReady()) {
-                pending.addLast(method to arguments)
-                if (pending.size > MAX_PENDING) pending.removeFirst()
+                enqueuePending(method, arguments)
                 return@post
             }
             dispatchDart(method, arguments)
         }
+    }
+
+    private fun enqueuePending(method: String, arguments: Any?) {
+        if (pending.size >= MAX_PENDING) {
+            val dropIdx = pending.indexOfFirst { (m, _) ->
+                m == "onPartialWord" || m == "onPartialWordClear" ||
+                    m == "onTextEdited" || m == "onSelectionChanged"
+            }
+            if (dropIdx >= 0) {
+                pending.removeAt(dropIdx)
+            } else {
+                pending.removeFirst()
+            }
+        }
+        pending.addLast(method to arguments)
     }
 
     private fun dispatchDart(method: String, arguments: Any?) {
@@ -175,6 +189,9 @@ class ImeBridgeImpl(
     fun dispose() {
         channel.setMethodCallHandler(null)
         pending.clear()
+        pendingSelection = null
+        selectionFlushPosted = false
+        mainHandler.removeCallbacksAndMessages(null)
     }
 
     // ── Dart → Native ─────────────────────────────────────────────────

@@ -40,6 +40,9 @@ class TactInputMethodService : InputMethodService() {
 
     override fun onCreateInputView(): View {
         Log.i(TAG, "onCreateInputView")
+        rootView?.teardown()
+        bridge?.dispose()
+        bridge = null
         val root = KeyboardRootView(
             context = this,
             inputController = inputController,
@@ -95,6 +98,7 @@ class TactInputMethodService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        rootView?.teardown()
         bridge?.dispose()
         bridge = null
         rootView = null

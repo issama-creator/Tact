@@ -104,6 +104,9 @@ class ImeBridge {
   void Function()? onInputViewStarted;
   void Function()? onFieldFinished;
 
+  /// True while the focused field is a password — lexicon analysis is skipped.
+  bool isPasswordField = false;
+
   Stream<WordEvent> get onWordCommitted => _words.stream.where((e) => !e.partial);
   Stream<WordEvent> get onPartialWord => _words.stream.where((e) => e.partial);
   Stream<void> get onPartialWordClear => _partialClears.stream;
@@ -245,9 +248,10 @@ class ImeBridge {
         _handleTheme(call.arguments);
         return null;
       case 'onStartInputView':
-        onInputViewStarted?.call();
+        _handleInputViewStarted(call.arguments);
         return null;
       case 'onFinishInputView':
+        isPasswordField = false;
         onFieldFinished?.call();
         return null;
       case 'onSelectionChanged':
@@ -293,6 +297,12 @@ class ImeBridge {
       _ => null,
     };
     if (argb != null) onThemeArgb?.call(argb);
+  }
+
+  void _handleInputViewStarted(Object? arguments) {
+    final map = _asMap(arguments);
+    isPasswordField = map?['isPassword'] as bool? ?? false;
+    onInputViewStarted?.call();
   }
 
   ReplaceOutcome? _parseReplaceOutcome(Object? raw) {

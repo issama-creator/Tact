@@ -28,23 +28,29 @@ final class WordBoundaryResult {
 /// Runs spell, mat, toxic, shortcut, and improve checks in a single pass.
 final class WordBoundaryAnalyzer {
   WordBoundaryAnalyzer({
-    required DictionaryManager manager,
     Normalizer? normalizer,
     ShortcutTable? shortcuts,
-    this.personalWords = const {},
+    Set<String> personalWords = const {},
     this.improveMinChars = 30,
-  })  : _manager = manager,
-        _normalizer = normalizer ?? Normalizer(),
+  })  : _normalizer = normalizer ?? Normalizer(),
         _shortcuts = shortcuts ??
-            ShortcutTable(builtin: manager.builtinShortcuts);
+            ShortcutTable(builtin: DictionaryManager.shared.builtinShortcuts),
+        _personalWords = personalWords;
 
-  final DictionaryManager _manager;
+  /// Always reads the live singleton — asset load replaces [DictionaryManager.shared].
+  DictionaryManager get _manager => DictionaryManager.shared;
   final Normalizer _normalizer;
   ShortcutTable _shortcuts;
-  final Set<String> personalWords;
+  Set<String> _personalWords;
   final int improveMinChars;
 
   void setShortcuts(ShortcutTable table) => _shortcuts = table;
+
+  void setPersonalWords(Set<String> words) {
+    _personalWords = Set<String>.unmodifiable(
+      words.map((w) => w.toLowerCase()).where((w) => w.length >= 2),
+    );
+  }
 
   /// All word-boundary checks in one function — called on space / punctuation.
   WordBoundaryResult analyzeAtBoundary(TextContext ctx, String localeKey) {
@@ -60,6 +66,12 @@ final class WordBoundaryAnalyzer {
     final signals = <RuleSignal>[];
 
     if (!skipLexicon && lexiconKey.isNotEmpty) {
+      _checkPhraseSpell(
+        signals: signals,
+        ctx: ctx,
+        range: ctx.range,
+        bundle: bundle,
+      );
       _checkSpell(
         signals: signals,
         word: word,
@@ -82,6 +94,7 @@ final class WordBoundaryAnalyzer {
         lexiconKey: lexiconKey,
         range: ctx.range,
         bundle: bundle,
+        messageKey: _normalizer.normalizeForLexicon(ctx.fullMessage),
       );
       _checkImprove(signals: signals, ctx: ctx);
     }
@@ -102,6 +115,28 @@ final class WordBoundaryAnalyzer {
     return signals;
   }
 
+  void _checkPhraseSpell({
+    required List<RuleSignal> signals,
+    required TextContext ctx,
+    required EditRange range,
+    required LocaleBundle bundle,
+  }) {
+    if (bundle.phraseSpell.size == 0) return;
+    final messageKey = _normalizer.normalize(ctx.fullMessage);
+    final fix = bundle.phraseSpell.lookupTrailing(messageKey);
+    if (fix == null) return;
+
+    signals.add(
+      RuleSignal(
+        kind: SignalKind.spellError,
+        severity: 85,
+        confidence: 0.9,
+        range: range,
+        payload: SpellPayload(word: ctx.word, candidates: [fix]),
+      ),
+    );
+  }
+
   void _checkSpell({
     required List<RuleSignal> signals,
     required String word,
@@ -113,7 +148,7 @@ final class WordBoundaryAnalyzer {
   }) {
     if (bundle.mat.contains(lexiconKey)) return;
     if (known) return;
-    if (personalWords.contains(normalized)) return;
+    if (_personalWords.contains(normalized)) return;
 
     final typoFix = bundle.typo.lookup(normalized);
     final candidates =
@@ -158,10 +193,13 @@ final class WordBoundaryAnalyzer {
     required String lexiconKey,
     required EditRange range,
     required LocaleBundle bundle,
+    required String messageKey,
   }) {
-    if (lexiconKey.length < kMinLexiconWordLength) return;
-
-    final entry = bundle.toxic.lookup(lexiconKey);
+    ToxicEntry? entry;
+    if (lexiconKey.length >= kMinLexiconWordLength) {
+      entry = bundle.toxic.lookup(lexiconKey);
+    }
+    entry ??= bundle.toxic.lookupPhrase(messageKey);
     if (entry == null) return;
 
     final level = _toxicLevel(
@@ -192,6 +230,8 @@ final class WordBoundaryAnalyzer {
     required TextContext ctx,
   }) {
     if (ctx.fullMessage.length < improveMinChars) return;
+    // Require enough content — avoids improve spam on short padded messages.
+    if (_wordCount(ctx.fullMessage) < 5) return;
 
     signals.add(
       RuleSignal(
@@ -235,5 +275,21 @@ final class WordBoundaryAnalyzer {
     if (score >= conflict) return ToxicLevel.conflict;
     if (score >= warning) return ToxicLevel.warning;
     return ToxicLevel.safe;
+  }
+
+  static int _wordCount(String message) {
+    var count = 0;
+    var inWord = false;
+    for (var i = 0; i < message.length; i++) {
+      final cu = message.codeUnitAt(i);
+      final isSpace = cu == 0x20 || cu == 0x09 || cu == 0x0A || cu == 0x0D;
+      if (isSpace) {
+        inWord = false;
+      } else if (!inWord) {
+        inWord = true;
+        count++;
+      }
+    }
+    return count;
   }
 }

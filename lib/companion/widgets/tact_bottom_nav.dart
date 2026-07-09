@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import '../theme/tact_theme.dart';
 
 class TactBottomNav extends StatelessWidget {
@@ -27,28 +29,27 @@ class TactBottomNav extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+        child: SizedBox(
+          height: TactLayout.minTouchTarget + 16,
           child: Row(
             children: List.generate(_items.length, (i) {
               final item = _items[i];
               final selected = i == currentIndex;
               return Expanded(
-                child: InkWell(
-                  onTap: () => onTap(i),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        item.icon,
-                        size: 22,
-                        color: selected
-                            ? TactColors.purple
-                            : TactColors.textMuted,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.label,
+                child: Semantics(
+                  button: true,
+                  selected: selected,
+                  label: item.label,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        onTap(i);
+                      },
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOutCubic,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight:
@@ -57,8 +58,27 @@ class TactBottomNav extends StatelessWidget {
                               ? TactColors.purple
                               : TactColors.textMuted,
                         ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedScale(
+                              scale: selected ? 1.05 : 1.0,
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOutCubic,
+                              child: Icon(
+                                item.icon,
+                                size: 22,
+                                color: selected
+                                    ? TactColors.purple
+                                    : TactColors.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(item.label),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               );

@@ -39,14 +39,7 @@ class KeyboardScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 _imeSetupCard(),
                 const SizedBox(height: 24),
-                const Text(
-                  'Режимы проверки',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
-                  ),
-                ),
+                const TactSectionLabel('Режимы проверки'),
                 const SizedBox(height: 8),
                 TactCard(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -121,14 +114,7 @@ class KeyboardScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Предпросмотр панели',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
-                  ),
-                ),
+                const TactSectionLabel('Предпросмотр панели'),
                 const SizedBox(height: 10),
                 const TactCard(child: PanelPreviewBar()),
               ],

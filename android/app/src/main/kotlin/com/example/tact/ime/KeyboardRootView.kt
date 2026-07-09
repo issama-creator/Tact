@@ -45,6 +45,7 @@ class KeyboardRootView(
     private var engineAttached = false
 
     private var suggestionBarContainer: FrameLayout? = null
+    private var flutterLayoutListener: View.OnLayoutChangeListener? = null
 
     private val flutterUiListener = object : FlutterUiDisplayListener {
         override fun onFlutterUiDisplayed() {
@@ -151,11 +152,13 @@ class KeyboardRootView(
             bridge = impl
             onBridgeReady(impl)
 
-            view.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val layoutListener = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
                 if (engineAttached && v.width > 0 && v.height > 0) {
                     bumpFlutterRender()
                 }
             }
+            flutterLayoutListener = layoutListener
+            view.addOnLayoutChangeListener(layoutListener)
 
             view.post { attachFlutterEngineIfNeeded() }
             view
@@ -227,9 +230,28 @@ class KeyboardRootView(
     }
 
     override fun onDetachedFromWindow() {
+        detachFlutterSuggestionBar()
+        super.onDetachedFromWindow()
+    }
+
+    /** Tears down bridge, listeners, and Flutter lifecycle before the view is replaced. */
+    fun teardown() {
+        onFinishInputView()
+        keyGridView.onWordCommitted = null
+        keyGridView.onPartialWord = null
+        keyGridView.onTextEdited = null
+        bridge?.dispose()
+        bridge = null
+        detachFlutterSuggestionBar()
+    }
+
+    private fun detachFlutterSuggestionBar() {
         flutterView?.let { view ->
+            flutterLayoutListener?.let { view.removeOnLayoutChangeListener(it) }
+            flutterLayoutListener = null
             if (engineAttached) {
                 try {
+                    flutterEngine?.lifecycleChannel?.appIsPaused()
                     flutterEngine?.renderer?.removeIsDisplayingFlutterUiListener(flutterUiListener)
                     view.detachFromFlutterEngine()
                 } catch (t: Throwable) {
@@ -238,7 +260,6 @@ class KeyboardRootView(
                 engineAttached = false
             }
         }
-        super.onDetachedFromWindow()
     }
 
     fun configureFor(info: EditorInfo?) {

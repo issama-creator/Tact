@@ -112,6 +112,12 @@ final class Normalizer {
         return 0x73;
       case 0x37:
         return 0x74;
+      case 0x38:
+        return 0x62;
+      case 0x36:
+        return 0x67;
+      case 0x21:
+        return 0x69;
       case 0x40:
         return 0x61;
       case 0x24:

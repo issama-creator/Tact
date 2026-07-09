@@ -19,38 +19,41 @@ class PreviewScreen extends StatelessWidget {
         ),
         title: const Text('Предпросмотр'),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Text(
-              'Так будет выглядеть клавиатура и панель во время работы',
-              style: TextStyle(
-                fontSize: 14,
-                color: TactColors.textSecondary,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Text(
+                'Так будет выглядеть клавиатура и панель во время работы',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: TactColors.textSecondary,
+                  height: 1.4,
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: TactColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: TactColors.surfaceBorder),
-              ),
-              child: Column(
-                children: [
-                  const Spacer(),
-                  _chatArea(),
-                  const MiniKeyboardPreview(),
-                ],
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: TactColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: TactColors.surfaceBorder),
+                ),
+                child: Column(
+                  children: [
+                    const Spacer(),
+                    _chatArea(),
+                    const MiniKeyboardPreview(),
+                  ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-        ],
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
