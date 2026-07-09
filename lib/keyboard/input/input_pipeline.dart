@@ -5,15 +5,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../actions/text_replacement.dart';
+import '../dictionaries/mat_lexicon.dart';
 import '../intelligence/local_intelligence_engine.dart';
 import '../panel/panel_anchor.dart';
 import '../panel/panel_state.dart';
+import '../rules/rule_signal.dart';
 import '../../core/bridge/ime_bridge_facade.dart';
 import 'text_context.dart';
 import 'word_length_policy.dart';
 
 typedef PanelListener = void Function(PanelState state);
 typedef ActionContextListener = void Function(ActionContext ctx);
+typedef MatBlockHandler = Future<void> Function(PanelMat panel);
 
 /// Subscribes to [ImeBridge.onWordCommitted] and runs the intelligence pipeline.
 final class InputPipeline {
@@ -23,12 +26,14 @@ final class InputPipeline {
     PanelListener? onPanel,
     ActionContextListener? onActionContext,
     void Function()? onFieldCleared,
+    MatBlockHandler? onMatBlock,
     PanelSettings settings = const PanelSettings(),
   })  : _bridge = bridge,
         _engine = engine,
         _onPanel = onPanel,
         _onActionContext = onActionContext,
         _onFieldCleared = onFieldCleared,
+        _onMatBlock = onMatBlock,
         _settings = settings;
 
   final ImeBridge _bridge;
@@ -36,6 +41,7 @@ final class InputPipeline {
   final PanelListener? _onPanel;
   final ActionContextListener? _onActionContext;
   final void Function()? _onFieldCleared;
+  final MatBlockHandler? _onMatBlock;
   final PanelSettings _settings;
 
   StreamSubscription<WordEvent>? _sub;
@@ -235,8 +241,9 @@ final class InputPipeline {
   }
 
   void _dispatch(WordEvent event, String word, String before, String after) {
-    if (_panel is PanelUndo && _engine.undo.available) {
-      return;
+    // New word boundary supersedes any pending undo chip.
+    if (_engine.undo.available) {
+      _engine.undo.clear();
     }
 
     final actionCtx = ActionContext(
@@ -261,6 +268,19 @@ final class InputPipeline {
     );
     final result = _engine.process(ctx);
     if (gen != _generation) return;
+
+    if (_engine.antiMatEnabled && _onMatBlock != null) {
+      final blocked = _blockMatPayload(result.signals);
+      if (blocked != null) {
+        if (kDebugMode) {
+          debugPrint(
+            '[TACT Pipeline] block mat "${blocked.word}" -> auto remove',
+          );
+        }
+        unawaited(_onMatBlock!(PanelMat(word: word, range: ctx.range)));
+        return;
+      }
+    }
 
     final now = result.decision.producedAtMs;
     final next = reducePanel(
@@ -311,5 +331,16 @@ final class InputPipeline {
   void adoptPanel(PanelState state) {
     _panel = state;
     _panelFromPartialOnly = false;
+  }
+
+  static MatPayload? _blockMatPayload(List<RuleSignal> signals) {
+    for (final signal in signals) {
+      if (signal.kind != SignalKind.mat) continue;
+      final payload = signal.payload;
+      if (payload is MatPayload && payload.level == MatLevel.block) {
+        return payload;
+      }
+    }
+    return null;
   }
 }

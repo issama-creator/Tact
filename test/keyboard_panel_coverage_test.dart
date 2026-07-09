@@ -11,7 +11,7 @@ import 'package:tact/keyboard/ui/suggestion_bar.dart';
 class _ImeKeyboardChrome extends StatelessWidget {
   const _ImeKeyboardChrome({
     required this.panelSlot,
-    this.barHeight = 52,
+    this.barHeight = 38,
     this.keyAreaHeight = 200,
     this.width = 400,
   });
@@ -54,7 +54,7 @@ class _ImeKeyboardChrome extends StatelessWidget {
 Future<void> _pumpInChrome(
   WidgetTester tester, {
   required PanelState panel,
-  double barHeight = 52,
+  double barHeight = 38,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -62,7 +62,7 @@ Future<void> _pumpInChrome(
         barHeight: barHeight,
         panelSlot: SuggestionBar(
           panel: panel,
-          backgroundColor: KeyboardTheme.keyboardBackground,
+          backgroundColor: KeyboardTheme.panelBarBackground,
           onAction: (_) async {},
         ),
       ),
@@ -101,12 +101,12 @@ void main() {
     }
   });
 
-  testWidgets('panel background matches native keyboard color', (tester) async {
+  testWidgets('idle panel uses soft strip background', (tester) async {
     await _pumpInChrome(tester, panel: const PanelIdle());
     final box = tester.widget<ColoredBox>(
       find.byKey(const Key('suggestion_bar_root')),
     );
-    expect(box.color, KeyboardTheme.keyboardBackground);
+    expect(box.color, KeyboardTheme.panelBarBackground);
   });
 
   testWidgets('idle panel paints keyboard bg over entire slot', (tester) async {
@@ -122,7 +122,7 @@ void main() {
     ));
     expect(
       _rect(tester, find.byKey(const Key('suggestion_bar_root'))).height,
-      52,
+      38,
     );
   });
 
@@ -130,7 +130,7 @@ void main() {
     await _pumpInChrome(
       tester,
       panel: const PanelIdle(),
-      barHeight: 46,
+      barHeight: 32,
     );
     final slot = _rect(tester, find.byKey(const Key('panel_slot')));
     expect(_rect(tester, find.byKey(const Key('suggestion_bar_root'))), slot);

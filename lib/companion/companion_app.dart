@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'appearance/appearance_screen.dart';
@@ -8,6 +10,7 @@ import 'platform/ime_platform.dart';
 import 'state/app_state.dart';
 import 'theme/tact_theme.dart';
 import 'widgets/tact_bottom_nav.dart';
+import '../core/keyboard_settings/keyboard_settings_repository.dart';
 
 /// Companion app shell — bottom navigation + shared state.
 class CompanionShell extends StatefulWidget {
@@ -62,6 +65,12 @@ class _CompanionAppState extends State<CompanionApp> {
   void initState() {
     super.initState();
     ImePlatform.ensureInitialized();
+    unawaited(_loadKeyboardSettings());
+  }
+
+  Future<void> _loadKeyboardSettings() async {
+    final repo = await KeyboardSettingsRepository.open();
+    await _state.bindSettingsRepository(repo);
   }
 
   @override

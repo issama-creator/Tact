@@ -103,10 +103,10 @@ void main() {
     );
     pipeline.start();
     bridge.emitWord(const WordEvent(
-      word: 'хуй',
+      word: 'сука',
       locale: 'ru',
       boundary: ' ',
-      deleteBefore: 4,
+      deleteBefore: 5,
     ));
     await Future<void>.delayed(Duration.zero);
     expect(last, isA<PanelMat>());

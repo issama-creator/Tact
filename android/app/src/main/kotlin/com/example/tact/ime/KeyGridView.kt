@@ -215,6 +215,15 @@ class KeyGridView @JvmOverloads constructor(
         val vGap = metrics.dp(Theme.KEY_VERTICAL_GAP_DP)
         val paddingX = metrics.dp(Theme.KEY_GRID_PADDING_X_DP)
         val paddingY = metrics.dp(Theme.KEY_GRID_PADDING_Y_DP)
+        val innerWidth = width - paddingX * 2
+
+        // One key-unit derived from the widest row — shorter rows center-align.
+        val refRow = rows.maxBy { row ->
+            row.keys.sumOf { it.weight.toDouble() }
+        }
+        val refWeight = refRow.keys.sumOf { it.weight.toDouble() }.toFloat()
+        val refGaps = hGap * (refRow.keys.size - 1).coerceAtLeast(0)
+        val keyUnitWidth = (innerWidth - refGaps) / refWeight
 
         val totalHeightWeight = rows.sumOf { it.heightWeight.toDouble() }.toFloat()
         val usableHeight = (height - paddingY * 2) - vGap * (rows.size - 1)
@@ -225,10 +234,10 @@ class KeyGridView @JvmOverloads constructor(
             val row = rows[rowIndex]
             val rowHeight = rowUnitHeight * row.heightWeight
             val totalKeyWeight = row.keys.sumOf { it.weight.toDouble() }.toFloat()
-            val usableWidth = (width - paddingX * 2) - hGap * (row.keys.size - 1)
-            val keyUnitWidth = usableWidth / totalKeyWeight
+            val rowGaps = hGap * (row.keys.size - 1).coerceAtLeast(0)
+            val rowWidth = keyUnitWidth * totalKeyWeight + rowGaps
+            var x = paddingX + (innerWidth - rowWidth) / 2f
 
-            var x = paddingX
             for (keyIndex in row.keys.indices) {
                 val key = row.keys[keyIndex]
                 val keyW = keyUnitWidth * key.weight

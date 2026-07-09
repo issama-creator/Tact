@@ -8,6 +8,11 @@ abstract interface class KvStore {
   Future<void> setString(String key, String value);
   Future<void> setStringAtomic(String key, String value);
   Future<bool> remove(String key);
+
+  /// Drops the in-memory cache and re-reads from native storage.
+  ///
+  /// Required when another Flutter engine (companion app) writes the same keys.
+  Future<void> refreshFromDisk();
 }
 
 final class SharedPrefsKvStore implements KvStore {
@@ -37,4 +42,9 @@ final class SharedPrefsKvStore implements KvStore {
 
   @override
   Future<bool> remove(String key) async => _prefs.remove(key);
+
+  @override
+  Future<void> refreshFromDisk() async {
+    await _prefs.reload();
+  }
 }

@@ -23,6 +23,7 @@ object Theme {
     // --- Palette (ARGB) -----------------------------------------------------
 
     const val COLOR_KEYBOARD_BG: Int = 0xFF171719.toInt()
+    const val COLOR_PANEL_BAR_BG: Int = 0xFF1A1921.toInt()
     const val COLOR_KEY_LETTER_BG: Int = 0xFF2A2A2E.toInt()
     const val COLOR_KEY_LETTER_BG_PRESSED: Int = 0xFF3A3A40.toInt()
     const val COLOR_KEY_FUNCTION_BG: Int = 0xFF1F1F22.toInt()
@@ -42,9 +43,9 @@ object Theme {
 
     // --- Dimensions (dp) ----------------------------------------------------
 
-    const val SUGGESTION_BAR_HEIGHT_DP_PHONE: Float = 52f
-    const val SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND: Float = 46f
-    const val SUGGESTION_BAR_HEIGHT_DP_TABLET: Float = 54f
+    const val SUGGESTION_BAR_HEIGHT_DP_PHONE: Float = 38f
+    const val SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND: Float = 32f
+    const val SUGGESTION_BAR_HEIGHT_DP_TABLET: Float = 40f
 
     // Key area height is computed adaptively from the current screen height
     // (see [keyAreaHeightDp]); these are only the clamp bounds so the

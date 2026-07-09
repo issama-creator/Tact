@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tact/keyboard/dictionaries/mat_lexicon.dart';
 import 'package:tact/keyboard/engines/shortcut_table.dart';
 import 'package:tact/keyboard/input/text_context.dart';
 import 'package:tact/keyboard/intelligence/local_intelligence_engine.dart';
 import 'package:tact/keyboard/panel/panel_state.dart';
+import 'package:tact/keyboard/rules/rule_signal.dart';
 
 TextContext ctx(String word, {String locale = 'en', String before = ''}) =>
     TextContext(
@@ -33,6 +35,16 @@ void main() {
     final engine = LocalIntelligenceEngine();
     final result = engine.process(ctx('хуй', locale: 'ru'));
     expect(result.decision.state, isA<PanelMat>());
+    final mat = result.signals.firstWhere((s) => s.kind == SignalKind.mat);
+    expect((mat.payload as MatPayload).level, MatLevel.block);
+  });
+
+  test('warn mat detected for mild word', () {
+    final engine = LocalIntelligenceEngine();
+    final result = engine.process(ctx('сука', locale: 'ru'));
+    expect(result.decision.state, isA<PanelMat>());
+    final mat = result.signals.firstWhere((s) => s.kind == SignalKind.mat);
+    expect((mat.payload as MatPayload).level, MatLevel.warn);
   });
 
   test('shortcut др works with user hotword', () {

@@ -1,7 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
-/// In-memory companion app state. UI-only for now — engines wire in later.
+import '../../core/keyboard_settings/keyboard_settings.dart';
+import '../../core/keyboard_settings/keyboard_settings_repository.dart';
+
+/// Companion UI state — persists keyboard mode toggles to shared KV.
 class CompanionAppState extends ChangeNotifier {
+  KeyboardSettingsRepository? _settingsRepo;
+
   // ── Keyboard modes ────────────────────────────────────────────────
   bool antiMat = true;
   bool antiToxic = true;
@@ -34,29 +41,62 @@ class CompanionAppState extends ChangeNotifier {
   final int improveUsed = 7;
   final int improveLimit = 30;
 
+  Future<void> bindSettingsRepository(KeyboardSettingsRepository repo) async {
+    _settingsRepo = repo;
+    applyKeyboardSettings(await repo.load());
+  }
+
+  void applyKeyboardSettings(KeyboardSettings settings) {
+    antiMat = settings.antiMat;
+    antiToxic = settings.antiToxic;
+    fillerWords = settings.fillerWords;
+    errorCorrection = settings.errorCorrection;
+    textImprovement = settings.textImprovement;
+    notifyListeners();
+  }
+
+  KeyboardSettings toKeyboardSettings() => KeyboardSettings(
+        antiMat: antiMat,
+        antiToxic: antiToxic,
+        fillerWords: fillerWords,
+        errorCorrection: errorCorrection,
+        textImprovement: textImprovement,
+      );
+
+  void _persistKeyboardModes() {
+    final repo = _settingsRepo;
+    if (repo == null) return;
+    unawaited(repo.save(toKeyboardSettings()));
+  }
+
   void setAntiMat(bool v) {
     antiMat = v;
     notifyListeners();
+    _persistKeyboardModes();
   }
 
   void setAntiToxic(bool v) {
     antiToxic = v;
     notifyListeners();
+    _persistKeyboardModes();
   }
 
   void setFillerWords(bool v) {
     fillerWords = v;
     notifyListeners();
+    _persistKeyboardModes();
   }
 
   void setErrorCorrection(bool v) {
     errorCorrection = v;
     notifyListeners();
+    _persistKeyboardModes();
   }
 
   void setTextImprovement(bool v) {
     textImprovement = v;
     notifyListeners();
+    _persistKeyboardModes();
   }
 
   void setThemeIndex(int i) {

@@ -4,6 +4,7 @@ library;
 import '../dictionaries/dictionary.dart';
 import '../dictionaries/dictionary_manager.dart';
 import '../dictionaries/locale_bundle.dart';
+import '../dictionaries/mat_lexicon.dart';
 import '../dictionaries/toxic_category.dart';
 import '../engines/normalizer.dart';
 import '../engines/shortcut_table.dart';
@@ -43,6 +44,12 @@ final class WordBoundaryAnalyzer {
   ShortcutTable _shortcuts;
   Set<String> _personalWords;
   final int improveMinChars;
+  bool antiMatEnabled = true;
+  bool antiToxicEnabled = true;
+  bool spellEnabled = true;
+  bool improveEnabled = true;
+  /// Reserved for filler-word detection (toggle wired, engine TBD).
+  bool fillerWordsEnabled = true;
 
   void setShortcuts(ShortcutTable table) => _shortcuts = table;
 
@@ -51,6 +58,16 @@ final class WordBoundaryAnalyzer {
       words.map((w) => w.toLowerCase()).where((w) => w.length >= 2),
     );
   }
+
+  void setAntiMatEnabled(bool enabled) => antiMatEnabled = enabled;
+
+  void setAntiToxicEnabled(bool enabled) => antiToxicEnabled = enabled;
+
+  void setSpellEnabled(bool enabled) => spellEnabled = enabled;
+
+  void setImproveEnabled(bool enabled) => improveEnabled = enabled;
+
+  void setFillerWordsEnabled(bool enabled) => fillerWordsEnabled = enabled;
 
   /// All word-boundary checks in one function — called on space / punctuation.
   WordBoundaryResult analyzeAtBoundary(TextContext ctx, String localeKey) {
@@ -121,6 +138,7 @@ final class WordBoundaryAnalyzer {
     required EditRange range,
     required LocaleBundle bundle,
   }) {
+    if (!spellEnabled) return;
     if (bundle.phraseSpell.size == 0) return;
     final messageKey = _normalizer.normalize(ctx.fullMessage);
     final fix = bundle.phraseSpell.lookupTrailing(messageKey);
@@ -146,6 +164,7 @@ final class WordBoundaryAnalyzer {
     required LocaleBundle bundle,
     required bool known,
   }) {
+    if (!spellEnabled) return;
     if (bundle.mat.contains(lexiconKey)) return;
     if (known) return;
     if (_personalWords.contains(normalized)) return;
@@ -173,16 +192,18 @@ final class WordBoundaryAnalyzer {
     required EditRange range,
     required LocaleBundle bundle,
   }) {
+    if (!antiMatEnabled) return;
     if (lexiconKey.length < kMinLexiconWordLength) return;
-    if (!bundle.mat.contains(lexiconKey)) return;
+    final level = bundle.mat.lookup(lexiconKey);
+    if (level == null) return;
 
     signals.add(
       RuleSignal(
         kind: SignalKind.mat,
-        severity: 90,
+        severity: level == MatLevel.block ? 100 : 90,
         confidence: 0.95,
         range: range,
-        payload: word,
+        payload: MatPayload(word: word, level: level),
       ),
     );
   }
@@ -195,6 +216,7 @@ final class WordBoundaryAnalyzer {
     required LocaleBundle bundle,
     required String messageKey,
   }) {
+    if (!antiToxicEnabled) return;
     ToxicEntry? entry;
     if (lexiconKey.length >= kMinLexiconWordLength) {
       entry = bundle.toxic.lookup(lexiconKey);
@@ -229,6 +251,7 @@ final class WordBoundaryAnalyzer {
     required List<RuleSignal> signals,
     required TextContext ctx,
   }) {
+    if (!improveEnabled) return;
     if (ctx.fullMessage.length < improveMinChars) return;
     // Require enough content — avoids improve spam on short padded messages.
     if (_wordCount(ctx.fullMessage) < 5) return;

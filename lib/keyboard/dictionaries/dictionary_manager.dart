@@ -185,10 +185,7 @@ final class DictionaryManager {
         version: 1,
         spell: spell,
         typo: embeddedRuTypos,
-        mat: MatLexicon.fromParts(
-          tokens: embeddedMatRu,
-          stems: embeddedMatRuStems,
-        ),
+        mat: embeddedMatRuLexicon,
         toxic: embeddedToxicRuLexicon,
         phraseSpell: phraseSpell,
         stats: BundleStats(
@@ -214,10 +211,7 @@ final class DictionaryManager {
       version: 1,
       spell: spell,
       typo: embeddedEnTypos,
-      mat: MatLexicon.fromParts(
-        tokens: embeddedMatEn,
-        stems: embeddedMatEnStems,
-      ),
+      mat: embeddedMatEnLexicon,
       toxic: embeddedToxicEnLexicon,
       phraseSpell: phraseSpell,
       stats: BundleStats(

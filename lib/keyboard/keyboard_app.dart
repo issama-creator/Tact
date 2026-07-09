@@ -11,6 +11,7 @@ import 'actions/actions_engine.dart';
 import 'actions/undo_stack.dart';
 import 'dictionaries/dictionary_manager.dart';
 import 'dictionaries/hotwords_loader.dart';
+import 'dictionaries/keyboard_settings_loader.dart';
 import 'dictionaries/personal_words_loader.dart';
 import 'input/input_pipeline.dart';
 import 'intelligence/local_intelligence_engine.dart';
@@ -37,6 +38,8 @@ class _KeyboardAppState extends State<KeyboardApp> {
   late final UndoStack _undoStack;
   late final HotwordsLoader _hotwords;
   late final PersonalWordsLoader _personalWords;
+  late final KeyboardSettingsLoader _keyboardSettings;
+  Timer? _lexiconSyncTimer;
   /// Panel-only listenable — updates never call [setState] on the app shell.
   final ValueNotifier<PanelState> _panel =
       ValueNotifier<PanelState>(const PanelIdle());
@@ -52,6 +55,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
     _engine = LocalIntelligenceEngine(undo: _undoTracker);
     _hotwords = HotwordsLoader(_engine);
     _personalWords = PersonalWordsLoader(_engine);
+    _keyboardSettings = KeyboardSettingsLoader(_engine);
     _actions = ActionsEngine(
       bridge: _bridge,
       undoStack: _undoStack,
@@ -64,6 +68,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
       onPanel: _onPanel,
       onActionContext: _actions.rememberContext,
       onFieldCleared: _actions.onFieldCleared,
+      onMatBlock: _actions.removeMat,
     );
     _bridge.attachHandler();
     _bridge.onInputViewStarted = _reloadUserLexicon;
@@ -78,9 +83,15 @@ class _KeyboardAppState extends State<KeyboardApp> {
       _engine.reloadDictionaries();
       await _reloadUserLexicon();
     });
+    // Companion app runs in a separate Flutter engine — poll KV for live toggles.
+    _lexiconSyncTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => unawaited(_reloadUserLexicon()),
+    );
   }
 
   Future<void> _reloadUserLexicon() async {
+    await _keyboardSettings.reload();
     await _reloadHotwords();
     await _personalWords.reload();
   }
@@ -89,6 +100,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
 
   @override
   void dispose() {
+    _lexiconSyncTimer?.cancel();
     _panel.dispose();
     _actions.dispose();
     _pipeline.dispose();
@@ -146,7 +158,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
             return RepaintBoundary(
               child: SuggestionBar(
                 panel: _panel.value,
-                backgroundColor: _backgroundColor,
+                backgroundColor: KeyboardTheme.panelBarBackground,
                 onAction: _onPanelTap,
               ),
             );

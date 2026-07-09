@@ -169,24 +169,54 @@ final class DictionaryFormat {
     if (tokensRaw is! List) {
       throw DictionaryFormatException('mat.tokens must be a list');
     }
-    final tokens = <String>[];
-    for (final t in tokensRaw) {
-      if (t is! String) continue;
-      final key = t.toLowerCase().trim();
-      if (key.length >= 2) tokens.add(key);
-    }
 
-    final stemsRaw = root['stems'];
-    final stems = <String>[];
-    if (stemsRaw is List) {
-      for (final s in stemsRaw) {
-        if (s is! String) continue;
-        final key = s.toLowerCase().trim();
-        if (key.length >= 3) stems.add(key);
+    final tokenLevels = <String, MatLevel>{};
+    for (final t in tokensRaw) {
+      if (t is String) {
+        final key = t.toLowerCase().trim();
+        if (key.length >= 2) tokenLevels[key] = MatLevel.warn;
+        continue;
+      }
+      if (t is Map) {
+        final obj = Map<String, dynamic>.from(t);
+        final word = (obj['w'] ?? obj['token'] ?? obj['word']) as String?;
+        if (word == null) continue;
+        final key = word.toLowerCase().trim();
+        if (key.length < 2) continue;
+        tokenLevels[key] = _parseMatLevel(obj['level'] as String?);
       }
     }
 
-    return MatLexicon.fromParts(tokens: tokens, stems: stems);
+    final stemLevels = <String, MatLevel>{};
+    final stemsRaw = root['stems'];
+    if (stemsRaw is List) {
+      for (final s in stemsRaw) {
+        if (s is String) {
+          final key = s.toLowerCase().trim();
+          if (key.length >= 3) stemLevels[key] = MatLevel.warn;
+          continue;
+        }
+        if (s is Map) {
+          final obj = Map<String, dynamic>.from(s);
+          final stem = (obj['s'] ?? obj['stem']) as String?;
+          if (stem == null) continue;
+          final key = stem.toLowerCase().trim();
+          if (key.length < 3) continue;
+          stemLevels[key] = _parseMatLevel(obj['level'] as String?);
+        }
+      }
+    }
+
+    return MatLexicon.fromParts(
+      tokenLevels: tokenLevels,
+      stemLevels: stemLevels,
+    );
+  }
+
+  static MatLevel _parseMatLevel(String? raw) {
+    final lower = raw?.toLowerCase().trim();
+    if (lower == 'block') return MatLevel.block;
+    return MatLevel.warn;
   }
 
   static ToxicLexicon parseToxic(String json) {

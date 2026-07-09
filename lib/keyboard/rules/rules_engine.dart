@@ -1,6 +1,7 @@
 /// Picks exactly one panel state from engine signals.
 library;
 
+import '../dictionaries/mat_lexicon.dart';
 import '../input/text_context.dart';
 import '../panel/panel_state.dart';
 import '../rules/rule_signal.dart';
@@ -60,9 +61,15 @@ final class RulesEngine {
     }
 
     if (mat != null) {
+      final payload = mat.payload;
+      final matWord = payload is MatPayload
+          ? payload.word
+          : payload is String
+              ? payload
+              : '';
       return PanelDecision(
         state: PanelMat(
-          word: mat.payload as String? ?? '',
+          word: matWord,
           range: mat.range,
         ),
         producedAtMs: nowMs,

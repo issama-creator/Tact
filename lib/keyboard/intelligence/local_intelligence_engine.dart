@@ -3,6 +3,7 @@ library;
 
 import '../dictionaries/dictionary.dart';
 import '../dictionaries/dictionary_manager.dart';
+import '../../core/keyboard_settings/keyboard_settings.dart';
 import '../engines/shortcut_table.dart';
 import '../input/word_length_policy.dart';
 import '../input/text_context.dart';
@@ -114,6 +115,18 @@ final class LocalIntelligenceEngine {
   }
 
   void setPersonalWords(Set<String> words) => _analyzer.setPersonalWords(words);
+
+  void setAntiMatEnabled(bool enabled) => _analyzer.setAntiMatEnabled(enabled);
+
+  bool get antiMatEnabled => _analyzer.antiMatEnabled;
+
+  void applySettings(KeyboardSettings settings) {
+    _analyzer.setAntiMatEnabled(settings.antiMat);
+    _analyzer.setAntiToxicEnabled(settings.antiToxic);
+    _analyzer.setSpellEnabled(settings.errorCorrection);
+    _analyzer.setImproveEnabled(settings.textImprovement);
+    _analyzer.setFillerWordsEnabled(settings.fillerWords);
+  }
 
   /// Refreshes when [DictionaryManager.open] loads new assets.
   void reloadDictionaries() {

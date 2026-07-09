@@ -15,10 +15,10 @@ Future<void> _pumpBar(
       home: Scaffold(
         body: SizedBox(
           width: 400,
-          height: 52,
+          height: 38,
           child: SuggestionBar(
             panel: panel,
-            backgroundColor: KeyboardTheme.keyboardBackground,
+            backgroundColor: KeyboardTheme.panelBarBackground,
             onAction: (_) async {},
           ),
         ),
@@ -29,10 +29,11 @@ Future<void> _pumpBar(
 }
 
 void main() {
-  testWidgets('PanelIdle renders empty bar without chips', (tester) async {
+  testWidgets('PanelIdle renders empty strip', (tester) async {
     await _pumpBar(tester, panel: const PanelIdle());
     expect(find.text('Обнаружен мат'), findsNothing);
     expect(find.textContaining('→'), findsNothing);
+    expect(find.text('Tact'), findsNothing);
   });
 
   testWidgets('PanelMat renders mat status strip', (tester) async {
@@ -44,6 +45,27 @@ void main() {
     expect(find.text('х**'), findsOneWidget);
     expect(find.text('Убрать →'), findsOneWidget);
     expect(find.text('хуй'), findsNothing);
+  });
+
+  testWidgets('PanelMat compacts message on narrow screens', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 38,
+            child: SuggestionBar(
+              panel: const PanelMat(word: 'хуй', range: EditRange(0, 3)),
+              backgroundColor: KeyboardTheme.panelBarBackground,
+              onAction: (_) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.bySemanticsLabel('Обнаружен мат · х**'), findsOneWidget);
+    expect(find.text('Убрать →'), findsOneWidget);
   });
 
   testWidgets('PanelShortcut renders expansion chips', (tester) async {
@@ -97,14 +119,14 @@ void main() {
         home: Scaffold(
           body: SizedBox(
             width: 400,
-            height: 52,
+            height: 38,
             child: SuggestionBar(
               panel: const PanelShortcut(
                 trigger: 'др',
                 expansions: ['Добрый день'],
                 range: EditRange(0, 2),
               ),
-              backgroundColor: KeyboardTheme.keyboardBackground,
+              backgroundColor: KeyboardTheme.panelBarBackground,
               onAction: (_) async {},
             ),
           ),

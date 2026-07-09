@@ -23,6 +23,9 @@ final class _MemoryKvStore implements KvStore {
 
   @override
   Future<bool> remove(String key) async => _data.remove(key) != null;
+
+  @override
+  Future<void> refreshFromDisk() async {}
 }
 
 void main() {

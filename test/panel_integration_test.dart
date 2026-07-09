@@ -1,24 +1,44 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tact/core/bridge/ime_bridge_facade.dart';
+import 'package:tact/keyboard/actions/actions_engine.dart';
+import 'package:tact/keyboard/actions/undo_stack.dart';
 import 'package:tact/keyboard/input/input_pipeline.dart';
 import 'package:tact/keyboard/intelligence/local_intelligence_engine.dart';
 import 'package:tact/keyboard/panel/panel_state.dart';
 
 /// End-to-end state chain: bridge event → pipeline → panel state.
 void main() {
+  late FakeTextField field;
   late ImeBridge bridge;
   late LocalIntelligenceEngine engine;
+  late ActionsEngine actions;
+  late UndoStack undoStack;
   late InputPipeline pipeline;
   late List<PanelState> states;
 
+  void capturePanel(PanelState state) {
+    states.add(state);
+    pipeline.adoptPanel(state);
+  }
+
   setUp(() {
-    bridge = ImeBridge(fakeField: FakeTextField());
+    field = FakeTextField();
+    bridge = ImeBridge(fakeField: field);
     engine = LocalIntelligenceEngine();
+    undoStack = UndoStack();
     states = [];
+    actions = ActionsEngine(
+      bridge: bridge,
+      undoStack: undoStack,
+      undoTracker: engine.undo,
+      onPanel: capturePanel,
+    );
     pipeline = InputPipeline(
       bridge: bridge,
       engine: engine,
-      onPanel: states.add,
+      onPanel: capturePanel,
+      onActionContext: actions.rememberContext,
+      onMatBlock: actions.removeMat,
       settings: const PanelSettings(hysteresisMs: 0),
     );
     pipeline.start();
@@ -26,6 +46,7 @@ void main() {
 
   tearDown(() {
     pipeline.dispose();
+    actions.dispose();
     bridge.dispose();
   });
 
@@ -41,10 +62,25 @@ void main() {
     await flush();
   }
 
-  test('mat word on ru locale produces PanelMat', () async {
-    await commit('хуй', 'ru');
+  test('block mat auto-removes and shows undo panel', () async {
+    field.text = 'хуй ';
+    field.selectionStart = 4;
+    field.selectionEnd = 4;
+    bridge.emitWord(const WordEvent(
+      word: 'хуй',
+      locale: 'ru',
+      boundary: ' ',
+      deleteBefore: 4,
+    ));
+    await flush();
+    expect(states.last, isA<PanelUndo>());
+    expect(field.text, '');
+  });
+
+  test('warn mat shows PanelMat with remove action', () async {
+    await commit('сука', 'ru');
     expect(states.last, isA<PanelMat>());
-    expect((states.last as PanelMat).word, 'хуй');
+    expect((states.last as PanelMat).word, 'сука');
   });
 
   test('mat word on en locale stays idle', () async {
@@ -72,8 +108,17 @@ void main() {
   });
 
   test('sequence of commits updates state each time', () async {
-    await commit('хуй', 'ru');
-    expect(states.last, isA<PanelMat>());
+    field.text = 'хуй ';
+    field.selectionStart = 4;
+    field.selectionEnd = 4;
+    bridge.emitWord(const WordEvent(
+      word: 'хуй',
+      locale: 'ru',
+      boundary: ' ',
+      deleteBefore: 4,
+    ));
+    await flush();
+    expect(states.last, isA<PanelUndo>());
 
     await commit('привет', 'ru');
     expect(states.last, isA<PanelSuggestions>());
@@ -91,10 +136,18 @@ void main() {
       fakeField: FakeTextField(text: 'др ', selectionStart: 3, selectionEnd: 3),
     );
     states = [];
+    actions = ActionsEngine(
+      bridge: bridge,
+      undoStack: UndoStack(),
+      undoTracker: engine.undo,
+      onPanel: capturePanel,
+    );
     pipeline = InputPipeline(
       bridge: bridge,
       engine: engine,
-      onPanel: states.add,
+      onPanel: capturePanel,
+      onActionContext: actions.rememberContext,
+      onMatBlock: actions.removeMat,
       settings: const PanelSettings(hysteresisMs: 0),
     );
     pipeline.start();
@@ -109,7 +162,7 @@ void main() {
   });
 
   test('field finished resets to PanelIdle', () async {
-    await commit('хуй', 'ru');
+    await commit('сука', 'ru');
     expect(states.last, isA<PanelMat>());
 
     pipeline.onFieldFinished();
@@ -117,30 +170,38 @@ void main() {
   });
 
   test('clears mat panel when user deletes anchored word', () async {
-    final field = FakeTextField(text: 'oh хуй ', selectionStart: 7, selectionEnd: 7);
+    final field = FakeTextField(text: 'oh сука ', selectionStart: 8, selectionEnd: 8);
     bridge.dispose();
     pipeline.dispose();
     bridge = ImeBridge(fakeField: field);
     states = [];
+    actions = ActionsEngine(
+      bridge: bridge,
+      undoStack: UndoStack(),
+      undoTracker: engine.undo,
+      onPanel: capturePanel,
+    );
     pipeline = InputPipeline(
       bridge: bridge,
       engine: engine,
-      onPanel: states.add,
+      onPanel: capturePanel,
+      onActionContext: actions.rememberContext,
+      onMatBlock: actions.removeMat,
       settings: const PanelSettings(hysteresisMs: 0),
     );
     pipeline.start();
 
     bridge.emitWord(const WordEvent(
-      word: 'хуй',
+      word: 'сука',
       locale: 'ru',
       before: 'oh ',
       boundary: ' ',
-      deleteBefore: 4,
+      deleteBefore: 5,
     ));
     await flush();
     expect(states.last, isA<PanelMat>());
 
-    field.deleteSurrounding(4, 0);
+    field.deleteSurrounding(5, 0);
     bridge.emitTextEdited();
     await Future<void>.delayed(const Duration(milliseconds: 50));
 

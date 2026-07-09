@@ -1,4 +1,4 @@
-/// Suggestion bar — matches TACT design: status strip + chips.
+/// Suggestion bar — status strip + chips, adaptive for narrow IME slots.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,17 +10,75 @@ import 'panel_actions.dart';
 
 /// Design tokens aligned with companion [PanelPreviewBar].
 abstract final class _TactPanelColors {
-  static const background = Color(0xFF1A1A22);
-  static const chipBg = Color(0xFF2A2A2E);
+  static const surface = Color(0xFF22212A);
+  static const chipBg = Color(0xFF2E2D36);
   static const text = Color(0xFFE8E8EA);
   static const textMuted = Color(0xFF9A9AA3);
   static const action = Color(0xFF7C5CFF);
+  static const actionPressed = Color(0xFF6A4FE0);
   static const spell = Color(0xFFE8913A);
   static const mat = Color(0xFFC94B4B);
   static const toxic = Color(0xFFE8B339);
   static const improve = Color(0xFF7C5CFF);
   static const undo = Color(0xFF3DDC97);
-  static const border = Color(0xFF2E2E36);
+  static const border = Color(0xFF33323C);
+}
+
+/// Responsive sizing for ~38dp IME suggestion slots (320–430+ px wide).
+final class _PanelMetrics {
+  const _PanelMetrics({
+    required this.width,
+    required this.inlineSubtitle,
+    required this.iconSize,
+    required this.titleSize,
+    required this.subtitleSize,
+    required this.actionFontSize,
+    required this.chipFontSize,
+    required this.hPad,
+    required this.gap,
+    required this.chipPadH,
+    required this.chipPadV,
+    required this.actionPadH,
+    required this.actionPadV,
+    required this.radius,
+  });
+
+  final double width;
+  final bool inlineSubtitle;
+  final double iconSize;
+  final double titleSize;
+  final double subtitleSize;
+  final double actionFontSize;
+  final double chipFontSize;
+  final double hPad;
+  final double gap;
+  final double chipPadH;
+  final double chipPadV;
+  final double actionPadH;
+  final double actionPadV;
+  final double radius;
+
+  factory _PanelMetrics.of(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final tight = w < 340;
+    final compact = w < 380;
+    return _PanelMetrics(
+      width: w,
+      inlineSubtitle: compact,
+      iconSize: tight ? 16 : 18,
+      titleSize: tight ? 11 : 12,
+      subtitleSize: tight ? 10 : 11,
+      actionFontSize: tight ? 10 : 11,
+      chipFontSize: tight ? 11 : 12,
+      hPad: tight ? 6 : 8,
+      gap: tight ? 5 : 6,
+      chipPadH: tight ? 8 : 10,
+      chipPadV: tight ? 4 : 5,
+      actionPadH: tight ? 8 : 10,
+      actionPadV: tight ? 4 : 5,
+      radius: tight ? 7 : 8,
+    );
+  }
 }
 
 class SuggestionBar extends StatelessWidget {
@@ -42,11 +100,24 @@ class SuggestionBar extends StatelessWidget {
       color: backgroundColor,
       child: panel is PanelIdle
           ? const SizedBox.expand()
-          : SizedBox.expand(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(6, 2, 6, 2),
-                child: _PanelBody(panel: panel, onAction: onAction),
-              ),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    size: Size(
+                      constraints.maxWidth,
+                      constraints.maxHeight,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: constraints.maxWidth < 340 ? 4 : 6,
+                      vertical: 1,
+                    ),
+                    child: _PanelBody(panel: panel, onAction: onAction),
+                  ),
+                );
+              },
             ),
     );
   }
@@ -139,153 +210,24 @@ class _PanelBody extends StatelessWidget {
   }
 }
 
-/// Single-row spell panel: label + candidate chips (fits 52dp IME bar).
-class _SpellChipRow extends StatelessWidget {
-  const _SpellChipRow({
-    required this.word,
-    required this.candidates,
-    required this.onPick,
-  });
+/// Label exposed to semantics (and widget tests) without spell-check noise.
+class _PanelText extends StatelessWidget {
+  const _PanelText(this.text, {required this.style, this.maxLines = 1});
 
-  final String word;
-  final List<String> candidates;
-  final void Function(String candidate) onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 36),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: _TactPanelColors.background,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: _TactPanelColors.spell.withValues(alpha: 0.35),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: _TactPanelColors.spell.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(
-              Icons.spellcheck,
-              color: _TactPanelColors.spell,
-              size: 14,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            word,
-            style: const TextStyle(
-              color: _TactPanelColors.textMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final c in candidates) ...[
-                    _SuggestionChip(
-                      chip: _ChipData(
-                        c,
-                        onTap: () => onPick(c),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-final class _ChipData {
-  const _ChipData(this.label, {this.onTap});
-  final String label;
-  final VoidCallback? onTap;
-}
-
-class _ChipRow extends StatelessWidget {
-  const _ChipRow({required this.chips});
-
-  final List<_ChipData> chips;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 36),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: _TactPanelColors.background,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _TactPanelColors.border),
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final chip in chips) ...[
-                _SuggestionChip(chip: chip),
-                const SizedBox(width: 6),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SuggestionChip extends StatelessWidget {
-  const _SuggestionChip({required this.chip});
-
-  final _ChipData chip;
+  final String text;
+  final TextStyle style;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      button: chip.onTap != null,
-      label: chip.label,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: chip.onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 40),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: _TactPanelColors.chipBg,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                chip.label,
-                style: const TextStyle(
-                  color: _TactPanelColors.text,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-        ),
+      label: text,
+      excludeSemantics: true,
+      child: Text(
+        text,
+        style: style.copyWith(decoration: TextDecoration.none),
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -310,92 +252,376 @@ class _StatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 36),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    final m = _PanelMetrics.of(context);
+    final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
+
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: _TactPanelColors.background,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: accent.withValues(alpha: 0.35)),
+        color: _TactPanelColors.surface,
+        borderRadius: BorderRadius.circular(m.radius),
+        border: Border.all(color: _TactPanelColors.border),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(icon, color: accent, size: 14),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(m.radius),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              accent.withValues(alpha: 0.14),
+              accent.withValues(alpha: 0.03),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _TactPanelColors.text,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    height: 1.1,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: m.hPad + 2,
+            right: m.hPad,
+            top: 3,
+            bottom: 3,
+          ),
+          child: Row(
+            children: [
+              _AccentIcon(accent: accent, icon: icon, size: m.iconSize),
+              SizedBox(width: m.gap),
+              Expanded(child: _StatusMessage(
+                title: title,
+                subtitle: hasSubtitle ? subtitle! : null,
+                inline: m.inlineSubtitle,
+                metrics: m,
+              )),
+              if (onAction != null) ...[
+                SizedBox(width: m.gap),
+                _PanelActionButton(
+                  label: actionLabel,
+                  metrics: m,
+                  onTap: onAction!,
                 ),
-                if (subtitle != null && subtitle!.isNotEmpty)
-                  Text(
-                    subtitle!,
-                    style: const TextStyle(
-                      color: _TactPanelColors.textMuted,
-                      fontSize: 11,
-                      height: 1.1,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccentIcon extends StatelessWidget {
+  const _AccentIcon({
+    required this.accent,
+    required this.icon,
+    required this.size,
+  });
+
+  final Color accent;
+  final IconData icon;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size + 6,
+      height: size + 6,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, color: accent, size: size),
+    );
+  }
+}
+
+class _StatusMessage extends StatelessWidget {
+  const _StatusMessage({
+    required this.title,
+    required this.subtitle,
+    required this.inline,
+    required this.metrics,
+  });
+
+  final String title;
+  final String? subtitle;
+  final bool inline;
+  final _PanelMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = TextStyle(
+      color: _TactPanelColors.text,
+      fontSize: metrics.titleSize,
+      fontWeight: FontWeight.w600,
+      height: 1.15,
+    );
+    final subtitleStyle = TextStyle(
+      color: _TactPanelColors.textMuted,
+      fontSize: metrics.subtitleSize,
+      fontWeight: FontWeight.w500,
+      height: 1.15,
+    );
+
+    if (subtitle == null) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: _PanelText(title, style: titleStyle),
+      );
+    }
+
+    if (inline) {
+      final combined = '$title · $subtitle';
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Semantics(
+          label: combined,
+          excludeSemantics: true,
+          child: RichText(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
+              style: titleStyle.copyWith(decoration: TextDecoration.none),
+              children: [
+                TextSpan(text: title),
+                TextSpan(
+                  text: ' · $subtitle',
+                  style: subtitleStyle.copyWith(decoration: TextDecoration.none),
+                ),
               ],
             ),
           ),
-          if (onAction != null)
-            Semantics(
-              button: true,
-              label: actionLabel,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onAction,
-                  borderRadius: BorderRadius.circular(8),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: 40,
-                      minWidth: 44,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _TactPanelColors.action,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '$actionLabel →',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _PanelText(title, style: titleStyle),
+        _PanelText(subtitle!, style: subtitleStyle),
+      ],
+    );
+  }
+}
+
+class _PanelActionButton extends StatelessWidget {
+  const _PanelActionButton({
+    required this.label,
+    required this.metrics,
+    required this.onTap,
+  });
+
+  final String label;
+  final _PanelMetrics metrics;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: _TactPanelColors.action,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: metrics.actionPadH,
+                vertical: metrics.actionPadV,
+              ),
+              child: _PanelText(
+                '$label →',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: metrics.actionFontSize,
+                  fontWeight: FontWeight.w600,
+                  height: 1.1,
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SpellChipRow extends StatelessWidget {
+  const _SpellChipRow({
+    required this.word,
+    required this.candidates,
+    required this.onPick,
+  });
+
+  final String word;
+  final List<String> candidates;
+  final void Function(String candidate) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = _PanelMetrics.of(context);
+    return _PanelSurface(
+      metrics: m,
+      borderColor: _TactPanelColors.spell.withValues(alpha: 0.35),
+      accent: _TactPanelColors.spell,
+      child: Row(
+        children: [
+          _AccentIcon(
+            accent: _TactPanelColors.spell,
+            icon: Icons.spellcheck,
+            size: m.iconSize,
+          ),
+          SizedBox(width: m.gap),
+          _PanelText(
+            word,
+            style: TextStyle(
+              color: _TactPanelColors.textMuted,
+              fontSize: m.subtitleSize,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(width: m.gap),
+          Expanded(
+            child: _ChipScroller(
+              metrics: m,
+              chips: [
+                for (final c in candidates)
+                  _ChipData(c, onTap: () => onPick(c)),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+final class _ChipData {
+  const _ChipData(this.label, {this.onTap});
+  final String label;
+  final VoidCallback? onTap;
+}
+
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({required this.chips});
+
+  final List<_ChipData> chips;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = _PanelMetrics.of(context);
+    return _PanelSurface(
+      metrics: m,
+      borderColor: _TactPanelColors.border,
+      child: _ChipScroller(metrics: m, chips: chips),
+    );
+  }
+}
+
+class _PanelSurface extends StatelessWidget {
+  const _PanelSurface({
+    required this.metrics,
+    required this.borderColor,
+    this.accent,
+    required this.child,
+  });
+
+  final _PanelMetrics metrics;
+  final Color borderColor;
+  final Color? accent;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: _TactPanelColors.surface,
+        borderRadius: BorderRadius.circular(metrics.radius),
+        border: Border.all(color: borderColor),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: metrics.hPad,
+          vertical: 3,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _ChipScroller extends StatelessWidget {
+  const _ChipScroller({required this.metrics, required this.chips});
+
+  final _PanelMetrics metrics;
+  final List<_ChipData> chips;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final chip in chips) ...[
+              _SuggestionChip(chip: chip, metrics: metrics),
+              SizedBox(width: metrics.gap),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({required this.chip, required this.metrics});
+
+  final _ChipData chip;
+  final _PanelMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: chip.onTap != null,
+      label: chip.label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: chip.onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: _TactPanelColors.chipBg,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: _TactPanelColors.border.withValues(alpha: 0.8),
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: metrics.chipPadH,
+                vertical: metrics.chipPadV,
+              ),
+              child: _PanelText(
+                chip.label,
+                style: TextStyle(
+                  color: _TactPanelColors.text,
+                  fontSize: metrics.chipFontSize,
+                  fontWeight: FontWeight.w500,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

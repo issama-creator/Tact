@@ -1,6 +1,7 @@
 /// Normalized messages emitted by engines for the rules layer.
 library;
 
+import '../dictionaries/mat_lexicon.dart';
 import '../dictionaries/toxic_category.dart';
 import '../input/text_context.dart';
 
@@ -54,6 +55,17 @@ final class ShortcutPayload {
 
   final String trigger;
   final List<String> expansions;
+}
+
+/// Mat detection payload — [level] drives auto-block vs panel warn.
+final class MatPayload {
+  const MatPayload({
+    required this.word,
+    required this.level,
+  });
+
+  final String word;
+  final MatLevel level;
 }
 
 final class RuleSignal {

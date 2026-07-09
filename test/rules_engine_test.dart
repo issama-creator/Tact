@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tact/keyboard/dictionaries/mat_lexicon.dart';
 import 'package:tact/keyboard/input/text_context.dart';
 import 'package:tact/keyboard/panel/panel_state.dart';
 import 'package:tact/keyboard/rules/rule_signal.dart';
@@ -21,7 +22,7 @@ void main() {
           severity: 90,
           confidence: 0.9,
           range: range,
-          payload: 'bad',
+          payload: MatPayload(word: 'bad', level: MatLevel.warn),
         ),
         RuleSignal(
           kind: SignalKind.toxic,

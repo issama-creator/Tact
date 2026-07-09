@@ -68,7 +68,7 @@ class KeyboardRootView(
         val barHeight = metrics.dpInt(Theme.suggestionBarHeightDp(cfg))
 
         val barContainer = FrameLayout(context).apply {
-            setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+            setBackgroundColor(Theme.COLOR_PANEL_BAR_BG)
         }
         suggestionBarContainer = barContainer
         val suggestionBar = createSuggestionBar(context)
@@ -140,7 +140,7 @@ class KeyboardRootView(
                 isOpaque = true
             }
             val view = FlutterView(context, textureView).apply {
-                setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+                setBackgroundColor(Theme.COLOR_PANEL_BAR_BG)
                 isFocusable = true
                 isFocusableInTouchMode = true
             }
@@ -201,7 +201,7 @@ class KeyboardRootView(
 
     private fun nativeSuggestionBar(context: Context): View =
         View(context).apply {
-            setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+            setBackgroundColor(Theme.COLOR_PANEL_BAR_BG)
         }
 
     private fun fallbackSuggestionBarToNative() {

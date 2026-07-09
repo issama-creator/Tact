@@ -1,4 +1,4 @@
-/// Profanity detection — local HashSet membership.
+/// Profanity detection — local HashSet membership with block/warn levels.
 library;
 
 import '../dictionaries/mat_lexicon.dart';
@@ -15,23 +15,27 @@ final class MatEngine implements SignalProvider {
   final MatLexicon _lexicon;
   final Normalizer _normalizer;
 
+  bool antiMatEnabled = true;
+
   @override
   List<RuleSignal> analyze(TextContext ctx) {
+    if (!antiMatEnabled) return const [];
     final word = ctx.word;
     if (!shouldRunLexiconAnalysis(word)) return const [];
     if (TextSkip.shouldSkip(word)) return const [];
 
     final normalized = ctx.lexiconKey ?? _normalizer.normalizeForLexicon(word);
     if (normalized.length < 3) return const [];
-    if (!_lexicon.contains(normalized)) return const [];
+    final level = _lexicon.lookup(normalized);
+    if (level == null) return const [];
 
     return [
       RuleSignal(
         kind: SignalKind.mat,
-        severity: 90,
+        severity: level == MatLevel.block ? 100 : 90,
         confidence: 0.95,
         range: ctx.range,
-        payload: word,
+        payload: MatPayload(word: word, level: level),
       ),
     ];
   }
