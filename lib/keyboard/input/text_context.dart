@@ -28,6 +28,7 @@ final class TextContext {
     required this.range,
     required this.locale,
     required this.fullMessage,
+    this.lexiconKey,
   });
 
   /// The completed word as typed (trimmed, not normalized).
@@ -48,6 +49,9 @@ final class TextContext {
   /// `before + word + after` — used by ImproveEngine.
   final String fullMessage;
 
+  /// Precomputed [Normalizer.normalizeForLexicon] — set once in the pipeline.
+  final String? lexiconKey;
+
   TextContext copyWith({
     String? word,
     String? before,
@@ -55,6 +59,7 @@ final class TextContext {
     EditRange? range,
     String? locale,
     String? fullMessage,
+    String? lexiconKey,
   }) {
     return TextContext(
       word: word ?? this.word,
@@ -63,6 +68,7 @@ final class TextContext {
       range: range ?? this.range,
       locale: locale ?? this.locale,
       fullMessage: fullMessage ?? this.fullMessage,
+      lexiconKey: lexiconKey ?? this.lexiconKey,
     );
   }
 }

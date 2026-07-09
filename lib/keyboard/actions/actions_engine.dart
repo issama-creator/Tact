@@ -46,10 +46,12 @@ final class ActionsEngine {
     ReplacementPlan plan, {
     bool blockOnPassword = false,
   }) async {
-    final snap = await _bridge.getSurroundingText();
-    if (snap == null) return const Result.err(ActionError.noConnection);
-    if (blockOnPassword && snap.isPassword) {
-      return const Result.err(ActionError.passwordBlocked);
+    if (blockOnPassword) {
+      final snap = await _bridge.getSurroundingText();
+      if (snap == null) return const Result.err(ActionError.noConnection);
+      if (snap.isPassword) {
+        return const Result.err(ActionError.passwordBlocked);
+      }
     }
 
     final outcome = await _bridge.replaceSurrounding(

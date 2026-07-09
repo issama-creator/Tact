@@ -21,7 +21,9 @@ object Layouts {
         sub: String? = null,
         weight: Float = 1f,
     ): Key = Key(
-        action = KeyAction.Character(label),
+        // labelUpper is precomputed once here so the render/commit hot path
+        // never calls String.uppercase() (which allocates per keystroke/frame).
+        action = KeyAction.Character(label, labelUpper = label.uppercase()),
         weight = weight,
         longPress = alt.firstOrNull(),
         longPressAlternatives = alt,

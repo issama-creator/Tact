@@ -27,17 +27,17 @@ final class SpellEngine implements SignalProvider {
   final Normalizer _normalizer;
 
   @override
-  List<RuleSignal> analyze(TextContext ctx) {
+  List<RuleSignal> analyze(TextContext ctx, {String? lowerWord}) {
     final word = ctx.word;
     if (!shouldRunLexiconAnalysis(word)) return const [];
     if (TextSkip.shouldSkip(word)) return const [];
 
-    final lower = _lowerWord(word);
-    final lexiconKey = _normalizer.normalizeForLexicon(word);
+    final lower = lowerWord ?? _lowerWord(word);
+    final lexiconKey = ctx.lexiconKey ?? _normalizer.normalizeForLexicon(word);
     if (lexiconKey.isNotEmpty && skipTokens.contains(lexiconKey)) {
       return const [];
     }
-    if (_dictionary.contains(lower) || personalWords.contains(lower)) {
+    if (_dictionary.lookup(lower).known || personalWords.contains(lower)) {
       return const [];
     }
 

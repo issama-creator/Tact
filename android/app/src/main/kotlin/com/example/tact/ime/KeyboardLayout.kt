@@ -24,7 +24,10 @@ enum class ShiftState {
 
 enum class LanguageKind(val tag: String, val label: String) {
     EN("en", "English"),
-    RU("ru", "Русский"),
+    RU("ru", "Русский");
+
+    /** Cached — Locale.forLanguageTag allocates on every call. */
+    val javaLocale: java.util.Locale = java.util.Locale.forLanguageTag(tag)
 }
 
 /**

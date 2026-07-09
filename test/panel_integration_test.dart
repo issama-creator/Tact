@@ -49,7 +49,7 @@ void main() {
 
   test('mat word on en locale stays idle', () async {
     await commit('хуй', 'en');
-    expect(states.last, isA<PanelIdle>());
+    expect(pipeline.panel, isA<PanelIdle>());
   });
 
   test('shortcut trigger produces PanelShortcut', () async {
@@ -142,7 +142,7 @@ void main() {
 
     field.deleteSurrounding(4, 0);
     bridge.emitTextEdited();
-    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
 
     expect(states.last, isA<PanelIdle>());
   });

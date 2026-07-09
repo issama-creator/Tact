@@ -21,7 +21,7 @@ final class ToxicEngine implements SignalProvider {
     if (!shouldRunLexiconAnalysis(word)) return const [];
     if (TextSkip.shouldSkip(word)) return const [];
 
-    final normalized = _normalizer.normalizeForLexicon(word);
+    final normalized = ctx.lexiconKey ?? _normalizer.normalizeForLexicon(word);
     if (normalized.length < 3) return const [];
 
     final entry = _lexicon.lookup(normalized);

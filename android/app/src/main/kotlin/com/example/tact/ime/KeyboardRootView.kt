@@ -192,9 +192,7 @@ class KeyboardRootView(
     /** Force a raster pass — Dart setState alone is not enough in IME windows. */
     fun bumpFlutterRender() {
         val view = flutterView ?: return
-        val engine = flutterEngine ?: return
         if (!engineAttached) return
-        engine.lifecycleChannel.appIsResumed()
         view.invalidate()
     }
 

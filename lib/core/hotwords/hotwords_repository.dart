@@ -35,6 +35,9 @@ final class HotwordsRepository {
     return repo;
   }
 
+  /// Raw persisted payload — cheap change detection for IME reload.
+  Future<String?> readRaw() => _store.getString(storageKey);
+
   Future<List<UserHotword>> loadAll() async {
     final raw = await _store.getString(storageKey);
     if (raw == null || raw.isEmpty) return const [];

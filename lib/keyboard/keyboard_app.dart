@@ -35,7 +35,9 @@ class _KeyboardAppState extends State<KeyboardApp> {
   late final ActionsEngine _actions;
   late final UndoStack _undoStack;
   late final HotwordsLoader _hotwords;
-  PanelState _panel = const PanelIdle();
+  /// Panel-only listenable — updates never call [setState] on the app shell.
+  final ValueNotifier<PanelState> _panel =
+      ValueNotifier<PanelState>(const PanelIdle());
   Color _backgroundColor = KeyboardTheme.keyboardBackground;
 
   @override
@@ -79,6 +81,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
 
   @override
   void dispose() {
+    _panel.dispose();
     _actions.dispose();
     _pipeline.dispose();
     _bridge.dispose();
@@ -88,11 +91,11 @@ class _KeyboardAppState extends State<KeyboardApp> {
   void _onPanel(PanelState state) {
     if (!mounted) return;
     _pipeline.adoptPanel(state);
+    if (panelModesEqual(_panel.value, state)) return;
     if (kDebugMode) {
       debugPrint('[TACT UI] render panel=${state.runtimeType}');
     }
-    setState(() => _panel = state);
-    WidgetsBinding.instance.scheduleFrame();
+    _panel.value = state;
     unawaited(_bridge.requestRepaint());
   }
 
@@ -124,13 +127,22 @@ class _KeyboardAppState extends State<KeyboardApp> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    // Shell is stable on panel changes — only [ListenableBuilder] subtree rebuilds.
+    return ColoredBox(
+      key: const Key('keyboard_app_shell'),
       color: _backgroundColor,
       child: SizedBox.expand(
-        child: SuggestionBar(
-          panel: _panel,
-          backgroundColor: _backgroundColor,
-          onAction: _onPanelTap,
+        child: ListenableBuilder(
+          listenable: _panel,
+          builder: (context, _) {
+            return RepaintBoundary(
+              child: SuggestionBar(
+                panel: _panel.value,
+                backgroundColor: _backgroundColor,
+                onAction: _onPanelTap,
+              ),
+            );
+          },
         ),
       ),
     );

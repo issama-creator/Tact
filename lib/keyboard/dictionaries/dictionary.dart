@@ -52,15 +52,24 @@ final class Dictionary {
     final key = word.toLowerCase();
     if (_words.contains(key)) return const [];
 
+    // Long unknown words: one edit distance is enough and avoids edit explosion.
+    final effectiveMaxEdits = key.length > 8 ? 1 : maxEdits;
+
     final found = <String>{};
     var frontier = <String>{key};
 
-    for (var d = 1; d <= maxEdits; d++) {
+    for (var d = 1; d <= effectiveMaxEdits; d++) {
       final nextFrontier = <String>{};
       for (final token in frontier) {
         for (final edit in _edits1(token)) {
-          if (_words.contains(edit)) found.add(edit);
-          if (d < maxEdits) nextFrontier.add(edit);
+          if (_words.contains(edit)) {
+            found.add(edit);
+            if (found.length >= max) {
+              final list = found.toList()..sort();
+              return List<String>.unmodifiable(list);
+            }
+          }
+          if (d < effectiveMaxEdits) nextFrontier.add(edit);
         }
       }
       frontier = nextFrontier;

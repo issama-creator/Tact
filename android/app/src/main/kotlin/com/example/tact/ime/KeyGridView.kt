@@ -16,7 +16,6 @@ import android.util.SparseArray
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -242,14 +241,24 @@ class KeyGridView @JvmOverloads constructor(
     // ── Drawing ───────────────────────────────────────────────────────
 
     override fun onDraw(canvas: Canvas) {
-        // Canvas is already colored by the background; the key backgrounds
-        // are opaque so there's no need to fill again.
+        val clip = canvas.clipBounds
+        tmpRect.set(clip)
         for (i in keyRects.indices) {
-            drawKey(canvas, keyRects[i])
+            val rect = keyRects[i].rect
+            if (rect.left < clip.right && rect.right > clip.left &&
+                rect.top < clip.bottom && rect.bottom > clip.top
+            ) {
+                drawKey(canvas, keyRects[i])
+            }
         }
         if (ripples.isNotEmpty()) {
             for (i in ripples.indices) {
-                drawRipple(canvas, ripples[i])
+                val r = ripples[i]
+                if (r.clip.left < clip.right && r.clip.right > clip.left &&
+                    r.clip.top < clip.bottom && r.clip.bottom > clip.top
+                ) {
+                    drawRipple(canvas, r)
+                }
             }
         }
     }
@@ -294,7 +303,7 @@ class KeyGridView @JvmOverloads constructor(
     private fun drawCharacterKey(canvas: Canvas, kr: KeyRect, action: KeyAction.Character) {
         val rect = kr.rect
         val label = if (state.isUpperCase) {
-            (action.labelUpper ?: action.label.uppercase(Locale.forLanguageTag(state.language.tag)))
+            (action.labelUpper ?: action.label.uppercase(state.language.javaLocale))
         } else {
             action.label
         }
@@ -711,7 +720,7 @@ class KeyGridView @JvmOverloads constructor(
             is KeyAction.Character -> {
                 val alts = if (key.longPressAlternatives.isNotEmpty()) {
                     // Uppercase alternatives when shift is engaged.
-                    if (state.isUpperCase) key.longPressAlternatives.map { it.uppercase(Locale.forLanguageTag(state.language.tag)) }
+                    if (state.isUpperCase) key.longPressAlternatives.map { it.uppercase(state.language.javaLocale) }
                     else key.longPressAlternatives
                 } else emptyList()
 
@@ -736,6 +745,7 @@ class KeyGridView @JvmOverloads constructor(
 
     private fun startBackspaceRepeat(ps: PointerState) {
         val startTime = SystemClock.uptimeMillis()
+        var repeatTicks = 0
         val runnable = object : Runnable {
             override fun run() {
                 if (!isPointerActive(ps)) return
@@ -745,14 +755,19 @@ class KeyGridView @JvmOverloads constructor(
                 } else {
                     inputController.deleteBackward()
                 }
-                onTextEdited?.invoke()
+                notifyMaybePartialWord()
+                // Throttle bridge traffic — anchor validation is debounced on Dart side.
+                repeatTicks++
+                if (repeatTicks == 1 || repeatTicks % 4 == 0) {
+                    onTextEdited?.invoke()
+                }
                 handler.postDelayed(this, Theme.BACKSPACE_REPEAT_INTERVAL_MS)
             }
         }
         ps.repeatRunnable = runnable
         handler.postDelayed(runnable, Theme.BACKSPACE_REPEAT_INTERVAL_MS)
-        // First delete (the visible one at long-press moment).
         inputController.deleteBackward()
+        notifyMaybePartialWord()
         onTextEdited?.invoke()
     }
 
@@ -771,7 +786,7 @@ class KeyGridView @JvmOverloads constructor(
         when (action) {
             is KeyAction.Character -> {
                 val chr = if (state.isUpperCase) {
-                    action.labelUpper ?: action.label.uppercase(Locale.forLanguageTag(state.language.tag))
+                    action.labelUpper ?: action.label.uppercase(state.language.javaLocale)
                 } else {
                     action.label
                 }
@@ -863,7 +878,7 @@ class KeyGridView @JvmOverloads constructor(
         if (key.action !is KeyAction.Character) return
         val overlay = previewOverlay ?: return
         val label = if (state.isUpperCase) {
-            key.action.labelUpper ?: key.action.label.uppercase(Locale.forLanguageTag(state.language.tag))
+            key.action.labelUpper ?: key.action.label.uppercase(state.language.javaLocale)
         } else {
             key.action.label
         }

@@ -2,7 +2,6 @@ package com.example.tact.ime
 
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
-import android.text.TextUtils
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
@@ -28,6 +27,13 @@ class InputController(private val ime: InputMethodService) {
      *  does not expose surrounding text (Chrome, Google Search, etc.). */
     private val commitBuffer = StringBuilder(512)
 
+    /** Reused for [getExtractedText] — avoids per-call allocation. */
+    private val extractedRequest = android.view.inputmethod.ExtractedTextRequest()
+
+    /** Cached from [onSelectionChanged] — avoids [getSelectedText] IPC per backspace. */
+    private var cachedSelStart = -1
+    private var cachedSelEnd = -1
+
     /** Cached at [restart] and consulted for enter-key behavior. */
     var editorInfo: EditorInfo? = null
         private set
@@ -45,6 +51,8 @@ class InputController(private val ime: InputMethodService) {
 
     fun restart(info: EditorInfo?) {
         commitBuffer.setLength(0)
+        cachedSelStart = -1
+        cachedSelEnd = -1
         editorInfo = info
         isPasswordField = info?.let {
             val cls = it.inputType and android.text.InputType.TYPE_MASK_CLASS
@@ -67,7 +75,15 @@ class InputController(private val ime: InputMethodService) {
 
     fun finish() {
         commitBuffer.setLength(0)
+        cachedSelStart = -1
+        cachedSelEnd = -1
         editorInfo = null
+    }
+
+    /** Called from [TactInputMethodService.onUpdateSelection]. */
+    fun onSelectionChanged(start: Int, end: Int) {
+        cachedSelStart = start
+        cachedSelEnd = end
     }
 
     // ── Text mutations ────────────────────────────────────────────────
@@ -78,12 +94,14 @@ class InputController(private val ime: InputMethodService) {
         val ic = ime.currentInputConnection ?: return
         ic.commitText(text, 1)
         trackCommitted(text)
+        if (cachedSelStart >= 0) {
+            cachedSelStart += text.length
+            cachedSelEnd = cachedSelStart
+        }
     }
 
     private fun trackCommitted(text: CharSequence) {
-        for (i in 0 until text.length) {
-            commitBuffer.append(text[i])
-        }
+        commitBuffer.append(text)
         if (commitBuffer.length > 512) {
             commitBuffer.delete(0, commitBuffer.length - 384)
         }
@@ -97,13 +115,18 @@ class InputController(private val ime: InputMethodService) {
 
     fun deleteBackward() {
         val ic = ime.currentInputConnection ?: return
-        val selectedLength = getSelectionLength(ic)
+        val selectedLength = cachedSelectionLength()
         if (selectedLength > 0) {
             ic.commitText("", 1)
             trackDeleted(selectedLength.coerceAtMost(commitBuffer.length))
+            cachedSelEnd = cachedSelStart
         } else {
             ic.deleteSurroundingText(1, 0)
             trackDeleted(1)
+            if (cachedSelEnd > 0) {
+                cachedSelStart--
+                cachedSelEnd--
+            }
         }
     }
 
@@ -130,6 +153,7 @@ class InputController(private val ime: InputMethodService) {
             ic.deleteSurroundingText(1, 0)
             trackDeleted(1)
         }
+        invalidateSelectionCache()
     }
 
     /**
@@ -180,7 +204,11 @@ class InputController(private val ime: InputMethodService) {
     fun moveCursorBy(delta: Int) {
         if (delta == 0) return
         val ic = ime.currentInputConnection ?: return
-        val info = ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0) ?: return
+        if (delta == 1 || delta == -1) {
+            moveCursorOneStep(ic, delta)
+            return
+        }
+        val info = ic.getExtractedText(extractedRequest, 0) ?: return
         val text = info.text ?: return
         val currentEnd = info.selectionEnd
         if (currentEnd < 0) return
@@ -188,11 +216,46 @@ class InputController(private val ime: InputMethodService) {
         val target = (currentEnd + delta).coerceIn(0, length)
         if (target == currentEnd && target == info.selectionStart) return
         ic.setSelection(target, target)
+        cachedSelStart = target
+        cachedSelEnd = target
+    }
+
+    /**
+     * Space-bar slide: prefer [setSelection] from warm cache (one IPC, all editors).
+     * Cold cache: seed position once via [getExtractedText], then [setSelection].
+     * DPAD only when the host exposes no selection index.
+     */
+    private fun moveCursorOneStep(ic: InputConnection, delta: Int) {
+        var current = cachedSelEnd
+        if (current < 0) {
+            val info = ic.getExtractedText(extractedRequest, 0) ?: return
+            current = info.selectionEnd
+            if (current < 0) {
+                sendDownUpKeyEvent(
+                    if (delta > 0) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT,
+                )
+                return
+            }
+            val max = info.text?.length ?: current
+            val target = (current + delta).coerceIn(0, max)
+            ic.setSelection(target, target)
+            cachedSelStart = target
+            cachedSelEnd = target
+            return
+        }
+        val target = (current + delta).coerceAtLeast(0)
+        ic.setSelection(target, target)
+        cachedSelStart = target
+        cachedSelEnd = target
     }
 
     fun setSelection(start: Int, end: Int) {
         val ic = ime.currentInputConnection ?: return
-        ic.setSelection(start.coerceAtLeast(0), end.coerceAtLeast(0))
+        val s = start.coerceAtLeast(0)
+        val e = end.coerceAtLeast(0)
+        ic.setSelection(s, e)
+        cachedSelStart = s
+        cachedSelEnd = e
     }
 
     /**
@@ -207,10 +270,7 @@ class InputController(private val ime: InputMethodService) {
         if (deleteBefore < 0 || deleteAfter < 0) return null
         val ic = ime.currentInputConnection ?: return null
 
-        val extractedBefore = ic.getExtractedText(
-            android.view.inputmethod.ExtractedTextRequest(),
-            0,
-        )
+        val extractedBefore = ic.getExtractedText(extractedRequest, 0)
         val prevStart = extractedBefore?.selectionStart ?: 0
         val prevEnd = extractedBefore?.selectionEnd ?: prevStart
 
@@ -234,13 +294,12 @@ class InputController(private val ime: InputMethodService) {
             ic.endBatchEdit()
         }
 
-        val extracted = ic.getExtractedText(
-            android.view.inputmethod.ExtractedTextRequest(),
-            0,
-        )
+        val extracted = ic.getExtractedText(extractedRequest, 0)
         val selStart = extracted?.selectionStart ?: -1
         val selEnd = extracted?.selectionEnd ?: selStart
         syncBufferReplace(deleteBefore, replacement)
+        cachedSelStart = selStart
+        cachedSelEnd = selEnd
         return ReplaceOutcome(
             ok = true,
             selectionStart = selStart,
@@ -266,25 +325,30 @@ class InputController(private val ime: InputMethodService) {
             before = commitBuffer.substring(start, commitBuffer.length)
         }
 
+        var selStart = cachedSelStart
+        var selEnd = cachedSelEnd
+
         if (before.isEmpty() && ic != null) {
-            val extracted = ic.getExtractedText(
-                android.view.inputmethod.ExtractedTextRequest(),
-                0,
-            )
+            val extracted = ic.getExtractedText(extractedRequest, 0)
             val text = extracted?.text?.toString()
             val sel = extracted?.selectionStart ?: -1
             if (!text.isNullOrEmpty() && sel > 0) {
                 before = text.substring(0, sel.coerceAtMost(text.length))
                     .takeLast(limitBefore.coerceAtMost(sel))
             }
+            if (sel >= 0) {
+                selStart = sel
+                selEnd = extracted?.selectionEnd ?: sel
+            }
+        } else if (selStart < 0 && ic != null) {
+            val extracted = ic.getExtractedText(extractedRequest, 0)
+            selStart = extracted?.selectionStart ?: before.length
+            selEnd = extracted?.selectionEnd ?: selStart
         }
 
-        val extracted = ic?.getExtractedText(
-            android.view.inputmethod.ExtractedTextRequest(),
-            0,
-        )
-        val selStart = extracted?.selectionStart ?: before.length
-        val selEnd = extracted?.selectionEnd ?: selStart
+        if (selStart < 0) selStart = before.length
+        if (selEnd < 0) selEnd = selStart
+
         return SurroundingSnapshot(
             before = before,
             after = after,
@@ -407,10 +471,7 @@ class InputController(private val ime: InputMethodService) {
         val ic = ime.currentInputConnection ?: return null
         var before = ic.getTextBeforeCursor(96, 0)?.toString()
         if (before.isNullOrEmpty()) {
-            val extracted = ic.getExtractedText(
-                android.view.inputmethod.ExtractedTextRequest(),
-                0,
-            )
+            val extracted = ic.getExtractedText(extractedRequest, 0)
             val text = extracted?.text?.toString()
             val sel = extracted?.selectionStart ?: -1
             if (!text.isNullOrEmpty() && sel > 0) {
@@ -456,9 +517,16 @@ class InputController(private val ime: InputMethodService) {
         }
     }
 
-    private fun getSelectionLength(ic: InputConnection): Int {
-        val selected = ic.getSelectedText(0) ?: return 0
-        return if (TextUtils.isEmpty(selected)) 0 else selected.length
+    private fun invalidateSelectionCache() {
+        cachedSelStart = -1
+        cachedSelEnd = -1
+    }
+
+    private fun cachedSelectionLength(): Int {
+        if (cachedSelStart >= 0 && cachedSelEnd > cachedSelStart) {
+            return cachedSelEnd - cachedSelStart
+        }
+        return 0
     }
 
     private fun sendDownUpKeyEvent(keyCode: Int) {

@@ -2,6 +2,8 @@ package com.example.tact.ime
 
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -29,6 +31,10 @@ class TactInputMethodService : InputMethodService() {
         super.onCreate()
         inputController = InputController(this)
         haptics = KeyboardHaptics(this)
+        // Prewarm Flutter off the critical path of the first key draw.
+        Handler(Looper.getMainLooper()).post {
+            FlutterEngineHost.tryPrewarm(applicationContext)
+        }
         Log.i(TAG, "IME service created")
     }
 
@@ -118,6 +124,7 @@ class TactInputMethodService : InputMethodService() {
             oldSelStart, oldSelEnd, newSelStart, newSelEnd,
             candidatesStart, candidatesEnd,
         )
+        inputController.onSelectionChanged(newSelStart, newSelEnd)
         rootView?.onSelectionChanged(oldSelStart, oldSelEnd, newSelStart, newSelEnd)
     }
 

@@ -114,6 +114,14 @@ PanelState reducePanel({
   return next.state;
 }
 
+bool _expansionsEqual(List<String> a, List<String> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 bool panelModesEqual(PanelState a, PanelState b) {
   if (a.runtimeType != b.runtimeType) return false;
   return switch ((a, b)) {
@@ -127,7 +135,9 @@ bool panelModesEqual(PanelState a, PanelState b) {
     (PanelImprove ia, PanelImprove ib) =>
       ia.messageLength == ib.messageLength,
     (PanelShortcut sa, PanelShortcut sb) =>
-      sa.trigger == sb.trigger && sa.expansions.length == sb.expansions.length,
+      sa.trigger == sb.trigger &&
+      sa.expansions.length == sb.expansions.length &&
+      _expansionsEqual(sa.expansions, sb.expansions),
     (PanelSuggestions sa, PanelSuggestions sb) =>
       sa.words.length == sb.words.length,
     _ => false,

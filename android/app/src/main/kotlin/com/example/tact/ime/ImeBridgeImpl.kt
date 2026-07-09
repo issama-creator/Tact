@@ -1,5 +1,6 @@
 package com.example.tact.ime
 
+import com.example.tact.BuildConfig
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -7,7 +8,6 @@ import android.view.View
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import org.json.JSONObject
 
 /**
  * Minimal, working MethodChannel bridge between the native IME and Dart.
@@ -25,6 +25,13 @@ class ImeBridgeImpl(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val pending = ArrayDeque<Pair<String, Any?>>()
 
+    /** Skips duplicate partial-word / clear events on the typing hot path. */
+    private var lastPartialSignature: String? = null
+
+    /** Coalesces rapid selection updates (space-bar cursor slide). */
+    private var pendingSelection: Map<String, Any?>? = null
+    private var selectionFlushPosted = false
+
     /** Native repaint hook — IME FlutterView may not paint after Dart setState alone. */
     var onRequestRepaint: (() -> Unit)? = null
 
@@ -37,67 +44,105 @@ class ImeBridgeImpl(
     fun sendTheme() = invokeDart("setTheme", themePayload())
 
     fun onStartInputView(packageName: String?, inputType: Int, imeOptions: Int, locale: String?) {
-        val payload = JSONObject().apply {
-            put("packageName", packageName)
-            put("inputType", inputType)
-            put("imeOptions", imeOptions)
-            put("locale", locale)
-        }.toString()
-        invokeDart("onStartInputView", payload)
+        lastPartialSignature = null
+        invokeDart(
+            "onStartInputView",
+            mapOf(
+                "packageName" to packageName,
+                "inputType" to inputType,
+                "imeOptions" to imeOptions,
+                "locale" to locale,
+            ),
+        )
     }
 
     fun onFinishInputView() = invokeDart("onFinishInputView", null)
 
     fun onWordCommitted(info: WordCommitInfo, locale: String) {
-        val payload = wordPayload(info, locale, partial = false)
-        Log.d(TAG, "word committed: '${info.word}' locale=$locale")
-        invokeDart("onWordCommitted", payload)
+        lastPartialSignature = null
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "word committed: '${info.word}' locale=$locale")
+        }
+        invokeDart("onWordCommitted", wordPayloadMap(info, locale, partial = false))
     }
 
     fun onPartialWordCommitted(info: WordCommitInfo?, locale: String) {
+        val signature = if (info == null) {
+            "__clear__"
+        } else {
+            partialSignature(info, locale)
+        }
+        if (signature == lastPartialSignature) return
+        lastPartialSignature = signature
         if (info == null) {
             invokeDart("onPartialWordClear", null)
             return
         }
-        val payload = wordPayload(info, locale, partial = true)
-        invokeDart("onPartialWord", payload)
+        invokeDart("onPartialWord", wordPayloadMap(info, locale, partial = true))
+    }
+
+    /** Includes trailing [WordCommitInfo.before] so duplicate triggers at different
+     *  positions are not collapsed when only [String.length] matches. */
+    private fun partialSignature(info: WordCommitInfo, locale: String): String {
+        val before = info.before
+        val tail = if (before.length <= 48) before else before.substring(before.length - 48)
+        return "${info.word}|$locale|${info.deleteBefore}|$tail"
     }
 
     fun onTextEdited() = invokeDart("onTextEdited", null)
 
     fun onSelectionChanged(oldStart: Int, oldEnd: Int, newStart: Int, newEnd: Int) {
-        val payload = JSONObject().apply {
-            put("oldStart", oldStart); put("oldEnd", oldEnd)
-            put("newStart", newStart); put("newEnd", newEnd)
-        }.toString()
-        invokeDart("onSelectionChanged", payload)
+        pendingSelection = mapOf(
+            "oldStart" to oldStart,
+            "oldEnd" to oldEnd,
+            "newStart" to newStart,
+            "newEnd" to newEnd,
+        )
+        if (selectionFlushPosted) return
+        selectionFlushPosted = true
+        mainHandler.post {
+            selectionFlushPosted = false
+            val payload = pendingSelection ?: return@post
+            pendingSelection = null
+            invokeDart("onSelectionChanged", payload)
+        }
     }
 
-    private fun wordPayload(info: WordCommitInfo, locale: String, partial: Boolean): String =
-        JSONObject().apply {
-            put("word", info.word)
-            put("locale", locale)
-            put("deleteBefore", info.deleteBefore)
-            put("deleteAfter", info.deleteAfter)
-            put("boundary", info.boundary)
-            put("before", info.before)
-            put("after", info.after)
-            put("partial", partial)
-        }.toString()
+    private fun wordPayloadMap(
+        info: WordCommitInfo,
+        locale: String,
+        partial: Boolean,
+    ): Map<String, Any?> = mapOf(
+        "word" to info.word,
+        "locale" to locale,
+        "deleteBefore" to info.deleteBefore,
+        "deleteAfter" to info.deleteAfter,
+        "boundary" to info.boundary,
+        "before" to info.before,
+        "after" to info.after,
+        "partial" to partial,
+    )
 
-    private fun themePayload(): String =
-        JSONObject().apply {
-            put("background", Theme.COLOR_KEYBOARD_BG)
-            put("keyText", Theme.COLOR_KEY_TEXT)
-            put("accent", Theme.COLOR_KEY_ACCENT_BG)
-        }.toString()
+    private fun themePayload(): Map<String, Any?> = mapOf(
+        "background" to Theme.COLOR_KEYBOARD_BG,
+        "keyText" to Theme.COLOR_KEY_TEXT,
+        "accent" to Theme.COLOR_KEY_ACCENT_BG,
+    )
 
     private fun invokeDart(method: String, arguments: Any?) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            if (!FlutterEngineHost.isDartReady()) {
+                pending.addLast(method to arguments)
+                if (pending.size > MAX_PENDING) pending.removeFirst()
+                return
+            }
+            dispatchDart(method, arguments)
+            return
+        }
         mainHandler.post {
             if (!FlutterEngineHost.isDartReady()) {
                 pending.addLast(method to arguments)
                 if (pending.size > MAX_PENDING) pending.removeFirst()
-                Log.d(TAG, "queued $method (pending=${pending.size})")
                 return@post
             }
             dispatchDart(method, arguments)
@@ -107,7 +152,9 @@ class ImeBridgeImpl(
     private fun dispatchDart(method: String, arguments: Any?) {
         try {
             channel.invokeMethod(method, arguments)
-            if (method == "onWordCommitted" || method == "onPartialWord" || method == "onTextEdited") {
+            if (method == "onWordCommitted" || method == "onPartialWord" ||
+                method == "onPartialWordClear" || method == "onTextEdited"
+            ) {
                 onRequestRepaint?.invoke()
             }
         } catch (t: Throwable) {
@@ -155,14 +202,14 @@ class ImeBridgeImpl(
                         result.success(null)
                     } else {
                         result.success(
-                            JSONObject().apply {
-                                put("selectionStart", outcome.selectionStart)
-                                put("selectionEnd", outcome.selectionEnd)
-                                put("replacedText", outcome.replacedText)
-                                put("insertedLength", outcome.insertedLength)
-                                put("previousSelectionStart", outcome.previousSelectionStart)
-                                put("previousSelectionEnd", outcome.previousSelectionEnd)
-                            }.toString(),
+                            mapOf(
+                                "selectionStart" to outcome.selectionStart,
+                                "selectionEnd" to outcome.selectionEnd,
+                                "replacedText" to outcome.replacedText,
+                                "insertedLength" to outcome.insertedLength,
+                                "previousSelectionStart" to outcome.previousSelectionStart,
+                                "previousSelectionEnd" to outcome.previousSelectionEnd,
+                            ),
                         )
                     }
                 }
@@ -174,13 +221,13 @@ class ImeBridgeImpl(
                         result.success(null)
                     } else {
                         result.success(
-                            JSONObject().apply {
-                                put("before", snap.before)
-                                put("after", snap.after)
-                                put("selectionStart", snap.selectionStart)
-                                put("selectionEnd", snap.selectionEnd)
-                                put("isPassword", snap.isPassword)
-                            }.toString(),
+                            mapOf(
+                                "before" to snap.before,
+                                "after" to snap.after,
+                                "selectionStart" to snap.selectionStart,
+                                "selectionEnd" to snap.selectionEnd,
+                                "isPassword" to snap.isPassword,
+                            ),
                         )
                     }
                 }

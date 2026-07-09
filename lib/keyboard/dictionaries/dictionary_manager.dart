@@ -57,12 +57,15 @@ final class DictionaryManager {
           await rootBundle.loadString('assets/shortcuts/builtin.json');
       final builtin = DictionaryFormat.parseBuiltinShortcuts(builtinJson);
 
-      final en = await _loadLocale('en');
-      final ru = await _loadLocale('ru');
+      final locales = await Future.wait([_loadLocale('en'), _loadLocale('ru')]);
+      final en = locales[0];
+      final ru = locales[1];
 
       var lookupNs = 0;
-      lookupNs += _benchLookup(en);
-      lookupNs += _benchLookup(ru);
+      if (kDebugMode) {
+        lookupNs += _benchLookup(en);
+        lookupNs += _benchLookup(ru);
+      }
 
       final manager = DictionaryManager._(
         bundles: {'en': en, 'ru': ru},
@@ -133,21 +136,16 @@ final class DictionaryManager {
   }
 
   static Future<LocaleBundle> _loadLocale(String locale) async {
-    final spellJson =
-        await rootBundle.loadString('assets/dictionaries/${locale}_spell.json');
-    final base = DictionaryFormat.parseSpellBundle(spellJson);
-
-    final typoJson =
-        await rootBundle.loadString('assets/dictionaries/${locale}_typo.json');
-    final typo = DictionaryFormat.parseTypo(typoJson);
-
-    final matJson =
-        await rootBundle.loadString('assets/lexicons/${locale}_mat.json');
-    final mat = DictionaryFormat.parseMat(matJson);
-
-    final toxicJson =
-        await rootBundle.loadString('assets/lexicons/${locale}_toxic.json');
-    final toxic = DictionaryFormat.parseToxic(toxicJson);
+    final results = await Future.wait([
+      rootBundle.loadString('assets/dictionaries/${locale}_spell.json'),
+      rootBundle.loadString('assets/dictionaries/${locale}_typo.json'),
+      rootBundle.loadString('assets/lexicons/${locale}_mat.json'),
+      rootBundle.loadString('assets/lexicons/${locale}_toxic.json'),
+    ]);
+    final base = DictionaryFormat.parseSpellBundle(results[0]);
+    final typo = DictionaryFormat.parseTypo(results[1]);
+    final mat = DictionaryFormat.parseMat(results[2]);
+    final toxic = DictionaryFormat.parseToxic(results[3]);
 
     return DictionaryFormat.mergeBundle(
       base: base,

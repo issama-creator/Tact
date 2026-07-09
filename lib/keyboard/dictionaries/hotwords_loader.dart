@@ -10,6 +10,7 @@ final class HotwordsLoader {
 
   final LocalIntelligenceEngine _engine;
   bool _opened = false;
+  String? _lastRaw;
 
   Future<void> ensureOpen() async {
     if (_opened) return;
@@ -19,6 +20,9 @@ final class HotwordsLoader {
 
   Future<void> reload() async {
     await ensureOpen();
+    final raw = await HotwordsRepository.instance.readRaw();
+    if (raw == _lastRaw) return;
+    _lastRaw = raw;
     final items = await HotwordsRepository.instance.loadAll();
     _engine.setUserShortcuts(HotwordsMapper.toTextShortcuts(items));
   }

@@ -310,7 +310,10 @@ class ImeBridge {
   }
 
   Map<String, dynamic>? _asMap(Object? arguments) {
-    if (arguments is Map) return Map<String, dynamic>.from(arguments);
+    if (arguments is Map<String, dynamic>) return arguments;
+    if (arguments is Map) {
+      return Map<String, dynamic>.from(arguments);
+    }
     if (arguments is String) {
       try {
         final decoded = jsonDecode(arguments);

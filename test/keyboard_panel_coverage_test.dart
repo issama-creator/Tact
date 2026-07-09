@@ -173,13 +173,10 @@ void main() {
 
     testWidgets('default background matches keyboard theme', (tester) async {
       await pumpKeyboardApp(tester);
-      final material = tester.widget<Material>(
-        find.descendant(
-          of: find.byType(KeyboardApp),
-          matching: find.byType(Material),
-        ),
+      final shell = tester.widget<ColoredBox>(
+        find.byKey(const Key('keyboard_app_shell')),
       );
-      expect(material.color, KeyboardTheme.keyboardBackground);
+      expect(shell.color, KeyboardTheme.keyboardBackground);
     });
 
     testWidgets('setTheme from native updates panel background', (tester) async {
@@ -194,13 +191,10 @@ void main() {
       );
       await tester.pump();
 
-      final material = tester.widget<Material>(
-        find.descendant(
-          of: find.byType(KeyboardApp),
-          matching: find.byType(Material),
-        ),
+      final shell = tester.widget<ColoredBox>(
+        find.byKey(const Key('keyboard_app_shell')),
       );
-      expect(material.color, newBg);
+      expect(shell.color, newBg);
     });
   });
 }

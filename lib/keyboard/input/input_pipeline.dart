@@ -55,7 +55,7 @@ final class InputPipeline {
     _sub ??= _bridge.onWordCommitted.listen(_onWord);
     _partialSub ??= _bridge.onPartialWord.listen(_onPartialWord);
     _partialClearSub ??=
-        _bridge.onPartialWordClear.listen((_) => _clearPartialPanel());
+        _bridge.onPartialWordClear.listen((_) => _onPartialWordClear());
     _textEditSub ??= _bridge.onTextEdited.listen((_) => _scheduleAnchorValidation());
   }
 
@@ -123,11 +123,44 @@ final class InputPipeline {
         debugPrint('[TACT Pipeline] partial shortcut trigger="$word"');
       }
       _panelFromPartialOnly = _panel is PanelIdle;
+      if (panelModesEqual(_panel, next)) return;
       _panel = next;
       _onPanel?.call(_panel);
     } else {
       _clearPartialPanel();
     }
+
+    if (_shouldValidateAnchor(_panel)) {
+      _reactToPartialEdit(word);
+    }
+  }
+
+  void _onPartialWordClear() {
+    _clearPartialPanel();
+    if (!_shouldValidateAnchor(_panel)) return;
+    _anchorValidationDebounce?.cancel();
+    unawaited(_validatePanelAnchor());
+  }
+
+  /// Mat / spell / toxic only — shortcuts have their own partial/committed lifecycle.
+  bool _shouldValidateAnchor(PanelState panel) => switch (panel) {
+        PanelMat() || PanelSpell() || PanelToxic() => true,
+        _ => false,
+      };
+
+  /// Immediate anchor check only while backspacing into the anchored token.
+  void _reactToPartialEdit(String partialWord) {
+    final anchor = anchoredWord(_panel);
+    if (anchor == null || anchor.isEmpty) return;
+
+    final partial = partialWord.toLowerCase();
+    final anchorLower = anchor.toLowerCase();
+    final stillDeleting =
+        partial.isEmpty || anchorLower.startsWith(partial);
+    if (!stillDeleting) return;
+
+    _anchorValidationDebounce?.cancel();
+    unawaited(_validatePanelAnchor());
   }
 
   void _clearPartialPanel() {
@@ -230,16 +263,16 @@ final class InputPipeline {
     );
     if (!panelModesEqual(_panel, next)) {
       _lastChangeMs = now;
+      if (kDebugMode) {
+        debugPrint(
+          '[TACT Pipeline] panel ${_panel.runtimeType} -> ${next.runtimeType} '
+          '(signals=${result.signals.length}, locale=${event.locale}, word="$word")',
+        );
+      }
+      _panelFromPartialOnly = false;
+      _panel = next;
+      _onPanel?.call(_panel);
     }
-    if (kDebugMode) {
-      debugPrint(
-        '[TACT Pipeline] panel ${_panel.runtimeType} -> ${next.runtimeType} '
-        '(signals=${result.signals.length}, locale=${event.locale}, word="$word")',
-      );
-    }
-    _panelFromPartialOnly = false;
-    _panel = next;
-    _onPanel?.call(_panel);
   }
 
   /// Subsequent typing invalidates in-flight panel updates.
