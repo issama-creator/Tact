@@ -1,6 +1,5 @@
 package com.example.tact.ime
 
-import com.example.tact.BuildConfig
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -61,7 +60,7 @@ class ImeBridgeImpl(
 
     fun onWordCommitted(info: WordCommitInfo, locale: String) {
         lastPartialSignature = null
-        if (BuildConfig.DEBUG) {
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(TAG, "word committed: '${info.word}' locale=$locale")
         }
         invokeDart("onWordCommitted", wordPayloadMap(info, locale, partial = false))
