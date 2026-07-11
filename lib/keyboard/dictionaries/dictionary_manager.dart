@@ -8,7 +8,6 @@ import '../engines/shortcut_table.dart';
 import 'data/embedded_en.dart';
 import 'data/embedded_lexicons.dart';
 import 'data/embedded_ru.dart';
-import 'data/embedded_typo.dart';
 import 'dictionary.dart';
 import 'dictionary_format.dart';
 import 'dictionary_profiler.dart';
@@ -140,25 +139,23 @@ final class DictionaryManager {
   }
 
   static Future<LocaleBundle> _loadLocale(String locale) async {
+    // Spell + mat/toxic only — typo / phrase-spell maps are unused after
+    // spell-correction removal and would just sit in RAM.
     final results = await Future.wait([
       rootBundle.loadString('assets/dictionaries/${locale}_spell.json'),
-      rootBundle.loadString('assets/dictionaries/${locale}_typo.json'),
-      rootBundle.loadString('assets/dictionaries/${locale}_phrases_spell.json'),
       rootBundle.loadString('assets/lexicons/${locale}_mat.json'),
       rootBundle.loadString('assets/lexicons/${locale}_toxic.json'),
     ]);
     final base = DictionaryFormat.parseSpellBundle(results[0]);
-    final typo = DictionaryFormat.parseTypo(results[1]);
-    final phraseSpell = DictionaryFormat.parsePhraseSpell(results[2]);
-    final mat = DictionaryFormat.parseMat(results[3]);
-    final toxic = DictionaryFormat.parseToxic(results[4]);
+    final mat = DictionaryFormat.parseMat(results[1]);
+    final toxic = DictionaryFormat.parseToxic(results[2]);
 
     return DictionaryFormat.mergeBundle(
       base: base,
-      typo: typo,
+      typo: TypoDictionary.empty(),
       mat: mat,
       toxic: toxic,
-      phraseSpell: phraseSpell,
+      phraseSpell: PhraseSpellLexicon.empty(),
     );
   }
 
@@ -179,18 +176,17 @@ final class DictionaryManager {
         nextWords: embeddedRuNext,
         locale: 'ru',
       );
-      final phraseSpell = PhraseSpellLexicon.empty();
       return LocaleBundle(
         locale: 'ru',
         version: 1,
         spell: spell,
-        typo: embeddedRuTypos,
+        typo: TypoDictionary.empty(),
         mat: embeddedMatRuLexicon,
         toxic: embeddedToxicRuLexicon,
-        phraseSpell: phraseSpell,
+        phraseSpell: PhraseSpellLexicon.empty(),
         stats: BundleStats(
           spellWords: spell.size,
-          typoEntries: embeddedRuTypos.size,
+          typoEntries: 0,
           matTokens: embeddedMatRu.length + embeddedMatRuStems.length,
           toxicEntries: embeddedToxicRuLexicon.size,
           phraseSpellEntries: 0,
@@ -205,18 +201,17 @@ final class DictionaryManager {
       nextWords: embeddedEnNext,
       locale: 'en',
     );
-    final phraseSpell = PhraseSpellLexicon.empty();
     return LocaleBundle(
       locale: 'en',
       version: 1,
       spell: spell,
-      typo: embeddedEnTypos,
+      typo: TypoDictionary.empty(),
       mat: embeddedMatEnLexicon,
       toxic: embeddedToxicEnLexicon,
-      phraseSpell: phraseSpell,
+      phraseSpell: PhraseSpellLexicon.empty(),
       stats: BundleStats(
         spellWords: spell.size,
-        typoEntries: embeddedEnTypos.size,
+        typoEntries: 0,
         matTokens: embeddedMatEn.length + embeddedMatEnStems.length,
         toxicEntries: embeddedToxicEnLexicon.size,
         phraseSpellEntries: 0,
@@ -230,7 +225,6 @@ final class DictionaryManager {
     final sw = Stopwatch()..start();
     bundle.spell.contains('hello');
     bundle.spell.contains('привет');
-    bundle.typo.lookup('helo');
     bundle.mat.contains('shit');
     bundle.toxic.lookup('idiot');
     sw.stop();

@@ -53,6 +53,9 @@ final class WordBoundaryAnalyzer {
   /// Reserved for filler-word detection (toggle wired, engine TBD).
   bool fillerWordsEnabled = true;
 
+  String? _autoCacheKey;
+  List<String> _autoCache = const [];
+
   void setShortcuts(ShortcutTable table) => _shortcuts = table;
 
   /// Kept for companion personal dictionary — reserved for suggestion filtering.
@@ -72,6 +75,11 @@ final class WordBoundaryAnalyzer {
 
   void setFillerWordsEnabled(bool enabled) => fillerWordsEnabled = enabled;
 
+  void clearAutocompleteCache() {
+    _autoCacheKey = null;
+    _autoCache = const [];
+  }
+
   /// Live shortcut chips while typing (before space).
   List<RuleSignal> analyzeShortcutOnly(TextContext ctx) {
     final signals = <RuleSignal>[];
@@ -89,12 +97,22 @@ final class WordBoundaryAnalyzer {
     if (word.length < kMinShortcutTriggerLength) return const [];
     final normalized = _normalizer.normalize(word);
     if (normalized.length < kMinShortcutTriggerLength) return const [];
+
+    // Include leading code unit so "Доб" vs "доб" casing stays correct.
+    final caseCu = word.isEmpty ? 0 : word.codeUnitAt(0);
+    final cacheKey = '$localeKey|$normalized|$max|$caseCu';
+    if (_autoCacheKey == cacheKey) return _autoCache;
+
     final hits = _manager
         .bundleFor(localeKey)
         .spell
         .prefixCompletions(normalized, max: max);
-    if (hits.isEmpty) return const [];
-    return [for (final h in hits) _matchTypedCase(word, h)];
+    final out = hits.isEmpty
+        ? const <String>[]
+        : [for (final h in hits) _matchTypedCase(word, h)];
+    _autoCacheKey = cacheKey;
+    _autoCache = out;
+    return out;
   }
 
   /// Preserve leading capital from what the user typed (Доб → Добрый).

@@ -131,7 +131,8 @@ final class InputPipeline {
       after: after,
       range: EditRange(before.length, before.length + word.length),
       locale: event.locale,
-      fullMessage: '$before$word$after',
+      // Partial intelligence ignores surrounding text — avoid concat alloc.
+      fullMessage: word,
     );
     final result = _engine.processPartial(ctx);
     final next = result.decision.state;

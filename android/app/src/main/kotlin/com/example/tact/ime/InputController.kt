@@ -440,17 +440,14 @@ class InputController(private val ime: InputMethodService) {
      */
     fun trailingWordFragment(): WordCommitInfo? {
         val parsed = parseTrailingWordFromBuffer() ?: return null
-        val beforeCtx = if (parsed.start > 0) {
-            commitBuffer.substring(0, parsed.start)
-        } else {
-            ""
-        }
+        // Partial path only needs the live fragment — skip before/after
+        // substrings (autocomplete / shortcuts do not use surrounding text).
         return WordCommitInfo(
             word = parsed.word,
             deleteBefore = parsed.word.length,
             deleteAfter = 0,
             boundary = "",
-            before = beforeCtx,
+            before = "",
             after = "",
         )
     }

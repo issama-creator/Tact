@@ -116,7 +116,7 @@ final class LocalIntelligenceEngine {
         undoAvailable: false,
         defaultSuggestions: const [],
         nowMs: clock,
-        messageLength: ctx.fullMessage.length,
+        messageLength: 0,
       );
       return IntelligenceResult(
         normalized: ctx.word,
@@ -133,7 +133,7 @@ final class LocalIntelligenceEngine {
       undoAvailable: false,
       defaultSuggestions: completions,
       nowMs: clock,
-      messageLength: ctx.fullMessage.length,
+      messageLength: 0,
     );
     return IntelligenceResult(
       normalized: ctx.word,
@@ -173,6 +173,7 @@ final class LocalIntelligenceEngine {
   /// Refreshes when [DictionaryManager.open] loads new assets.
   void reloadDictionaries() {
     final source = DictionaryManager.shared.source;
+    _analyzer.clearAutocompleteCache();
     if (_loadedSource == source) return;
     _loadedSource = source;
   }

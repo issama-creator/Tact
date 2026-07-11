@@ -41,10 +41,8 @@ class _KeyboardAppState extends State<KeyboardApp> {
   late final HotwordsLoader _hotwords;
   late final PersonalWordsLoader _personalWords;
   late final KeyboardSettingsLoader _keyboardSettings;
-  Timer? _lexiconSyncTimer;
   Timer? _repaintDebounce;
   Future<void>? _reloadInFlight;
-  var _inputViewActive = false;
   var _lastVibration = true;
   var _lastSound = false;
   /// Panel-only listenable — updates never call [setState] on the app shell.
@@ -79,14 +77,11 @@ class _KeyboardAppState extends State<KeyboardApp> {
     );
     _bridge.attachHandler();
     _bridge.onInputViewStarted = () {
-      _inputViewActive = true;
-      _ensureLexiconSyncTimer();
+      // Reload companion prefs only when the keyboard opens — not on a timer
+      // while typing (SharedPreferences IPC caused periodic micro-jank).
       unawaited(_reloadUserLexicon());
     };
     _bridge.onFieldFinished = () {
-      _inputViewActive = false;
-      _lexiconSyncTimer?.cancel();
-      _lexiconSyncTimer = null;
       _pipeline.onFieldFinished();
       _actions.onFieldCleared();
     };
@@ -97,18 +92,6 @@ class _KeyboardAppState extends State<KeyboardApp> {
       _engine.reloadDictionaries();
       await _reloadUserLexicon();
     });
-  }
-
-  void _ensureLexiconSyncTimer() {
-    if (_lexiconSyncTimer != null) return;
-    // Companion writes from another engine — light poll only while typing.
-    _lexiconSyncTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) {
-        if (!_inputViewActive) return;
-        unawaited(_reloadUserLexicon());
-      },
-    );
   }
 
   Future<void> _reloadUserLexicon() {
@@ -149,7 +132,6 @@ class _KeyboardAppState extends State<KeyboardApp> {
 
   @override
   void dispose() {
-    _lexiconSyncTimer?.cancel();
     _repaintDebounce?.cancel();
     _panel.dispose();
     _actions.dispose();

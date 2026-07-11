@@ -81,12 +81,9 @@ class ImeBridgeImpl(
         invokeDart("onPartialWord", wordPayloadMap(info, locale, partial = true))
     }
 
-    /** Includes trailing [WordCommitInfo.before] so duplicate triggers at different
-     *  positions are not collapsed when only [String.length] matches. */
+    /** Dedupes identical consecutive partials. Cleared on commit / clear. */
     private fun partialSignature(info: WordCommitInfo, locale: String): String {
-        val before = info.before
-        val tail = if (before.length <= 48) before else before.substring(before.length - 48)
-        return "${info.word}|$locale|${info.deleteBefore}|$tail"
+        return "${info.word}|$locale|${info.deleteBefore}"
     }
 
     fun onTextEdited() = invokeDart("onTextEdited", null)
