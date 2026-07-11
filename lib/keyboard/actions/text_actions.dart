@@ -1,4 +1,4 @@
-/// User-invoked text actions: Fix / Remove / Soften / Improve / Shortcut.
+/// User-invoked text actions: Remove / Soften / Improve / Shortcut / Suggest.
 library;
 
 import '../../core/result.dart';
@@ -6,28 +6,8 @@ import '../panel/panel_state.dart';
 import 'local_text_transform.dart';
 import 'text_replacement.dart';
 
-enum PanelActionKind {
-  fixSpell,
-  removeMat,
-  softenToxic,
-  improve,
-  expandShortcut,
-  insertSuggestion,
-  undo,
-}
-
 /// Plans replacements for each panel action — pure, no I/O.
 abstract final class TextActions {
-  static Result<ReplacementPlan, ActionError> fixSpell({
-    required PanelSpell panel,
-    required ActionContext ctx,
-    String? candidate,
-  }) {
-    final fix = candidate ?? panel.candidates.firstOrNull;
-    if (fix == null) return const Result.err(ActionError.emptyReplacement);
-    return TextReplacement.planWordReplace(ctx: ctx, newWord: fix);
-  }
-
   static Result<ReplacementPlan, ActionError> removeMat({
     required PanelMat panel,
     required ActionContext ctx,
@@ -84,8 +64,4 @@ abstract final class TextActions {
       replacement: improved,
     );
   }
-}
-
-extension<T> on List<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

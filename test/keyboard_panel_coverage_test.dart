@@ -84,11 +84,6 @@ void main() {
         expansions: ['Добрый день'],
         range: EditRange(0, 2),
       ),
-      const PanelSpell(
-        word: 'helo',
-        candidates: ['hello', 'help'],
-        range: EditRange(0, 4),
-      ),
       const PanelSuggestions(words: ['мир', 'друг']),
     ]) {
       testWidgets('${panel.runtimeType} covers full bar', (tester) async {

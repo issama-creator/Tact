@@ -10,13 +10,6 @@ void main() {
   const range = EditRange(0, 4);
 
   List<RuleSignal> allSignals() => [
-        RuleSignal(
-          kind: SignalKind.spellError,
-          severity: 80,
-          confidence: 0.9,
-          range: range,
-          payload: const SpellPayload(word: 'helo', candidates: ['hello']),
-        ),
         const RuleSignal(
           kind: SignalKind.mat,
           severity: 90,
@@ -46,7 +39,10 @@ void main() {
           severity: 60,
           confidence: 1,
           range: range,
-          payload: const ShortcutPayload(trigger: 'др', expansions: ['Доброе утро']),
+          payload: const ShortcutPayload(
+            trigger: 'др',
+            expansions: ['Доброе утро'],
+          ),
         ),
       ];
 
@@ -60,69 +56,74 @@ void main() {
     expect(d.state, isA<PanelUndo>());
   });
 
-  test('priority spell > mat > toxic > improve > shortcut > suggestions', () {
+  test('priority mat > toxic > improve > shortcut > suggestions', () {
     final signals = allSignals();
     expect(
-      engine.evaluate(signals: signals, undoAvailable: false, defaultSuggestions: [], nowMs: 0).state,
-      isA<PanelSpell>(),
-    );
-    expect(
-      engine.evaluate(
-        signals: signals.where((s) => s.kind != SignalKind.spellError).toList(),
-        undoAvailable: false,
-        defaultSuggestions: [],
-        nowMs: 0,
-      ).state,
+      engine
+          .evaluate(
+            signals: signals,
+            undoAvailable: false,
+            defaultSuggestions: [],
+            nowMs: 0,
+          )
+          .state,
       isA<PanelMat>(),
     );
     expect(
-      engine.evaluate(
-        signals: signals
-            .where((s) => s.kind != SignalKind.spellError && s.kind != SignalKind.mat)
-            .toList(),
-        undoAvailable: false,
-        defaultSuggestions: [],
-        nowMs: 0,
-      ).state,
+      engine
+          .evaluate(
+            signals: signals.where((s) => s.kind != SignalKind.mat).toList(),
+            undoAvailable: false,
+            defaultSuggestions: [],
+            nowMs: 0,
+          )
+          .state,
       isA<PanelToxic>(),
     );
     expect(
-      engine.evaluate(
-        signals: signals
-            .where((s) =>
-                s.kind != SignalKind.spellError &&
-                s.kind != SignalKind.mat &&
-                s.kind != SignalKind.toxic)
-            .toList(),
-        undoAvailable: false,
-        defaultSuggestions: [],
-        nowMs: 0,
-        messageLength: 40,
-      ).state,
+      engine
+          .evaluate(
+            signals: signals
+                .where(
+                  (s) =>
+                      s.kind != SignalKind.mat && s.kind != SignalKind.toxic,
+                )
+                .toList(),
+            undoAvailable: false,
+            defaultSuggestions: [],
+            nowMs: 0,
+            messageLength: 40,
+          )
+          .state,
       isA<PanelImprove>(),
     );
     expect(
-      engine.evaluate(
-        signals: signals
-            .where((s) =>
-                s.kind != SignalKind.spellError &&
-                s.kind != SignalKind.mat &&
-                s.kind != SignalKind.toxic &&
-                s.kind != SignalKind.improve)
-            .toList(),
-        undoAvailable: false,
-        defaultSuggestions: [],
-        nowMs: 0,
-      ).state,
+      engine
+          .evaluate(
+            signals: signals
+                .where(
+                  (s) =>
+                      s.kind != SignalKind.mat &&
+                      s.kind != SignalKind.toxic &&
+                      s.kind != SignalKind.improve,
+                )
+                .toList(),
+            undoAvailable: false,
+            defaultSuggestions: [],
+            nowMs: 0,
+          )
+          .state,
       isA<PanelShortcut>(),
     );
     expect(
-      engine.evaluate(
-        signals: const [],
-        undoAvailable: false,
-        defaultSuggestions: ['hello'],
-        nowMs: 0,
-      ).state,
+      engine
+          .evaluate(
+            signals: const [],
+            undoAvailable: false,
+            defaultSuggestions: ['hello'],
+            nowMs: 0,
+          )
+          .state,
       isA<PanelSuggestions>(),
     );
   });
@@ -134,7 +135,7 @@ void main() {
       defaultSuggestions: ['a', 'b'],
       nowMs: 0,
     );
-    expect(d.state, isA<PanelSpell>());
-    expect(d.state, isNot(isA<PanelMat>()));
+    expect(d.state, isA<PanelMat>());
+    expect(d.state, isNot(isA<PanelToxic>()));
   });
 }

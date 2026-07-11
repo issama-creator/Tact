@@ -20,18 +20,6 @@ final class PanelUndo extends PanelState {
   final String label;
 }
 
-final class PanelSpell extends PanelState {
-  const PanelSpell({
-    required this.word,
-    required this.candidates,
-    required this.range,
-  });
-
-  final String word;
-  final List<String> candidates;
-  final EditRange range;
-}
-
 final class PanelMat extends PanelState {
   const PanelMat({
     required this.word,
@@ -127,8 +115,6 @@ bool panelModesEqual(PanelState a, PanelState b) {
   return switch ((a, b)) {
     (PanelIdle(), PanelIdle()) => true,
     (PanelUndo la, PanelUndo lb) => la.label == lb.label,
-    (PanelSpell sa, PanelSpell sb) =>
-      sa.word == sb.word && sa.candidates.length == sb.candidates.length,
     (PanelMat ma, PanelMat mb) => ma.word == mb.word,
     (PanelToxic ta, PanelToxic tb) =>
       ta.word == tb.word && ta.level == tb.level,

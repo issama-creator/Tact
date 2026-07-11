@@ -2,12 +2,11 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tact/core/bridge/ime_bridge_facade.dart';
 import 'package:tact/keyboard/actions/actions_engine.dart';
-import 'package:tact/keyboard/actions/undo_stack.dart';
 import 'package:tact/keyboard/actions/text_replacement.dart';
+import 'package:tact/keyboard/actions/undo_stack.dart';
 import 'package:tact/keyboard/input/text_context.dart';
 import 'package:tact/keyboard/intelligence/undo_tracker.dart';
 import 'package:tact/keyboard/panel/panel_state.dart';
-import 'package:tact/keyboard/rules/rule_signal.dart';
 
 void main() {
   test('undo tracker expires after 3 seconds', () {
@@ -23,7 +22,11 @@ void main() {
 
   test('undo panel hides and stack clears after 3 seconds', () {
     fakeAsync((async) {
-      final field = FakeTextField(text: 'say helo ', selectionStart: 9, selectionEnd: 9);
+      final field = FakeTextField(
+        text: 'oh хуй ',
+        selectionStart: 7,
+        selectionEnd: 7,
+      );
       final bridge = ImeBridge(fakeField: field);
       final tracker = UndoTracker();
       PanelState? panel;
@@ -35,28 +38,24 @@ void main() {
         onPanel: (s) => panel = s,
       );
       actions.rememberContext(
-        ActionContext(
-          word: 'helo',
-          locale: 'en',
-          deleteBefore: 5,
+        const ActionContext(
+          word: 'хуй',
+          locale: 'ru',
+          deleteBefore: 4,
           deleteAfter: 0,
           boundary: ' ',
-          before: 'say ',
+          before: 'oh ',
           after: '',
         ),
       );
 
-      actions.fixSpell(
-        const PanelSpell(
-          word: 'helo',
-          candidates: ['hello'],
-          range: EditRange(4, 8),
-        ),
+      actions.removeMat(
+        const PanelMat(word: 'хуй', range: EditRange(3, 6)),
       );
       async.flushMicrotasks();
 
       expect(panel, isA<PanelUndo>());
-      expect((panel as PanelUndo).label, UndoLabels.spellFixed);
+      expect((panel as PanelUndo).label, UndoLabels.matRemoved);
       expect(tracker.available, isTrue);
       expect(actions.undoStack.isNotEmpty, isTrue);
 
@@ -70,7 +69,11 @@ void main() {
 
   test('manual undo cancels expiry timer', () {
     fakeAsync((async) {
-      final field = FakeTextField(text: 'say helo ', selectionStart: 9, selectionEnd: 9);
+      final field = FakeTextField(
+        text: 'oh хуй ',
+        selectionStart: 7,
+        selectionEnd: 7,
+      );
       final bridge = ImeBridge(fakeField: field);
       final tracker = UndoTracker();
       PanelState? panel;
@@ -82,23 +85,19 @@ void main() {
         onPanel: (s) => panel = s,
       );
       actions.rememberContext(
-        ActionContext(
-          word: 'helo',
-          locale: 'en',
-          deleteBefore: 5,
+        const ActionContext(
+          word: 'хуй',
+          locale: 'ru',
+          deleteBefore: 4,
           deleteAfter: 0,
           boundary: ' ',
-          before: 'say ',
+          before: 'oh ',
           after: '',
         ),
       );
 
-      actions.fixSpell(
-        const PanelSpell(
-          word: 'helo',
-          candidates: ['hello'],
-          range: EditRange(4, 8),
-        ),
+      actions.removeMat(
+        const PanelMat(word: 'хуй', range: EditRange(3, 6)),
       );
       async.flushMicrotasks();
       actions.undo();

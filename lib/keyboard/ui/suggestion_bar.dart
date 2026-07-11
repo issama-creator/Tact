@@ -16,7 +16,6 @@ abstract final class _TactPanelColors {
   static const textMuted = Color(0xFF9A9AA3);
   static const action = Color(0xFF7C5CFF);
   static const actionPressed = Color(0xFF6A4FE0);
-  static const spell = Color(0xFFE8913A);
   static const mat = Color(0xFFC94B4B);
   static const toxic = Color(0xFFE8B339);
   static const improve = Color(0xFF7C5CFF);
@@ -279,27 +278,6 @@ class _PanelBody extends StatelessWidget {
           metrics: metrics,
           onAction: () => onAction(const PanelActionUndo()),
         ),
-      PanelSpell p => p.candidates.length <= 1
-          ? _StatusBar(
-              accent: _TactPanelColors.spell,
-              icon: Icons.spellcheck,
-              title: 'Найдена ошибка',
-              subtitle: p.word,
-              actionLabel: 'Исправить',
-              metrics: metrics,
-              onAction: p.candidates.isNotEmpty
-                  ? () => onAction(PanelActionFixSpell(
-                        panel: p,
-                        candidate: p.candidates.first,
-                      ))
-                  : null,
-            )
-          : _SpellChipRow(
-              word: p.word,
-              candidates: p.candidates.take(3).toList(),
-              metrics: metrics,
-              onPick: (c) => onAction(PanelActionFixSpell(panel: p, candidate: c)),
-            ),
       PanelMat p => _StatusBar(
           accent: _TactPanelColors.mat,
           icon: Icons.block,
@@ -356,7 +334,7 @@ class _PanelBody extends StatelessWidget {
   }
 }
 
-/// Label exposed to semantics (and widget tests) without spell-check noise.
+/// Label exposed to semantics (and widget tests) without decorative noise.
 class _PanelText extends StatelessWidget {
   const _PanelText(this.text, {required this.style, this.maxLines = 1});
 
@@ -580,54 +558,6 @@ class _PanelActionButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SpellChipRow extends StatelessWidget {
-  const _SpellChipRow({
-    required this.word,
-    required this.candidates,
-    required this.metrics,
-    required this.onPick,
-  });
-
-  final String word;
-  final List<String> candidates;
-  final _PanelMetrics metrics;
-  final void Function(String candidate) onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    final m = metrics;
-    return _PanelSurface(
-      metrics: m,
-      borderColor: _TactPanelColors.spell.withValues(alpha: 0.35),
-      accent: _TactPanelColors.spell,
-      child: Row(
-        children: [
-          _AccentIcon(
-            accent: _TactPanelColors.spell,
-            icon: Icons.spellcheck,
-            size: m.iconSize,
-          ),
-          SizedBox(width: m.gap),
-          _PanelText(
-            word,
-            style: m.subtitleStyle.copyWith(fontWeight: FontWeight.w600),
-          ),
-          SizedBox(width: m.gap),
-          Expanded(
-            child: _ChipScroller(
-              metrics: m,
-              chips: [
-                for (final c in candidates)
-                  _ChipData(c, onTap: () => onPick(c)),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

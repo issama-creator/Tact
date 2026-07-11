@@ -14,7 +14,6 @@ import 'package:tact/keyboard/engines/mat_engine.dart';
 import 'package:tact/keyboard/engines/normalizer.dart';
 import 'package:tact/keyboard/engines/shortcut_engine.dart';
 import 'package:tact/keyboard/engines/shortcut_table.dart';
-import 'package:tact/keyboard/engines/spell_engine.dart';
 import 'package:tact/keyboard/engines/toxic_engine.dart';
 import 'package:tact/keyboard/input/text_context.dart';
 import 'package:tact/keyboard/intelligence/local_intelligence_engine.dart';
@@ -87,22 +86,6 @@ void main() {
       final typo = embeddedRuTypos;
       expect(typo.lookup('превед'), 'привет');
       expect(typo.lookup('спосибо'), 'спасибо');
-    });
-
-    test('spell engine prefers typo map over edit distance', () {
-      final dict = Dictionary.fromWords(['hello']);
-      final engine = SpellEngine(dict, typo: embeddedEnTypos);
-      final signals = engine.analyze(ctx('helo'));
-      final payload = signals.first.payload! as SpellPayload;
-      expect(payload.candidates, ['hello']);
-    });
-
-    test('teh maps to the via typo dictionary', () {
-      final dict = Dictionary.fromWords(['the', 'hello']);
-      final engine = SpellEngine(dict, typo: embeddedEnTypos);
-      final payload =
-          engine.analyze(ctx('teh')).first.payload! as SpellPayload;
-      expect(payload.candidates, ['the']);
     });
   });
 
@@ -253,12 +236,6 @@ void main() {
       final manager = DictionaryManager.shared;
       expect(manager.spellFor('en').contains('привет'), isFalse);
       expect(manager.spellFor('ru').contains('hello'), isFalse);
-    });
-
-    test('unicode emoji skipped by spell engine', () {
-      final dict = DictionaryManager.shared.spellFor('en');
-      final engine = SpellEngine(dict);
-      expect(engine.analyze(ctx('test😀')), isEmpty);
     });
 
     test('embedded word lists are non-empty', () {

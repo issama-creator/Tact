@@ -26,7 +26,6 @@ final class RulesEngine {
       );
     }
 
-    RuleSignal? spell;
     RuleSignal? mat;
     RuleSignal? toxic;
     RuleSignal? improve;
@@ -34,8 +33,6 @@ final class RulesEngine {
 
     for (final s in signals) {
       switch (s.kind) {
-        case SignalKind.spellError:
-          spell ??= s;
         case SignalKind.mat:
           mat ??= s;
         case SignalKind.toxic:
@@ -48,18 +45,6 @@ final class RulesEngine {
         case SignalKind.undo:
           break;
       }
-    }
-
-    if (spell != null) {
-      final payload = spell.payload as SpellPayload;
-      return PanelDecision(
-        state: PanelSpell(
-          word: payload.word,
-          candidates: payload.candidates,
-          range: spell.range,
-        ),
-        producedAtMs: nowMs,
-      );
     }
 
     if (mat != null) {
@@ -91,10 +76,7 @@ final class RulesEngine {
       );
     }
 
-    if (improve != null &&
-        spell == null &&
-        mat == null &&
-        toxic == null) {
+    if (improve != null && mat == null && toxic == null) {
       return PanelDecision(
         state: PanelImprove(messageLength: messageLength),
         producedAtMs: nowMs,

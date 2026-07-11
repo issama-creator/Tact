@@ -28,18 +28,6 @@ void main() {
     expect(plan.valueOrNull!.deleteBefore, 5);
   });
 
-  test('fix action plans correction', () {
-    final plan = TextActions.fixSpell(
-      panel: const PanelSpell(
-        word: 'helo',
-        candidates: ['hello', 'help'],
-        range: EditRange(0, 4),
-      ),
-      ctx: baseCtx(),
-    );
-    expect(plan.valueOrNull!.replacement, 'hello ');
-  });
-
   test('insertSuggestion appends trailing space like Gboard', () {
     final plan = TextActions.insertSuggestion(
       word: 'добрый',

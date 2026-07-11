@@ -180,9 +180,9 @@ final class InputPipeline {
     unawaited(_validatePanelAnchor());
   }
 
-  /// Mat / spell / toxic only — shortcuts have their own partial/committed lifecycle.
+  /// Mat / toxic only — shortcuts have their own partial/committed lifecycle.
   bool _shouldValidateAnchor(PanelState panel) => switch (panel) {
-        PanelMat() || PanelSpell() || PanelToxic() => true,
+        PanelMat() || PanelToxic() => true,
         _ => false,
       };
 

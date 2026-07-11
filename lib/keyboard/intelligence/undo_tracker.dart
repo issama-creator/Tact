@@ -41,7 +41,6 @@ final class UndoTracker {
 abstract final class UndoLabels {
   static const matRemoved = 'Мат удалён';
   static const toxicSoftened = 'Тон смягчён';
-  static const spellFixed = 'Исправлено';
   static const shortcutExpanded = 'Шаблон вставлен';
   static const improved = 'Текст улучшен';
   static const fallback = 'Изменение применено';

@@ -11,12 +11,6 @@ final class PanelActionUndo extends PanelAction {
   const PanelActionUndo();
 }
 
-final class PanelActionFixSpell extends PanelAction {
-  const PanelActionFixSpell({required this.panel, this.candidate});
-  final PanelSpell panel;
-  final String? candidate;
-}
-
 final class PanelActionRemoveMat extends PanelAction {
   const PanelActionRemoveMat({required this.panel});
   final PanelMat panel;

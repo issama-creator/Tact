@@ -7,7 +7,6 @@ import 'panel_state.dart';
 /// Word tied to the current analysis panel, if any.
 String? anchoredWord(PanelState panel) => switch (panel) {
       PanelMat(:final word) => word,
-      PanelSpell(:final word) => word,
       PanelToxic(:final word) => word,
       PanelShortcut(:final trigger) => trigger,
       _ => null,

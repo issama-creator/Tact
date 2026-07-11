@@ -187,8 +187,6 @@ class _KeyboardAppState extends State<KeyboardApp> {
     switch (action) {
       case PanelActionUndo():
         await _actions.undo();
-      case PanelActionFixSpell(:final panel, :final candidate):
-        await _actions.fixSpell(panel, candidate: candidate);
       case PanelActionRemoveMat(:final panel):
         await _actions.removeMat(panel);
       case PanelActionSoftenToxic(:final panel):

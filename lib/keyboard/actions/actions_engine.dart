@@ -86,21 +86,6 @@ final class ActionsEngine {
     return Result.ok(inverse);
   }
 
-  Future<Result<TextEdit, ActionError>> fixSpell(
-    PanelSpell panel, {
-    String? candidate,
-  }) async {
-    final ctx = _lastContext;
-    if (ctx == null) return const Result.err(ActionError.invalidRange);
-    final plan = TextActions.fixSpell(
-      panel: panel,
-      ctx: ctx,
-      candidate: candidate,
-    );
-    if (plan.isErr) return Result.err(plan.errorOrNull!);
-    return applyPlan(plan.valueOrNull!, undoLabel: UndoLabels.spellFixed);
-  }
-
   Future<Result<TextEdit, ActionError>> removeMat(PanelMat panel) async {
     final ctx = _lastContext;
     if (ctx == null) return const Result.err(ActionError.invalidRange);

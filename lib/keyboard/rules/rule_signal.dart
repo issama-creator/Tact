@@ -7,23 +7,11 @@ import '../input/text_context.dart';
 
 enum SignalKind {
   undo,
-  spellError,
   mat,
   toxic,
   improve,
   shortcutMatch,
   nextWord,
-}
-
-/// Result payload for spell correction.
-final class SpellPayload {
-  const SpellPayload({
-    required this.word,
-    required this.candidates,
-  });
-
-  final String word;
-  final List<String> candidates;
 }
 
 /// Toxic severity tiers — no sentiment analysis, dictionary scoring only.

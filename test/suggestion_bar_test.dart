@@ -90,20 +90,6 @@ void main() {
     expect(find.text('др → Доброе утро'), findsOneWidget);
   });
 
-  testWidgets('PanelSpell renders spell strip and candidates', (tester) async {
-    await _pumpBar(
-      tester,
-      panel: const PanelSpell(
-        word: 'helo',
-        candidates: ['hello', 'help'],
-        range: EditRange(0, 4),
-      ),
-    );
-    expect(find.text('helo'), findsOneWidget);
-    expect(find.text('hello'), findsOneWidget);
-    expect(find.text('help'), findsOneWidget);
-  });
-
   testWidgets('PanelSuggestions renders next-word chips', (tester) async {
     await _pumpBar(
       tester,

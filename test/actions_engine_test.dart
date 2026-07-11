@@ -16,22 +16,22 @@ void main() {
   late UndoTracker tracker;
 
   ActionContext ctx({
-    String word = 'helo',
+    String word = 'хуй',
     String boundary = ' ',
-    int deleteBefore = 5,
+    int deleteBefore = 4,
   }) =>
       ActionContext(
         word: word,
-        locale: 'en',
+        locale: 'ru',
         deleteBefore: deleteBefore,
         deleteAfter: 0,
         boundary: boundary,
-        before: 'say ',
+        before: 'oh ',
         after: '',
       );
 
   setUp(() {
-    field = FakeTextField(text: 'say helo ', selectionStart: 9, selectionEnd: 9);
+    field = FakeTextField(text: 'oh хуй ', selectionStart: 7, selectionEnd: 7);
     bridge = ImeBridge(fakeField: field);
     tracker = UndoTracker();
     actions = ActionsEngine(
@@ -42,55 +42,35 @@ void main() {
     actions.rememberContext(ctx());
   });
 
-  test('fix spell replaces word and enables undo', () async {
-    final panel = PanelSpell(
-      word: 'helo',
-      candidates: ['hello'],
-      range: const EditRange(4, 8),
+  test('remove mat deletes word and enables undo', () async {
+    final result = await actions.removeMat(
+      const PanelMat(word: 'хуй', range: EditRange(3, 6)),
     );
-    final result = await actions.fixSpell(panel);
     expect(result.isOk, isTrue);
-    expect(field.text, 'say hello ');
+    expect(field.text, 'oh ');
     expect(tracker.available, isTrue);
-    expect(tracker.label, UndoLabels.spellFixed);
+    expect(tracker.label, UndoLabels.matRemoved);
     expect(actions.undoStack.isNotEmpty, isTrue);
   });
 
   test('undo restores previous text and cursor', () async {
-    const cursorBefore = 9;
+    const cursorBefore = 7;
     field.selectionStart = cursorBefore;
     field.selectionEnd = cursorBefore;
-    await actions.fixSpell(
-      const PanelSpell(
-        word: 'helo',
-        candidates: ['hello'],
-        range: EditRange(4, 8),
-      ),
-    );
-    await actions.undo();
-    expect(field.text, 'say helo ');
-    expect(field.selectionStart, cursorBefore);
-    expect(tracker.available, isFalse);
-  });
-
-  test('remove mat deletes profanity word', () async {
-    field.text = 'oh хуй ';
-    field.selectionStart = 7;
-    field.selectionEnd = 7;
-    actions.rememberContext(ctx(word: 'хуй', deleteBefore: 4, boundary: ' '));
     await actions.removeMat(
       const PanelMat(word: 'хуй', range: EditRange(3, 6)),
     );
-    expect(field.text, 'oh ');
-    expect(field.text.contains('хуй'), isFalse);
-    expect(tracker.label, UndoLabels.matRemoved);
+    await actions.undo();
+    expect(field.text, 'oh хуй ');
+    expect(field.selectionStart, cursorBefore);
+    expect(tracker.available, isFalse);
   });
 
   test('soften toxic replaces word locally', () async {
     field.text = 'ты идиот ';
     field.selectionStart = 9;
     field.selectionEnd = 9;
-    actions.rememberContext(ctx(word: 'идиот', deleteBefore: 6, boundary: ' '));
+    actions.rememberContext(ctx(word: 'идиот', deleteBefore: 6));
     await actions.softenToxic(
       const PanelToxic(
         word: 'идиот',
@@ -134,50 +114,44 @@ void main() {
   });
 
   test('repeated actions stack undo', () async {
-    await actions.fixSpell(
-      const PanelSpell(
-        word: 'helo',
-        candidates: ['hello'],
-        range: EditRange(4, 8),
-      ),
+    await actions.removeMat(
+      const PanelMat(word: 'хуй', range: EditRange(3, 6)),
     );
-    field.text = 'say hello ';
-    field.selectionStart = 10;
-    field.selectionEnd = 10;
-    actions.rememberContext(ctx(word: 'hello', deleteBefore: 6));
-    await actions.fixSpell(
-      const PanelSpell(
-        word: 'hello',
-        candidates: ['hello'],
-        range: EditRange(4, 9),
-      ),
+    field.text = 'oh сука ';
+    field.selectionStart = 8;
+    field.selectionEnd = 8;
+    actions.rememberContext(ctx(word: 'сука', deleteBefore: 5));
+    await actions.removeMat(
+      const PanelMat(word: 'сука', range: EditRange(3, 7)),
     );
     expect(actions.undoStack.length, 2);
   });
 
   test('unicode emoji preserved in replacement', () async {
-    field.text = 'hi helo 😀';
-    field.selectionStart = 8;
-    field.selectionEnd = 8;
+    field.text = 'hi идиот 😀';
+    field.selectionStart = 9;
+    field.selectionEnd = 9;
     actions.rememberContext(
-      ActionContext(
-        word: 'helo',
-        locale: 'en',
-        deleteBefore: 5,
+      const ActionContext(
+        word: 'идиот',
+        locale: 'ru',
+        deleteBefore: 6,
         deleteAfter: 0,
         boundary: ' ',
         before: 'hi ',
         after: '😀',
       ),
     );
-    await actions.fixSpell(
-      const PanelSpell(
-        word: 'helo',
-        candidates: ['hello'],
-        range: EditRange(3, 7),
+    await actions.softenToxic(
+      const PanelToxic(
+        word: 'идиот',
+        level: ToxicLevel.conflict,
+        score: 80,
+        range: EditRange(3, 8),
       ),
     );
-    expect(field.text, 'hi hello 😀');
+    expect(field.text.contains('😀'), isTrue);
+    expect(field.text.contains('идиот'), isFalse);
   });
 
   test('password field blocks improve', () async {
