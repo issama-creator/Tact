@@ -153,14 +153,16 @@ class KeyboardRootView(
             onBridgeReady(impl)
 
             val layoutListener = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
-                if (engineAttached && v.width > 0 && v.height > 0) {
+                if (v.width <= 0 || v.height <= 0) return@OnLayoutChangeListener
+                if (!engineAttached) {
+                    // First real layout after attach-to-window — bind engine now.
+                    attachFlutterEngineIfNeeded()
+                } else {
                     bumpFlutterRender()
                 }
             }
             flutterLayoutListener = layoutListener
             view.addOnLayoutChangeListener(layoutListener)
-
-            view.post { attachFlutterEngineIfNeeded() }
             view
         } catch (t: Throwable) {
             Log.e(TAG, "FlutterView creation failed — using native fallback", t)
@@ -175,13 +177,26 @@ class KeyboardRootView(
             bumpFlutterRender()
             return
         }
+        // Attaching at 0x0 makes the suggestion bar dead until a full restart —
+        // wait for the first non-zero layout (see layout listener).
+        if (view.width <= 0 || view.height <= 0) {
+            if (view.isAttachedToWindow) {
+                view.post { attachFlutterEngineIfNeeded() }
+            }
+            return
+        }
         try {
             engine.lifecycleChannel.appIsResumed()
             view.attachToFlutterEngine(engine)
             engine.renderer.addIsDisplayingFlutterUiListener(flutterUiListener)
             engineAttached = true
-            bridge?.sendTheme()
-            bumpFlutterRender()
+            // Theme + pending events + repaint (covers late attach after Dart ready).
+            if (FlutterEngineHost.isDartReady()) {
+                bridge?.resendReadyState()
+            } else {
+                bridge?.sendTheme()
+                bumpFlutterRender()
+            }
             Log.i(
                 TAG,
                 "FlutterView attached (texture) size=${view.width}x${view.height}",
@@ -226,7 +241,22 @@ class KeyboardRootView(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        flutterView?.post { attachFlutterEngineIfNeeded() }
+        val view = flutterView ?: return
+        // Listener may have been cleared on detach — restore so size→attach works.
+        if (flutterLayoutListener == null) {
+            val layoutListener = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                if (v.width <= 0 || v.height <= 0) return@OnLayoutChangeListener
+                if (!engineAttached) {
+                    attachFlutterEngineIfNeeded()
+                } else {
+                    bumpFlutterRender()
+                }
+            }
+            flutterLayoutListener = layoutListener
+            view.addOnLayoutChangeListener(layoutListener)
+        }
+        // Post so the first layout pass can assign a real bar size first.
+        view.post { attachFlutterEngineIfNeeded() }
     }
 
     override fun onDetachedFromWindow() {

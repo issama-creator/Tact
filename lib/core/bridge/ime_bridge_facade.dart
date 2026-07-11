@@ -136,11 +136,18 @@ class ImeBridge {
     _channel.setMethodCallHandler(null);
   }
 
+  /// Tell native the Dart isolate is listening. Retries because the engine
+  /// may boot before [ImeBridgeImpl] registers its MethodChannel handler.
   Future<void> signalReady() async {
     if (_fake != null) return;
-    try {
-      await _channel.invokeMethod<void>('ready');
-    } catch (_) {}
+    for (var attempt = 0; attempt < 40; attempt++) {
+      try {
+        await _channel.invokeMethod<void>('ready');
+        return;
+      } catch (_) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    }
   }
 
   /// Ask native side to schedule a Flutter raster pass (IME Surface/Texture).
@@ -273,6 +280,10 @@ class ImeBridge {
         return null;
       case 'onTextEdited':
         if (!_textEdits.isClosed) _textEdits.add(null);
+        return null;
+      case 'hostAttached':
+        // Native bridge registered after we already tried ready — resend.
+        await signalReady();
         return null;
       default:
         return null;

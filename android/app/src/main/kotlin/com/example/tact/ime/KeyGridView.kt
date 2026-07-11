@@ -885,7 +885,15 @@ class KeyGridView @JvmOverloads constructor(
     }
 
     private fun notifyMaybePartialWord() {
-        onPartialWord?.invoke(inputController.trailingWordFragment())
+        val fragment = inputController.trailingWordFragment()
+        when {
+            fragment != null -> onPartialWord?.invoke(fragment)
+            // Empty field, or mid-word shorter than 2 chars — drop dictionary chips.
+            // After a trailing space, leave next-word suggestions alone.
+            inputController.isCommitBufferEmpty() ||
+                !inputController.commitBufferEndsWithBoundary() ->
+                onPartialWord?.invoke(null)
+        }
     }
 
     // ── Preview & ripple helpers ──────────────────────────────────────

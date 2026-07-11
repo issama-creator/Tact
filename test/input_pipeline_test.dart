@@ -121,7 +121,34 @@ void main() {
     pipeline.dispose();
   });
 
-  test('committed shortcut survives partial clear after space', () async {
+  test('empty field clear drops next-word suggestions', () async {
+    final bridge = ImeBridge(fakeField: FakeTextField());
+    final engine = LocalIntelligenceEngine();
+    PanelState? last;
+    final pipeline = InputPipeline(
+      bridge: bridge,
+      engine: engine,
+      onPanel: (s) => last = s,
+      settings: const PanelSettings(hysteresisMs: 0),
+    );
+    pipeline.start();
+    bridge.emitWord(const WordEvent(
+      word: 'hello',
+      locale: 'en',
+      boundary: ' ',
+      deleteBefore: 6,
+    ));
+    await Future<void>.delayed(Duration.zero);
+    expect(last, isA<PanelSuggestions>());
+
+    // Native only emits clear when commit buffer is empty.
+    bridge.emitPartialWordClear();
+    await Future<void>.delayed(Duration.zero);
+    expect(last, isA<PanelIdle>());
+    pipeline.dispose();
+  });
+
+  test('empty field clear drops dictionary chips including shortcuts', () async {
     final bridge = ImeBridge(fakeField: FakeTextField());
     final engine = LocalIntelligenceEngine();
     PanelState? last;
@@ -142,7 +169,29 @@ void main() {
     expect(last, isA<PanelShortcut>());
     bridge.emitPartialWordClear();
     await Future<void>.delayed(Duration.zero);
-    expect(last, isA<PanelShortcut>());
+    expect(last, isA<PanelIdle>());
+    pipeline.dispose();
+  });
+
+  test('empty field clear drops improve panel', () async {
+    final bridge = ImeBridge(fakeField: FakeTextField());
+    final engine = LocalIntelligenceEngine();
+    PanelState? last;
+    final pipeline = InputPipeline(
+      bridge: bridge,
+      engine: engine,
+      onPanel: (s) => last = s,
+      settings: const PanelSettings(hysteresisMs: 0),
+    );
+    pipeline.start();
+    last = const PanelImprove(messageLength: 80);
+    pipeline.adoptPanel(last!);
+    expect(pipeline.panel, isA<PanelImprove>());
+
+    bridge.emitPartialWordClear();
+    await Future<void>.delayed(Duration.zero);
+    expect(last, isA<PanelIdle>());
+    expect(pipeline.panel, isA<PanelIdle>());
     pipeline.dispose();
   });
 

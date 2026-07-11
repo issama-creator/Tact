@@ -175,7 +175,8 @@ final class InputPipeline {
   }
 
   void _onPartialWordClear() {
-    _clearPartialPanel();
+    // Native only sends clear when the commit buffer is empty.
+    _clearPanelForEmptyField(reason: 'empty field');
     if (!_shouldValidateAnchor(_panel)) return;
     _anchorValidationDebounce?.cancel();
     unawaited(_validatePanelAnchor());
@@ -215,15 +216,31 @@ final class InputPipeline {
   }
 
   void _clearPartialPanel() {
+    // Short / empty partial — clear live autocomplete/shortcut chips only.
     if (!_panelFromPartialOnly) return;
-    if (_panel is PanelShortcut || _panel is PanelSuggestions) {
-      if (kDebugMode) {
-        debugPrint('[TACT Pipeline] clear partial panel');
-      }
-      _panelFromPartialOnly = false;
-      _panel = const PanelIdle();
-      _onPanel?.call(_panel);
+    if (_panel is! PanelShortcut && _panel is! PanelSuggestions) return;
+    if (kDebugMode) {
+      debugPrint('[TACT Pipeline] clear chips (clear partial)');
     }
+    _panelFromPartialOnly = false;
+    _panel = const PanelIdle();
+    _onPanel?.call(_panel);
+  }
+
+  /// Field is empty — drop suggestions, shortcuts, improve, mat, toxic.
+  void _clearPanelForEmptyField({required String reason}) {
+    if (_panel is PanelIdle || _panel is PanelUndo) {
+      _panelFromPartialOnly = false;
+      return;
+    }
+    if (kDebugMode) {
+      debugPrint(
+        '[TACT Pipeline] clear panel ${_panel.runtimeType} ($reason)',
+      );
+    }
+    _panelFromPartialOnly = false;
+    _panel = const PanelIdle();
+    _onPanel?.call(_panel);
   }
 
   /// Hides mat/spell/toxic/shortcut panels when the user erased the word.
@@ -265,13 +282,37 @@ final class InputPipeline {
   void _scheduleAnchorValidation() {
     final panel = _panel;
     if (panel is PanelUndo || panel is PanelIdle) return;
-    if (!panelTracksAnchoredWord(panel)) return;
 
     _anchorValidationDebounce?.cancel();
     _anchorValidationDebounce = Timer(
       const Duration(milliseconds: 40),
-      () => unawaited(_validatePanelAnchor()),
+      () => unawaited(_onTextEditedTick()),
     );
+  }
+
+  /// Backspace / host edits: drop panels when the field is empty, else
+  /// validate mat/toxic anchors.
+  Future<void> _onTextEditedTick() async {
+    if (_disposed) return;
+    final panel = _panel;
+    if (panel is PanelUndo || panel is PanelIdle) return;
+
+    // Improve / chips have no word anchor — check emptiness via surrounding text.
+    if (panel is PanelImprove ||
+        panel is PanelSuggestions ||
+        panel is PanelShortcut) {
+      final snap = await _bridge.getSurroundingText(before: 48, after: 8);
+      if (_disposed) return;
+      if (snap == null ||
+          (snap.before.trim().isEmpty && snap.after.trim().isEmpty)) {
+        _clearPanelForEmptyField(reason: 'host field empty');
+        return;
+      }
+    }
+
+    if (_shouldValidateAnchor(panel)) {
+      await _validatePanelAnchor();
+    }
   }
 
   Future<void> _enrichActionContext(WordEvent event, String word) async {

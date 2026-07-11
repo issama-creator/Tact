@@ -439,9 +439,11 @@ class InputController(private val ime: InputMethodService) {
      * live shortcut chips (e.g. «др» before space).
      */
     fun trailingWordFragment(): WordCommitInfo? {
+        if (commitBuffer.isEmpty()) return null
+        // Mid-word only — after a space/punct there is no live fragment
+        // (next-word chips stay until the field is emptied).
+        if (isWordBoundary(commitBuffer[commitBuffer.length - 1])) return null
         val parsed = parseTrailingWordFromBuffer() ?: return null
-        // Partial path only needs the live fragment — skip before/after
-        // substrings (autocomplete / shortcuts do not use surrounding text).
         return WordCommitInfo(
             word = parsed.word,
             deleteBefore = parsed.word.length,
@@ -450,6 +452,15 @@ class InputController(private val ime: InputMethodService) {
             before = "",
             after = "",
         )
+    }
+
+    /** True when the IME commit buffer has no characters (field treated empty). */
+    fun isCommitBufferEmpty(): Boolean = commitBuffer.isEmpty()
+
+    /** Cursor sits on/after a word boundary (space/punct) — no live incomplete word. */
+    fun commitBufferEndsWithBoundary(): Boolean {
+        if (commitBuffer.isEmpty()) return true
+        return isWordBoundary(commitBuffer[commitBuffer.length - 1])
     }
 
     private data class ParsedWord(val word: String, val start: Int, val end: Int)

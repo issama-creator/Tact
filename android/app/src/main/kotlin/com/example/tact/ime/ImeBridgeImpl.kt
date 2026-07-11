@@ -36,6 +36,18 @@ class ImeBridgeImpl(
 
     init {
         channel.setMethodCallHandler(this)
+        // Dart may have called ready() while no native handler existed
+        // (engine prewarmed before KeyboardRootView). Nudge a resend —
+        // bypasses dartReady gate because that flag is exactly what is stuck.
+        mainHandler.post { nudgeDartHostAttached() }
+    }
+
+    private fun nudgeDartHostAttached() {
+        try {
+            channel.invokeMethod("hostAttached", null)
+        } catch (t: Throwable) {
+            Log.w(TAG, "hostAttached nudge failed", t)
+        }
     }
 
     // ── Native → Dart ─────────────────────────────────────────────────
@@ -180,6 +192,18 @@ class ImeBridgeImpl(
                 dispatchDart(method, args)
             }
         }
+    }
+
+    /**
+     * After a late FlutterView attach (first layout with real size), push theme
+     * and any queued native→Dart events again so the bar is live without a
+     * manual Hot Restart.
+     */
+    fun resendReadyState() {
+        if (!FlutterEngineHost.isDartReady()) return
+        sendTheme()
+        flushPending()
+        onRequestRepaint?.invoke()
     }
 
     fun dispose() {

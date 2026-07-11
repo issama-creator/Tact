@@ -2,8 +2,11 @@ package com.example.tact
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
+import com.example.tact.ime.FlutterEngineHost
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -15,8 +18,22 @@ class MainActivity : FlutterActivity() {
     /** Skip reconcile when returning from the keyboard picker (not Settings). */
     private var suppressResumeReconcile = false
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val debugImePrewarm = Runnable {
+        FlutterEngineHost.tryPrewarm(applicationContext)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // Debug only: warm IME after companion VM Service is attached.
+        // Immediate second-engine start breaks DDS / DevFS on flutter run.
+        if (FlutterEngineHost.isDebuggable(this)) {
+            mainHandler.removeCallbacks(debugImePrewarm)
+            mainHandler.postDelayed(
+                debugImePrewarm,
+                FlutterEngineHost.DEBUG_PREWARM_DELAY_MS,
+            )
+        }
         channel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL,
@@ -92,6 +109,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(debugImePrewarm)
         channel?.setMethodCallHandler(null)
         channel = null
         super.onDestroy()

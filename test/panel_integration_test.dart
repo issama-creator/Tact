@@ -131,7 +131,7 @@ void main() {
     expect(states.length, greaterThanOrEqualTo(3));
   });
 
-  test('partial clear does not wipe committed shortcut', () async {
+  test('empty field clear drops committed shortcut chips', () async {
     bridge.dispose();
     pipeline.dispose();
     bridge = ImeBridge(
@@ -157,10 +157,11 @@ void main() {
     await commit('др', 'ru');
     expect(states.last, isA<PanelShortcut>());
 
+    // Empty-field clear (native) drops dictionary chips.
     bridge.emitPartialWordClear();
     await flush();
 
-    expect(states.last, isA<PanelShortcut>());
+    expect(states.last, isA<PanelIdle>());
   });
 
   test('field finished resets to PanelIdle', () async {

@@ -3,8 +3,6 @@ package com.example.tact.ime
 import android.content.ComponentCallbacks2
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -13,9 +11,9 @@ import android.view.inputmethod.EditorInfo
 /**
  * TACT — Android InputMethodService.
  *
- * onCreate stays lightweight (no Flutter). The Flutter engine is warmed
- * lazily when [KeyboardRootView] attaches — if it fails, native keys
- * still render.
+ * onCreate stays lightweight. Release builds may already have a warm IME
+ * engine from [TactApplication]; debug warms on first input view (or via
+ * delayed companion prewarm). If Flutter fails, native keys still render.
  */
 class TactInputMethodService : InputMethodService() {
 
@@ -32,10 +30,9 @@ class TactInputMethodService : InputMethodService() {
         super.onCreate()
         inputController = InputController(this)
         haptics = KeyboardHaptics(this)
-        // Prewarm Flutter off the critical path of the first key draw.
-        Handler(Looper.getMainLooper()).post {
-            FlutterEngineHost.tryPrewarm(applicationContext)
-        }
+        // Release only — mirrors Application prewarm when the IME process
+        // path is the first thing the user hits after install.
+        FlutterEngineHost.tryEagerPrewarm(applicationContext)
         Log.i(TAG, "IME service created")
     }
 
