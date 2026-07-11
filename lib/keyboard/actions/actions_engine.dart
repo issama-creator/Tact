@@ -45,6 +45,8 @@ final class ActionsEngine {
   Future<Result<TextEdit, ActionError>> applyPlan(
     ReplacementPlan plan, {
     bool blockOnPassword = false,
+    bool showUndo = true,
+    String undoLabel = UndoLabels.fallback,
   }) async {
     if (blockOnPassword) {
       final snap = await _bridge.getSurroundingText();
@@ -69,10 +71,18 @@ final class ActionsEngine {
       selectionStart: outcome.previousSelectionStart,
       selectionEnd: outcome.previousSelectionEnd,
     );
-    _undo.push(inverse);
-    _undoTracker.markAvailable();
-    await _bridge.actionHaptic();
-    _showUndoPanel();
+    if (showUndo) {
+      _undo.push(inverse);
+      _undoTracker.markAvailable(label: undoLabel);
+      await _bridge.actionHaptic();
+      _showUndoPanel(undoLabel);
+    } else {
+      // Autocomplete / next-word — silent insert, keep typing.
+      _cancelUndoTimer();
+      _undo.clear();
+      _undoTracker.clear();
+      _onPanel?.call(const PanelIdle());
+    }
     return Result.ok(inverse);
   }
 
@@ -88,7 +98,7 @@ final class ActionsEngine {
       candidate: candidate,
     );
     if (plan.isErr) return Result.err(plan.errorOrNull!);
-    return applyPlan(plan.valueOrNull!);
+    return applyPlan(plan.valueOrNull!, undoLabel: UndoLabels.spellFixed);
   }
 
   Future<Result<TextEdit, ActionError>> removeMat(PanelMat panel) async {
@@ -96,7 +106,7 @@ final class ActionsEngine {
     if (ctx == null) return const Result.err(ActionError.invalidRange);
     final plan = TextActions.removeMat(panel: panel, ctx: ctx);
     if (plan.isErr) return Result.err(plan.errorOrNull!);
-    return applyPlan(plan.valueOrNull!);
+    return applyPlan(plan.valueOrNull!, undoLabel: UndoLabels.matRemoved);
   }
 
   Future<Result<TextEdit, ActionError>> softenToxic(PanelToxic panel) async {
@@ -104,7 +114,7 @@ final class ActionsEngine {
     if (ctx == null) return const Result.err(ActionError.invalidRange);
     final plan = TextActions.softenToxic(panel: panel, ctx: ctx);
     if (plan.isErr) return Result.err(plan.errorOrNull!);
-    return applyPlan(plan.valueOrNull!);
+    return applyPlan(plan.valueOrNull!, undoLabel: UndoLabels.toxicSoftened);
   }
 
   Future<Result<TextEdit, ActionError>> expandShortcut(String expansion) async {
@@ -112,7 +122,10 @@ final class ActionsEngine {
     if (ctx == null) return const Result.err(ActionError.invalidRange);
     final plan = TextActions.expandShortcut(expansion: expansion, ctx: ctx);
     if (plan.isErr) return Result.err(plan.errorOrNull!);
-    return applyPlan(plan.valueOrNull!);
+    return applyPlan(
+      plan.valueOrNull!,
+      undoLabel: UndoLabels.shortcutExpanded,
+    );
   }
 
   Future<Result<TextEdit, ActionError>> insertSuggestion(String word) async {
@@ -120,7 +133,7 @@ final class ActionsEngine {
     if (ctx == null) return const Result.err(ActionError.invalidRange);
     final plan = TextActions.insertSuggestion(word: word, ctx: ctx);
     if (plan.isErr) return Result.err(plan.errorOrNull!);
-    return applyPlan(plan.valueOrNull!);
+    return applyPlan(plan.valueOrNull!, showUndo: false);
   }
 
   Future<Result<TextEdit, ActionError>> improve() async {
@@ -131,7 +144,11 @@ final class ActionsEngine {
       after: snap.after,
     );
     if (plan.isErr) return Result.err(plan.errorOrNull!);
-    return applyPlan(plan.valueOrNull!, blockOnPassword: true);
+    return applyPlan(
+      plan.valueOrNull!,
+      blockOnPassword: true,
+      undoLabel: UndoLabels.improved,
+    );
   }
 
   Future<Result<void, ActionError>> undo() async {
@@ -159,7 +176,7 @@ final class ActionsEngine {
       _undoTracker.clear();
       _onPanel?.call(const PanelIdle());
     } else {
-      _showUndoPanel();
+      _showUndoPanel(_undoTracker.label);
     }
     await _bridge.actionHaptic();
     return const Result.ok(null);
@@ -188,9 +205,9 @@ final class ActionsEngine {
     _onPanel?.call(const PanelIdle());
   }
 
-  void _showUndoPanel() {
+  void _showUndoPanel(String label) {
     _cancelUndoTimer();
-    _onPanel?.call(const PanelUndo(label: 'Изменение применено'));
+    _onPanel?.call(PanelUndo(label: label));
     _undoHideTimer = Timer(
       const Duration(milliseconds: kUndoWindowMs),
       _onUndoWindowExpired,

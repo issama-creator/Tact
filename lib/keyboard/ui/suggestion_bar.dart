@@ -190,6 +190,33 @@ final class _PanelMetrics {
   );
 }
 
+/// Quiet brand mark for the idle suggestion strip — identifies Tact without
+/// competing with chips or status content.
+class _TactBrandMark extends StatelessWidget {
+  const _TactBrandMark();
+
+  static const _style = TextStyle(
+    color: Color(0x669A9AA3),
+    fontSize: 9.5,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 1.8,
+    height: 1.0,
+    decoration: TextDecoration.none,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text(
+        'Tact',
+        key: Key('tact_brand_mark'),
+        style: _style,
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
 class SuggestionBar extends StatelessWidget {
   const SuggestionBar({
     super.key,
@@ -208,7 +235,7 @@ class SuggestionBar extends StatelessWidget {
       key: const Key('suggestion_bar_root'),
       color: backgroundColor,
       child: panel is PanelIdle
-          ? const SizedBox.expand()
+          ? const _TactBrandMark()
           : LayoutBuilder(
               builder: (context, constraints) {
                 final metrics = _PanelMetrics.forWidth(constraints.maxWidth);
@@ -256,7 +283,7 @@ class _PanelBody extends StatelessWidget {
           ? _StatusBar(
               accent: _TactPanelColors.spell,
               icon: Icons.spellcheck,
-              title: 'Найдены ошибки',
+              title: 'Найдена ошибка',
               subtitle: p.word,
               actionLabel: 'Исправить',
               metrics: metrics,
@@ -287,7 +314,7 @@ class _PanelBody extends StatelessWidget {
           icon: Icons.warning_amber_rounded,
           title: p.level == ToxicLevel.conflict
               ? 'Возможен конфликт'
-              : 'Резкий тон',
+              : 'Найдено токсичное слово',
           subtitle: LocalTextTransform.censorForDisplay(p.word),
           actionLabel: 'Смягчить',
           metrics: metrics,
@@ -301,7 +328,7 @@ class _PanelBody extends StatelessWidget {
           metrics: metrics,
           onAction: () => onAction(const PanelActionImprove()),
         ),
-      PanelShortcut(:final trigger, :final expansions) => _ChipRow(
+      PanelShortcut(:final trigger, :final expansions) => _EqualChipRow(
           metrics: metrics,
           chips: expansions
               .take(3)
@@ -311,19 +338,19 @@ class _PanelBody extends StatelessWidget {
                   onTap: () => onAction(PanelActionShortcut(expansion: e)),
                 ),
               )
-              .toList(),
+              .toList(growable: false),
         ),
-      PanelSuggestions(:final words) => _ChipRow(
+      PanelSuggestions(:final words) => _EqualChipRow(
           metrics: metrics,
           chips: words
-              .take(4)
+              .take(3)
               .map(
                 (w) => _ChipData(
                   w,
                   onTap: () => onAction(PanelActionSuggestion(word: w)),
                 ),
               )
-              .toList(),
+              .toList(growable: false),
         ),
     };
   }
@@ -624,6 +651,68 @@ class _ChipRow extends StatelessWidget {
       metrics: metrics,
       borderColor: _TactPanelColors.border,
       child: _ChipScroller(metrics: metrics, chips: chips),
+    );
+  }
+}
+
+/// Gboard-style: chips share the full bar width equally (not left-packed).
+class _EqualChipRow extends StatelessWidget {
+  const _EqualChipRow({required this.chips, required this.metrics});
+
+  final List<_ChipData> chips;
+  final _PanelMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < chips.length; i++) ...[
+          if (i > 0)
+            const VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: _TactPanelColors.border,
+            ),
+          Expanded(
+            child: _EqualSuggestionSlot(
+              chip: chips[i],
+              metrics: metrics,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _EqualSuggestionSlot extends StatelessWidget {
+  const _EqualSuggestionSlot({required this.chip, required this.metrics});
+
+  final _ChipData chip;
+  final _PanelMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: chip.onTap != null,
+      label: chip.label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: chip.onTap,
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: metrics.hPad),
+              child: _PanelText(
+                chip.label,
+                style: metrics.chipStyle,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

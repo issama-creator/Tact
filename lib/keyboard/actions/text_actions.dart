@@ -57,13 +57,18 @@ abstract final class TextActions {
     if (trimmed.isEmpty) {
       return const Result.err(ActionError.emptyReplacement);
     }
-    // Gboard-style: complete the word and leave a trailing space for the next one.
     final alreadySpaced =
         ctx.after.isNotEmpty && ctx.after.codeUnitAt(0) == 0x20;
-    final newWord = alreadySpaced ? trimmed : '$trimmed ';
+    final text = alreadySpaced ? trimmed : '$trimmed ';
+
+    // After a completed word (space/punct) chips are next-word — insert only.
+    // While typing a partial word, chips are autocomplete — replace the stub.
+    if (ctx.boundary.isNotEmpty) {
+      return TextReplacement.planInsertAtCursor(text);
+    }
     return TextReplacement.planWordReplace(
       ctx: ctx,
-      newWord: newWord,
+      newWord: text,
       keepBoundary: false,
     );
   }

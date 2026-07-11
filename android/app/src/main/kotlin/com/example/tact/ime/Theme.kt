@@ -23,15 +23,16 @@ object Theme {
     // --- Palette (ARGB) -----------------------------------------------------
 
     const val COLOR_KEYBOARD_BG: Int = 0xFF171719.toInt()
-    const val COLOR_PANEL_BAR_BG: Int = 0xFF1A1921.toInt()
-    const val COLOR_KEY_LETTER_BG: Int = 0xFF2A2A2E.toInt()
-    const val COLOR_KEY_LETTER_BG_PRESSED: Int = 0xFF3A3A40.toInt()
-    const val COLOR_KEY_FUNCTION_BG: Int = 0xFF1F1F22.toInt()
-    const val COLOR_KEY_FUNCTION_BG_PRESSED: Int = 0xFF2C2C31.toInt()
+    /** Same family as keyboard bg — empty strip must not look like a purple void. */
+    const val COLOR_PANEL_BAR_BG: Int = 0xFF1C1C1F.toInt()
+    const val COLOR_KEY_LETTER_BG: Int = 0xFF2E2E33.toInt()
+    const val COLOR_KEY_LETTER_BG_PRESSED: Int = 0xFF3E3E45.toInt()
+    const val COLOR_KEY_FUNCTION_BG: Int = 0xFF232328.toInt()
+    const val COLOR_KEY_FUNCTION_BG_PRESSED: Int = 0xFF303036.toInt()
     const val COLOR_KEY_ACCENT_BG: Int = 0xFF6750A4.toInt()
     const val COLOR_KEY_ACCENT_BG_PRESSED: Int = 0xFF7B62BE.toInt()
-    const val COLOR_KEY_TEXT: Int = 0xFFEFEFEF.toInt()
-    const val COLOR_KEY_TEXT_MUTED: Int = 0xFF9AA0A6.toInt()
+    const val COLOR_KEY_TEXT: Int = 0xFFFFFFFF.toInt()
+    const val COLOR_KEY_TEXT_MUTED: Int = 0xFF8B9098.toInt()
     const val COLOR_KEY_TEXT_ACCENT: Int = 0xFFFFFFFF.toInt()
     const val COLOR_KEY_PREVIEW_BG: Int = 0xFF3A3A40.toInt()
     const val COLOR_KEY_PREVIEW_STROKE: Int = 0x33FFFFFF
@@ -43,8 +44,8 @@ object Theme {
 
     // --- Dimensions (dp) ----------------------------------------------------
 
-    const val SUGGESTION_BAR_HEIGHT_DP_PHONE: Float = 38f
-    const val SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND: Float = 32f
+    const val SUGGESTION_BAR_HEIGHT_DP_PHONE: Float = 36f
+    const val SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND: Float = 30f
     const val SUGGESTION_BAR_HEIGHT_DP_TABLET: Float = 40f
 
     // Key area height is computed adaptively from the current screen height
@@ -76,9 +77,9 @@ object Theme {
     const val KEY_CORNER_RADIUS_DP: Float = 6f
     const val KEY_BOTTOM_ROW_HEIGHT_WEIGHT: Float = 0.88f
 
-    const val KEY_LABEL_TEXT_SIZE_SP: Float = 18f
-    const val KEY_LABEL_TEXT_SIZE_SP_TABLET: Float = 20f
-    const val KEY_SUB_LABEL_TEXT_SIZE_SP: Float = 10f
+    const val KEY_LABEL_TEXT_SIZE_SP: Float = 21f
+    const val KEY_LABEL_TEXT_SIZE_SP_TABLET: Float = 23f
+    const val KEY_SUB_LABEL_TEXT_SIZE_SP: Float = 9.5f
     const val KEY_FUNCTION_TEXT_SIZE_SP: Float = 14f
 
     const val KEY_PREVIEW_TEXT_SIZE_SP: Float = 30f

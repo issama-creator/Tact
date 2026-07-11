@@ -55,6 +55,7 @@ void main() {
     );
     expect(plan.isOk, isTrue);
     expect(plan.valueOrNull!.replacement, 'добрый ');
+    expect(plan.valueOrNull!.deleteBefore, 3);
   });
 
   test('insertSuggestion skips double space when after already has one', () {
@@ -71,6 +72,25 @@ void main() {
       ),
     );
     expect(plan.valueOrNull!.replacement, 'hello');
+    expect(plan.valueOrNull!.deleteBefore, 3);
+  });
+
+  test('next-word suggestion inserts without erasing previous word', () {
+    final plan = TextActions.insertSuggestion(
+      word: 'дела',
+      ctx: const ActionContext(
+        word: 'как',
+        locale: 'ru',
+        deleteBefore: 4,
+        deleteAfter: 0,
+        boundary: ' ',
+        before: '',
+        after: '',
+      ),
+    );
+    expect(plan.isOk, isTrue);
+    expect(plan.valueOrNull!.deleteBefore, 0);
+    expect(plan.valueOrNull!.replacement, 'дела ');
   });
 
   test('mat removal deletes word', () {

@@ -56,6 +56,7 @@ void main() {
       async.flushMicrotasks();
 
       expect(panel, isA<PanelUndo>());
+      expect((panel as PanelUndo).label, UndoLabels.spellFixed);
       expect(tracker.available, isTrue);
       expect(actions.undoStack.isNotEmpty, isTrue);
 

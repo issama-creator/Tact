@@ -73,6 +73,7 @@ final class LocalIntelligenceEngine {
     final decision = _rules.evaluate(
       signals: checked.signals,
       undoAvailable: _undo.available,
+      undoLabel: _undo.label,
       defaultSuggestions: suggestions,
       nowMs: clock,
       messageLength: ctx.fullMessage.length,

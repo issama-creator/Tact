@@ -3,6 +3,7 @@ library;
 
 import '../dictionaries/mat_lexicon.dart';
 import '../input/text_context.dart';
+import '../intelligence/undo_tracker.dart';
 import '../panel/panel_state.dart';
 import '../rules/rule_signal.dart';
 
@@ -16,10 +17,11 @@ final class RulesEngine {
     required List<String> defaultSuggestions,
     required int nowMs,
     int messageLength = 0,
+    String undoLabel = UndoLabels.fallback,
   }) {
     if (undoAvailable) {
       return PanelDecision(
-        state: const PanelUndo(label: 'Отменить'),
+        state: PanelUndo(label: undoLabel),
         producedAtMs: nowMs,
       );
     }

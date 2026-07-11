@@ -52,6 +52,7 @@ void main() {
     expect(result.isOk, isTrue);
     expect(field.text, 'say hello ');
     expect(tracker.available, isTrue);
+    expect(tracker.label, UndoLabels.spellFixed);
     expect(actions.undoStack.isNotEmpty, isTrue);
   });
 
@@ -82,6 +83,7 @@ void main() {
     );
     expect(field.text, 'oh ');
     expect(field.text.contains('хуй'), isFalse);
+    expect(tracker.label, UndoLabels.matRemoved);
   });
 
   test('soften toxic replaces word locally', () async {
@@ -99,6 +101,7 @@ void main() {
     );
     expect(field.text.contains('идиот'), isFalse);
     expect(field.text.contains('не лучший вариант'), isTrue);
+    expect(tracker.label, UndoLabels.toxicSoftened);
   });
 
   test('shortcut expansion replaces trigger', () async {
@@ -118,6 +121,7 @@ void main() {
     );
     await actions.expandShortcut('Доброе утро');
     expect(field.text, 'Доброе утро ');
+    expect(tracker.label, UndoLabels.shortcutExpanded);
   });
 
   test('improve normalizes full message', () async {
@@ -126,6 +130,7 @@ void main() {
     field.selectionEnd = field.text.length;
     await actions.improve();
     expect(field.text, 'Hello world');
+    expect(tracker.label, UndoLabels.improved);
   });
 
   test('repeated actions stack undo', () async {

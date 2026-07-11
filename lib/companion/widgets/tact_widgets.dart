@@ -375,7 +375,7 @@ class PanelPreviewBar extends StatelessWidget {
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              'Резкий тон • туп***',
+              'Найдено токсичное слово • туп***',
               style: TextStyle(
                 fontSize: 13,
                 color: TactColors.textPrimary,

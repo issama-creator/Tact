@@ -4,6 +4,7 @@ import 'package:tact/keyboard/actions/actions_engine.dart';
 import 'package:tact/keyboard/actions/undo_stack.dart';
 import 'package:tact/keyboard/input/input_pipeline.dart';
 import 'package:tact/keyboard/intelligence/local_intelligence_engine.dart';
+import 'package:tact/keyboard/intelligence/undo_tracker.dart';
 import 'package:tact/keyboard/panel/panel_state.dart';
 
 /// End-to-end state chain: bridge event → pipeline → panel state.
@@ -74,6 +75,7 @@ void main() {
     ));
     await flush();
     expect(states.last, isA<PanelUndo>());
+    expect((states.last as PanelUndo).label, UndoLabels.matRemoved);
     expect(field.text, '');
   });
 

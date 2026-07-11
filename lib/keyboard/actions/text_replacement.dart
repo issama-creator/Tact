@@ -124,6 +124,21 @@ abstract final class TextReplacement {
     );
   }
 
+  /// Inserts [text] at the cursor without deleting the previous word.
+  static Result<ReplacementPlan, ActionError> planInsertAtCursor(String text) {
+    if (text.isEmpty) return const Result.err(ActionError.emptyReplacement);
+    return Result.ok(
+      ReplacementPlan(
+        deleteBefore: 0,
+        deleteAfter: 0,
+        replacement: text,
+        expectedReplacedText: '',
+        selectionStart: -1,
+        selectionEnd: -1,
+      ),
+    );
+  }
+
   static TextEdit inverseFromOutcome({
     required ReplacementPlan plan,
     required String actualReplaced,

@@ -8,6 +8,7 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -93,24 +94,27 @@ class KeyGridView @JvmOverloads constructor(
     private val accentKeyPressedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Theme.COLOR_KEY_ACCENT_BG_PRESSED; style = Paint.Style.FILL
     }
-    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         color = Theme.COLOR_KEY_TEXT
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+        // Medium weight reads closer to Gboard than thin DEFAULT.
+        typeface = keyLabelTypeface()
+        isElegantTextHeight = true
     }
-    private val subLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val subLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         color = Theme.COLOR_KEY_TEXT_MUTED
         textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
     }
-    private val functionLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val functionLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         color = Theme.COLOR_KEY_TEXT_MUTED
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = keyLabelTypeface()
     }
-    private val accentLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val accentLabelPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         color = Theme.COLOR_KEY_TEXT_ACCENT
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = keyLabelTypeface()
     }
     private val iconPaintStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Theme.COLOR_KEY_TEXT
@@ -318,13 +322,16 @@ class KeyGridView @JvmOverloads constructor(
         } else {
             action.label
         }
-        val cy = rect.centerY() - (labelPaint.descent() + labelPaint.ascent()) / 2f
-        canvas.drawText(label, rect.centerX(), cy, labelPaint)
-
         val sub = kr.key.subLabel
+        // Optical center: nudge down slightly when a corner number is present.
+        val baseline =
+            rect.centerY() - (labelPaint.descent() + labelPaint.ascent()) / 2f +
+                if (sub != null) labelPaint.textSize * 0.06f else 0f
+        canvas.drawText(label, rect.centerX(), baseline, labelPaint)
+
         if (sub != null) {
-            val padX = rect.width() * 0.16f
-            val padY = subLabelPaint.textSize * 1.2f
+            val padX = rect.width() * 0.14f
+            val padY = subLabelPaint.textSize * 1.05f
             canvas.drawText(sub, rect.right - padX, rect.top + padY, subLabelPaint)
         }
     }
@@ -1059,5 +1066,16 @@ class KeyGridView @JvmOverloads constructor(
         var spaceAccum: Float = 0f
         var longPressRunnable: Runnable? = null
         var repeatRunnable: Runnable? = null
+    }
+
+    companion object {
+        /** Gboard-like medium weight; falls back cleanly on older APIs. */
+        private fun keyLabelTypeface(): Typeface {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                return Typeface.create(Typeface.DEFAULT, 550, false)
+            }
+            return Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                ?: Typeface.DEFAULT_BOLD
+        }
     }
 }
