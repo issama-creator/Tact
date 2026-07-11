@@ -17,7 +17,7 @@ final class ShortcutEngine implements SignalProvider {
     final trigger = ctx.word;
     if (trigger.length < kMinShortcutTriggerLength) return const [];
 
-    final match = _table.lookup(trigger);
+    final match = _table.lookup(trigger.toLowerCase());
     if (match == null) return const [];
 
     return [

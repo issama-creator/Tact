@@ -4,7 +4,7 @@ import '../../core/personal_words/personal_words_repository.dart';
 import '../theme/tact_theme.dart';
 import '../widgets/tact_widgets.dart';
 
-/// Personal dictionary — words excluded from spell check.
+/// Personal dictionary — custom words for suggestions.
 class PersonalWordsScreen extends StatefulWidget {
   const PersonalWordsScreen({super.key});
 
@@ -75,7 +75,7 @@ class _PersonalWordsScreenState extends State<PersonalWordsScreen> {
                 const TactSectionHeader(
                   title: 'Ваши слова',
                   subtitle:
-                      'Имена, бренды и сленг — TACT не будет помечать их как ошибки.',
+                      'Имена, бренды и сленг — TACT учтёт их в подсказках.',
                 ),
                 const SizedBox(height: 16),
                 Row(

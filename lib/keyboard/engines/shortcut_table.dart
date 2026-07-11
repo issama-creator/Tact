@@ -28,7 +28,9 @@ final class ShortcutTable {
 
   final Map<String, TextShortcut> _byTrigger;
 
-  TextShortcut? lookup(String trigger) => _byTrigger[trigger.toLowerCase()];
+  /// [normalizedTrigger] must already be lowercased (see analyzer shortcut key).
+  TextShortcut? lookup(String normalizedTrigger) =>
+      _byTrigger[normalizedTrigger];
 
   static Map<String, TextShortcut> _merge(
     Map<String, TextShortcut> builtin,

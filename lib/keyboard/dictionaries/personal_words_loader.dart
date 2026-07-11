@@ -9,6 +9,7 @@ final class PersonalWordsLoader {
 
   final LocalIntelligenceEngine _engine;
   bool _opened = false;
+  bool _loadedOnce = false;
   String? _lastRaw;
 
   Future<void> ensureOpen() async {
@@ -17,10 +18,12 @@ final class PersonalWordsLoader {
     _opened = true;
   }
 
-  Future<void> reload() async {
+  /// Reads words without refreshing prefs — caller must refresh once.
+  Future<void> reloadPeek() async {
     await ensureOpen();
-    final raw = await PersonalWordsRepository.instance.readRaw();
-    if (raw == _lastRaw) return;
+    final raw = await PersonalWordsRepository.instance.peekRaw();
+    if (_loadedOnce && raw == _lastRaw) return;
+    _loadedOnce = true;
     _lastRaw = raw;
     final words = await PersonalWordsRepository.instance.loadAll();
     _engine.setPersonalWords(words);

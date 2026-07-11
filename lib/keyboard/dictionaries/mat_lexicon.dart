@@ -63,12 +63,13 @@ final class MatLexicon {
       MatLexicon.fromParts(tokens: tokens);
 
   /// Exact token wins over stem prefix (e.g. blocked «блядь» vs warn stem «бля»).
+  /// [normalizedToken] must already be lowercased (see [Normalizer]).
   MatLevel? lookup(String normalizedToken) {
-    final key = normalizedToken.toLowerCase().trim();
-    final exact = _exact[key];
+    final exact = _exact[normalizedToken];
     if (exact != null) return exact;
     for (final entry in _stems) {
-      if (key.length >= entry.stem.length && key.startsWith(entry.stem)) {
+      if (normalizedToken.length >= entry.stem.length &&
+          normalizedToken.startsWith(entry.stem)) {
         return entry.level;
       }
     }

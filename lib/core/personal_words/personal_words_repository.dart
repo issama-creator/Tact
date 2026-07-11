@@ -32,13 +32,17 @@ final class PersonalWordsRepository {
     return repo;
   }
 
+  /// Assumes SharedPreferences was already refreshed this cycle.
+  Future<String?> peekRaw() => _store.getString(storageKey);
+
+  /// Refresh + peek — for one-off companion reads.
   Future<String?> readRaw() async {
     await _store.refreshFromDisk();
-    return _store.getString(storageKey);
+    return peekRaw();
   }
 
   Future<Set<String>> loadAll() async {
-    final raw = await _store.getString(storageKey);
+    final raw = await peekRaw();
     if (raw == null || raw.isEmpty) return {};
     try {
       final decoded = jsonDecode(raw);

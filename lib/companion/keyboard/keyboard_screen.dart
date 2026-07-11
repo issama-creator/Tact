@@ -76,16 +76,6 @@ class KeyboardScreen extends StatelessWidget {
                       ),
                       const Divider(height: 1),
                       TactToggleRow(
-                        icon: Icons.spellcheck_rounded,
-                        iconColor: TactColors.blue,
-                        iconBg: TactColors.blue.withValues(alpha: 0.12),
-                        title: 'Исправление ошибок',
-                        subtitle: 'Орфография и пунктуация',
-                        value: state.errorCorrection,
-                        onChanged: state.setErrorCorrection,
-                      ),
-                      const Divider(height: 1),
-                      TactToggleRow(
                         icon: Icons.auto_awesome_rounded,
                         iconColor: TactColors.yellow,
                         iconBg: TactColors.yellow.withValues(alpha: 0.12),

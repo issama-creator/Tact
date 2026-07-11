@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/bridge/ime_bridge_facade.dart';
+import '../../core/keyboard_settings/keyboard_settings.dart';
+import '../../core/keyboard_settings/keyboard_settings_repository.dart';
 import 'actions/actions_engine.dart';
 import 'actions/undo_stack.dart';
 import 'dictionaries/dictionary_manager.dart';
@@ -40,6 +42,11 @@ class _KeyboardAppState extends State<KeyboardApp> {
   late final PersonalWordsLoader _personalWords;
   late final KeyboardSettingsLoader _keyboardSettings;
   Timer? _lexiconSyncTimer;
+  Timer? _repaintDebounce;
+  Future<void>? _reloadInFlight;
+  var _inputViewActive = false;
+  var _lastVibration = true;
+  var _lastSound = false;
   /// Panel-only listenable — updates never call [setState] on the app shell.
   final ValueNotifier<PanelState> _panel =
       ValueNotifier<PanelState>(const PanelIdle());
@@ -71,8 +78,15 @@ class _KeyboardAppState extends State<KeyboardApp> {
       onMatBlock: _actions.removeMat,
     );
     _bridge.attachHandler();
-    _bridge.onInputViewStarted = _reloadUserLexicon;
+    _bridge.onInputViewStarted = () {
+      _inputViewActive = true;
+      _ensureLexiconSyncTimer();
+      unawaited(_reloadUserLexicon());
+    };
     _bridge.onFieldFinished = () {
+      _inputViewActive = false;
+      _lexiconSyncTimer?.cancel();
+      _lexiconSyncTimer = null;
       _pipeline.onFieldFinished();
       _actions.onFieldCleared();
     };
@@ -83,24 +97,60 @@ class _KeyboardAppState extends State<KeyboardApp> {
       _engine.reloadDictionaries();
       await _reloadUserLexicon();
     });
-    // Companion app runs in a separate Flutter engine — poll KV for live toggles.
+  }
+
+  void _ensureLexiconSyncTimer() {
+    if (_lexiconSyncTimer != null) return;
+    // Companion writes from another engine — light poll only while typing.
     _lexiconSyncTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => unawaited(_reloadUserLexicon()),
+      const Duration(seconds: 3),
+      (_) {
+        if (!_inputViewActive) return;
+        unawaited(_reloadUserLexicon());
+      },
     );
   }
 
-  Future<void> _reloadUserLexicon() async {
-    await _keyboardSettings.reload();
-    await _reloadHotwords();
-    await _personalWords.reload();
+  Future<void> _reloadUserLexicon() {
+    final existing = _reloadInFlight;
+    if (existing != null) return existing;
+    final future = _reloadUserLexiconBody();
+    _reloadInFlight = future;
+    return future.whenComplete(() {
+      if (identical(_reloadInFlight, future)) _reloadInFlight = null;
+    });
   }
 
-  Future<void> _reloadHotwords() => _hotwords.reload();
+  Future<void> _reloadUserLexiconBody() async {
+    await _keyboardSettings.ensureOpen();
+    await _hotwords.ensureOpen();
+    await _personalWords.ensureOpen();
+    // One SharedPreferences.reload for the whole batch.
+    await KeyboardSettingsRepository.instance.refresh();
+    final settings = await _keyboardSettings.reloadPeek();
+    await _hotwords.reloadPeek();
+    await _personalWords.reloadPeek();
+    if (settings != null) {
+      await _applyFeedback(settings);
+    }
+  }
+
+  Future<void> _applyFeedback(KeyboardSettings settings) async {
+    if (settings.vibration == _lastVibration && settings.sound == _lastSound) {
+      return;
+    }
+    _lastVibration = settings.vibration;
+    _lastSound = settings.sound;
+    await _bridge.setFeedback(
+      vibration: settings.vibration,
+      sound: settings.sound,
+    );
+  }
 
   @override
   void dispose() {
     _lexiconSyncTimer?.cancel();
+    _repaintDebounce?.cancel();
     _panel.dispose();
     _actions.dispose();
     _pipeline.dispose();
@@ -116,14 +166,21 @@ class _KeyboardAppState extends State<KeyboardApp> {
       debugPrint('[TACT UI] render panel=${state.runtimeType}');
     }
     _panel.value = state;
-    unawaited(_bridge.requestRepaint());
+    _scheduleRepaint();
+  }
+
+  void _scheduleRepaint() {
+    _repaintDebounce?.cancel();
+    _repaintDebounce = Timer(const Duration(milliseconds: 16), () {
+      unawaited(_bridge.requestRepaint());
+    });
   }
 
   void _onTheme(Color color) {
     if (!mounted) return;
     if (_backgroundColor.value == color.value) return;
     setState(() => _backgroundColor = color);
-    unawaited(_bridge.requestRepaint());
+    _scheduleRepaint();
   }
 
   Future<void> _onPanelTap(PanelAction action) async {

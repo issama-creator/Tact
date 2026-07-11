@@ -17,10 +17,10 @@ TextContext ctx(String word, {String locale = 'en', String before = ''}) =>
     );
 
 void main() {
-  test('full pipeline spell on typo', () {
+  test('unknown typo stays idle — no spell panel', () {
     final engine = LocalIntelligenceEngine();
     final result = engine.process(ctx('helo'));
-    expect(result.decision.state, isA<PanelSpell>());
+    expect(result.decision.state, isA<PanelIdle>());
     expect(result.normalized, 'helo');
   });
 

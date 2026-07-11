@@ -23,8 +23,8 @@ void main() {
     pipeline.dispose();
   });
 
-  test('processes valid word into panel state', () async {
-    final field = FakeTextField(text: 'say helo ');
+  test('processes known word into suggestion panel', () async {
+    final field = FakeTextField(text: 'say hello ');
     final bridge = ImeBridge(fakeField: field);
     final engine = LocalIntelligenceEngine();
     PanelState? last;
@@ -36,13 +36,13 @@ void main() {
     );
     pipeline.start();
     bridge.emitWord(const WordEvent(
-      word: 'helo',
+      word: 'hello',
       locale: 'en',
-      deleteBefore: 5,
+      deleteBefore: 6,
       boundary: ' ',
     ));
     await Future<void>.delayed(Duration.zero);
-    expect(last, isA<PanelSpell>());
+    expect(last, isA<PanelSuggestions>());
     pipeline.dispose();
   });
 
@@ -58,14 +58,14 @@ void main() {
     );
     pipeline.start();
     bridge.emitWord(const WordEvent(
-      word: 'helo',
+      word: 'hello',
       locale: 'en',
       before: 'say ',
       boundary: ' ',
-      deleteBefore: 5,
+      deleteBefore: 6,
     ));
     await Future<void>.delayed(Duration.zero);
-    expect(last, isA<PanelSpell>());
+    expect(last, isA<PanelSuggestions>());
     pipeline.dispose();
   });
 

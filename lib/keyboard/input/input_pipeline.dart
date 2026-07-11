@@ -110,8 +110,12 @@ final class InputPipeline {
       return;
     }
 
-    // Never replace a committed analysis panel (mat / spell / toxic / …).
-    if (_panel is! PanelIdle && _panel is! PanelShortcut) return;
+    // Never replace a committed analysis panel (mat / toxic / …).
+    if (_panel is! PanelIdle &&
+        _panel is! PanelShortcut &&
+        _panel is! PanelSuggestions) {
+      return;
+    }
 
     // Keep a shortcut that was already committed at word boundary.
     if (!_panelFromPartialOnly && _panel is PanelShortcut) {
@@ -129,13 +133,34 @@ final class InputPipeline {
       locale: event.locale,
       fullMessage: '$before$word$after',
     );
-    final result = _engine.processShortcutOnly(ctx);
+    final result = _engine.processPartial(ctx);
     final next = result.decision.state;
-    if (next is PanelShortcut) {
+
+    if (next is PanelShortcut || next is PanelSuggestions) {
+      // So chip tap replaces the current partial fragment.
+      _onActionContext?.call(
+        ActionContext(
+          word: word,
+          locale: event.locale,
+          deleteBefore:
+              event.deleteBefore > 0 ? event.deleteBefore : word.length,
+          deleteAfter: event.deleteAfter,
+          boundary: event.boundary,
+          before: before,
+          after: after,
+        ),
+      );
       if (kDebugMode) {
-        debugPrint('[TACT Pipeline] partial shortcut trigger="$word"');
+        if (next is PanelShortcut) {
+          debugPrint('[TACT Pipeline] partial shortcut trigger="$word"');
+        } else {
+          debugPrint(
+            '[TACT Pipeline] partial autocomplete "$word" → '
+            '${(next as PanelSuggestions).words.join(", ")}',
+          );
+        }
       }
-      _panelFromPartialOnly = _panel is PanelIdle;
+      _panelFromPartialOnly = _panel is PanelIdle || _panelFromPartialOnly;
       if (panelModesEqual(_panel, next)) return;
       _panel = next;
       _onPanel?.call(_panel);
@@ -144,7 +169,7 @@ final class InputPipeline {
     }
 
     if (_shouldValidateAnchor(_panel)) {
-      _reactToPartialEdit(word);
+      _reactToPartialEdit(event);
     }
   }
 
@@ -162,7 +187,8 @@ final class InputPipeline {
       };
 
   /// Immediate anchor check only while backspacing into the anchored token.
-  void _reactToPartialEdit(String partialWord) {
+  void _reactToPartialEdit(WordEvent event) {
+    final partialWord = event.word;
     final anchor = anchoredWord(_panel);
     if (anchor == null || anchor.isEmpty) return;
 
@@ -173,14 +199,25 @@ final class InputPipeline {
     if (!stillDeleting) return;
 
     _anchorValidationDebounce?.cancel();
-    unawaited(_validatePanelAnchor());
+    // Prefer native commit buffers — no InputConnection round-trip on typing.
+    unawaited(
+      _validatePanelAnchor(
+        localHint: SurroundingSnapshot(
+          before: '${event.before}${event.word}',
+          after: event.after,
+          selectionStart: 0,
+          selectionEnd: 0,
+          isPassword: false,
+        ),
+      ),
+    );
   }
 
   void _clearPartialPanel() {
     if (!_panelFromPartialOnly) return;
-    if (_panel is PanelShortcut) {
+    if (_panel is PanelShortcut || _panel is PanelSuggestions) {
       if (kDebugMode) {
-        debugPrint('[TACT Pipeline] clear partial shortcut panel');
+        debugPrint('[TACT Pipeline] clear partial panel');
       }
       _panelFromPartialOnly = false;
       _panel = const PanelIdle();
@@ -189,7 +226,7 @@ final class InputPipeline {
   }
 
   /// Hides mat/spell/toxic/shortcut panels when the user erased the word.
-  Future<void> _validatePanelAnchor() async {
+  Future<void> _validatePanelAnchor({SurroundingSnapshot? localHint}) async {
     if (_disposed) return;
     final panel = _panel;
     if (panel is PanelUndo || panel is PanelIdle) return;
@@ -198,7 +235,20 @@ final class InputPipeline {
     final word = anchoredWord(panel);
     if (word == null || word.isEmpty) return;
 
-    final snap = await _bridge.getSurroundingText();
+    if (localHint != null) {
+      if (isAnchoredWordPresent(localHint, word)) return;
+      // Commit buffer is authoritative while typing in the IME.
+      if (kDebugMode) {
+        debugPrint('[TACT Pipeline] anchor "$word" removed -> PanelIdle');
+      }
+      _panelFromPartialOnly = false;
+      _panel = const PanelIdle();
+      _onPanel?.call(_panel);
+      return;
+    }
+
+    // Host-driven edits: small window is enough for panel anchors.
+    final snap = await _bridge.getSurroundingText(before: 96, after: 32);
     if (_disposed || snap == null) return;
 
     if (isAnchoredWordPresent(snap, word)) return;

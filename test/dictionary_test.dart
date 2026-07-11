@@ -6,7 +6,9 @@ void main() {
   test('contains is O(1) membership', () {
     final dict = Dictionary.fromWords(['hello', 'world']);
     expect(dict.contains('hello'), isTrue);
-    expect(dict.contains('HELLO'), isTrue);
+    // Hot-path API expects already-normalized keys.
+    expect(dict.contains('HELLO'), isFalse);
+    expect(dict.contains('hello'.toLowerCase()), isTrue);
     expect(dict.contains('helo'), isFalse);
   });
 

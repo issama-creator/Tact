@@ -1,5 +1,6 @@
 package com.example.tact.ime
 
+import android.content.ComponentCallbacks2
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
@@ -102,8 +103,20 @@ class TactInputMethodService : InputMethodService() {
         bridge?.dispose()
         bridge = null
         rootView = null
-        FlutterEngineHost.release()
+        // Keep FlutterEngine warm across IME service restarts — cuts reopen latency.
+        // Process death reclaims memory; explicit release only under memory pressure.
         super.onDestroy()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (rootView != null) return
+        when (level) {
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
+            ComponentCallbacks2.TRIM_MEMORY_COMPLETE,
+            ComponentCallbacks2.TRIM_MEMORY_MODERATE,
+            -> FlutterEngineHost.release()
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

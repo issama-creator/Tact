@@ -144,10 +144,12 @@ class ImeBridge {
   }
 
   /// Ask native side to schedule a Flutter raster pass (IME Surface/Texture).
+  /// Fire-and-forget — awaiting the channel only adds JNI latency.
   Future<void> requestRepaint() async {
     if (_fake != null) return;
     try {
-      await _channel.invokeMethod<void>('requestRepaint');
+      // ignore: discarded_futures — intentional non-blocking raster kick
+      _channel.invokeMethod<void>('requestRepaint');
     } catch (_) {}
   }
 
@@ -230,6 +232,19 @@ class ImeBridge {
     if (_fake != null) return;
     try {
       await _channel.invokeMethod<void>('actionHaptic');
+    } catch (_) {}
+  }
+
+  Future<void> setFeedback({
+    required bool vibration,
+    required bool sound,
+  }) async {
+    if (_fake != null) return;
+    try {
+      await _channel.invokeMethod<void>('setFeedback', {
+        'vibration': vibration,
+        'sound': sound,
+      });
     } catch (_) {}
   }
 

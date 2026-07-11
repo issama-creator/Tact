@@ -139,7 +139,8 @@ bool panelModesEqual(PanelState a, PanelState b) {
       sa.expansions.length == sb.expansions.length &&
       _expansionsEqual(sa.expansions, sb.expansions),
     (PanelSuggestions sa, PanelSuggestions sb) =>
-      sa.words.length == sb.words.length,
+      sa.words.length == sb.words.length &&
+      _expansionsEqual(sa.words, sb.words),
     _ => false,
   };
 }

@@ -101,10 +101,10 @@ void main() {
     expect((states.last as PanelSuggestions).words, isNotEmpty);
   });
 
-  test('typo produces PanelSpell', () async {
+  test('unknown typo stays idle — no spell panel', () async {
     await commit('helo', 'en');
-    expect(states.last, isA<PanelSpell>());
-    expect((states.last as PanelSpell).candidates, isNotEmpty);
+    expect(pipeline.panel, isA<PanelIdle>());
+    expect(states, isEmpty);
   });
 
   test('sequence of commits updates state each time', () async {

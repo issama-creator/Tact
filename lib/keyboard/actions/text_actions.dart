@@ -53,9 +53,17 @@ abstract final class TextActions {
     required String word,
     required ActionContext ctx,
   }) {
+    final trimmed = word.trimRight();
+    if (trimmed.isEmpty) {
+      return const Result.err(ActionError.emptyReplacement);
+    }
+    // Gboard-style: complete the word and leave a trailing space for the next one.
+    final alreadySpaced =
+        ctx.after.isNotEmpty && ctx.after.codeUnitAt(0) == 0x20;
+    final newWord = alreadySpaced ? trimmed : '$trimmed ';
     return TextReplacement.planWordReplace(
       ctx: ctx,
-      newWord: word,
+      newWord: newWord,
       keepBoundary: false,
     );
   }

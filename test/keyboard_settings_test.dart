@@ -99,8 +99,9 @@ void main() {
         antiMat: false,
         antiToxic: true,
         fillerWords: false,
-        errorCorrection: true,
         textImprovement: false,
+        vibration: false,
+        sound: true,
       ),
     );
     final loaded = await repo.load();
@@ -108,6 +109,28 @@ void main() {
     expect(loaded.fillerWords, isFalse);
     expect(loaded.textImprovement, isFalse);
     expect(loaded.antiToxic, isTrue);
+    expect(loaded.vibration, isFalse);
+    expect(loaded.sound, isTrue);
+  });
+
+  test('peekRaw skips refresh when caller already refreshed', () async {
+    final backing = _MemoryKvStore();
+    final split = _SplitMemoryKvStore(backing);
+    final repo = KeyboardSettingsRepository.bind(split);
+    // Hydrate empty cache first.
+    expect(await repo.peekRaw(), isNull);
+    await backing.setStringAtomic(
+      KeyboardSettingsRepository.storageKey,
+      jsonEncode(const KeyboardSettings(antiMat: false).toJson()),
+    );
+    // Stale until refresh.
+    expect(await repo.peekRaw(), isNull);
+    await repo.refresh();
+    expect(await repo.peekRaw(), isNotNull);
+    expect(
+      KeyboardSettingsRepository.parseRaw(await repo.peekRaw()).antiMat,
+      isFalse,
+    );
   });
 
   test('disabled antiMat skips mat detection', () {
@@ -130,9 +153,8 @@ void main() {
     );
   });
 
-  test('disabled spell skips typo panel', () {
+  test('unknown word stays idle without spell panel', () {
     final engine = LocalIntelligenceEngine();
-    engine.applySettings(const KeyboardSettings(errorCorrection: false));
     final result = engine.process(ctx('helo', locale: 'en'));
     expect(result.decision.state, isA<PanelIdle>());
   });

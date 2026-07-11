@@ -165,9 +165,9 @@ class ImeBridgeImpl(
     private fun dispatchDart(method: String, arguments: Any?) {
         try {
             channel.invokeMethod(method, arguments)
-            if (method == "onWordCommitted" || method == "onPartialWord" ||
-                method == "onPartialWordClear" || method == "onTextEdited"
-            ) {
+            // Only force a raster on committed words — partial keystrokes are
+            // too frequent; Dart already debounces requestRepaint on panel change.
+            if (method == "onWordCommitted") {
                 onRequestRepaint?.invoke()
             }
         } catch (t: Throwable) {
@@ -252,6 +252,12 @@ class ImeBridgeImpl(
                     if (view != null && haptics != null) {
                         haptics.actionSuccess(view)
                     }
+                    result.success(null)
+                }
+                "setFeedback" -> {
+                    val vibration = call.argument<Boolean>("vibration") ?: true
+                    val sound = call.argument<Boolean>("sound") ?: false
+                    haptics?.setEnabled(vibration, sound)
                     result.success(null)
                 }
                 "setSelection" -> {

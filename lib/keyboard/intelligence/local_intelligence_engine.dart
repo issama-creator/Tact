@@ -61,7 +61,7 @@ final class LocalIntelligenceEngine {
 
   /// Runs the full pipeline for one completed word (space / punctuation).
   IntelligenceResult process(TextContext ctx, {int? nowMs}) {
-    final clock = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+    final clock = nowMs ?? _nowMs();
     final locale = _localeKey(ctx.locale);
 
     final checked = _analyzer.analyzeAtBoundary(ctx, locale);
@@ -88,7 +88,7 @@ final class LocalIntelligenceEngine {
 
   /// Live shortcut chips while typing (before space).
   IntelligenceResult processShortcutOnly(TextContext ctx, {int? nowMs}) {
-    final clock = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+    final clock = nowMs ?? _nowMs();
     final signals = _analyzer.analyzeShortcutOnly(ctx);
     final decision = _rules.evaluate(
       signals: signals,
@@ -104,6 +104,48 @@ final class LocalIntelligenceEngine {
       decision: decision,
     );
   }
+
+  /// Partial-word path: shortcuts first, else prefix autocomplete chips.
+  IntelligenceResult processPartial(TextContext ctx, {int? nowMs}) {
+    final clock = nowMs ?? _nowMs();
+    final shortcutSignals = _analyzer.analyzeShortcutOnly(ctx);
+    if (shortcutSignals.isNotEmpty) {
+      final decision = _rules.evaluate(
+        signals: shortcutSignals,
+        undoAvailable: false,
+        defaultSuggestions: const [],
+        nowMs: clock,
+        messageLength: ctx.fullMessage.length,
+      );
+      return IntelligenceResult(
+        normalized: ctx.word,
+        dictionary: const DictionaryLookup(known: false, nextWords: []),
+        signals: shortcutSignals,
+        decision: decision,
+      );
+    }
+
+    final locale = _localeKey(ctx.locale);
+    final completions = _analyzer.autocompletePrefix(ctx.word, locale);
+    final decision = _rules.evaluate(
+      signals: const [],
+      undoAvailable: false,
+      defaultSuggestions: completions,
+      nowMs: clock,
+      messageLength: ctx.fullMessage.length,
+    );
+    return IntelligenceResult(
+      normalized: ctx.word,
+      dictionary: DictionaryLookup(
+        known: false,
+        nextWords: completions,
+      ),
+      signals: const [],
+      decision: decision,
+    );
+  }
+
+  static int _nowMs() => DateTime.now().millisecondsSinceEpoch;
 
   void setUserShortcuts(Iterable<TextShortcut> shortcuts) {
     _analyzer.setShortcuts(
@@ -123,7 +165,6 @@ final class LocalIntelligenceEngine {
   void applySettings(KeyboardSettings settings) {
     _analyzer.setAntiMatEnabled(settings.antiMat);
     _analyzer.setAntiToxicEnabled(settings.antiToxic);
-    _analyzer.setSpellEnabled(settings.errorCorrection);
     _analyzer.setImproveEnabled(settings.textImprovement);
     _analyzer.setFillerWordsEnabled(settings.fillerWords);
   }

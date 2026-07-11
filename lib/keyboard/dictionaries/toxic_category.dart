@@ -77,8 +77,7 @@ final class ToxicLexicon {
     );
   }
 
-  ToxicEntry? lookup(String normalizedToken) =>
-      _entries[normalizedToken.toLowerCase()];
+  ToxicEntry? lookup(String normalizedToken) => _entries[normalizedToken];
 
   /// Scans a normalized message for multi-word toxic phrases.
   ToxicEntry? lookupPhrase(String normalizedMessage) {

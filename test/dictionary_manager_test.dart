@@ -35,17 +35,19 @@ void main() {
   setUp(() => DictionaryManager.ensureEmbedded());
 
   group('DictionaryManager', () {
-    test('embedded english dictionary has ~100 words', () {
+    test('embedded english dictionary has autocomplete lexicon', () {
       final en = DictionaryManager.shared.spellFor('en');
-      expect(en.size, equals(100));
+      expect(en.size, greaterThanOrEqualTo(150));
       expect(en.contains('hello'), isTrue);
+      expect(en.prefixCompletions('hel'), isNotEmpty);
     });
 
-    test('embedded russian dictionary has ~100 words', () {
+    test('embedded russian dictionary has autocomplete lexicon', () {
       final ru = DictionaryManager.shared.spellFor('ru');
-      expect(ru.size, equals(100));
+      expect(ru.size, greaterThanOrEqualTo(150));
       expect(ru.contains('привет'), isTrue);
       expect(ru.contains('спасибо'), isTrue);
+      expect(ru.prefixCompletions('доб'), isNotEmpty);
     });
 
     test('loads from assets when binding is initialized', () async {
@@ -260,8 +262,8 @@ void main() {
     });
 
     test('embedded word lists are non-empty', () {
-      expect(embeddedEnWords.length, equals(100));
-      expect(embeddedRuWords.length, equals(100));
+      expect(embeddedEnWords.length, greaterThanOrEqualTo(150));
+      expect(embeddedRuWords.length, greaterThanOrEqualTo(150));
     });
   });
 }

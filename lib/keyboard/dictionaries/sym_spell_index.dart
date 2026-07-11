@@ -67,9 +67,12 @@ final class SymSpellIndex {
   }
 
   /// Ranked spell suggestions — empty when [input] is already known.
+  ///
+  /// [input] must already be lowercased (see [Dictionary.candidates]).
   List<String> suggest(String input, {int max = 5}) {
-    final key = input.toLowerCase();
+    final key = input;
     if (_words.contains(key)) return const [];
+    if (key.length > 24 || key.length < 2) return const [];
 
     final effectiveMax = key.length > 8 ? 1 : maxEditDistance;
     final candidates = <String, _CandidateScore>{};

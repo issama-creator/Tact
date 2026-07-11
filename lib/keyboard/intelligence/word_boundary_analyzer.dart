@@ -26,17 +26,19 @@ final class WordBoundaryResult {
   final List<RuleSignal> signals;
 }
 
-/// Runs spell, mat, toxic, shortcut, and improve checks in a single pass.
+/// Runs mat, toxic, shortcut, and improve checks in a single pass.
+/// Dictionary lookup feeds next-word suggestions — no spell-correction panel.
 final class WordBoundaryAnalyzer {
   WordBoundaryAnalyzer({
     Normalizer? normalizer,
     ShortcutTable? shortcuts,
     Set<String> personalWords = const {},
     this.improveMinChars = 30,
-  })  : _normalizer = normalizer ?? Normalizer(),
-        _shortcuts = shortcuts ??
-            ShortcutTable(builtin: DictionaryManager.shared.builtinShortcuts),
-        _personalWords = personalWords;
+  }) : _normalizer = normalizer ?? Normalizer(),
+       _shortcuts =
+           shortcuts ??
+           ShortcutTable(builtin: DictionaryManager.shared.builtinShortcuts),
+       _personalWords = personalWords;
 
   /// Always reads the live singleton — asset load replaces [DictionaryManager.shared].
   DictionaryManager get _manager => DictionaryManager.shared;
@@ -46,28 +48,68 @@ final class WordBoundaryAnalyzer {
   final int improveMinChars;
   bool antiMatEnabled = true;
   bool antiToxicEnabled = true;
-  bool spellEnabled = true;
   bool improveEnabled = true;
+
   /// Reserved for filler-word detection (toggle wired, engine TBD).
   bool fillerWordsEnabled = true;
 
   void setShortcuts(ShortcutTable table) => _shortcuts = table;
 
+  /// Kept for companion personal dictionary — reserved for suggestion filtering.
   void setPersonalWords(Set<String> words) {
     _personalWords = Set<String>.unmodifiable(
       words.map((w) => w.toLowerCase()).where((w) => w.length >= 2),
     );
   }
 
+  Set<String> get personalWords => _personalWords;
+
   void setAntiMatEnabled(bool enabled) => antiMatEnabled = enabled;
 
   void setAntiToxicEnabled(bool enabled) => antiToxicEnabled = enabled;
 
-  void setSpellEnabled(bool enabled) => spellEnabled = enabled;
-
   void setImproveEnabled(bool enabled) => improveEnabled = enabled;
 
   void setFillerWordsEnabled(bool enabled) => fillerWordsEnabled = enabled;
+
+  /// Live shortcut chips while typing (before space).
+  List<RuleSignal> analyzeShortcutOnly(TextContext ctx) {
+    final signals = <RuleSignal>[];
+    _checkShortcut(signals: signals, word: ctx.word, range: ctx.range);
+    return signals;
+  }
+
+  /// Prefix autocomplete — Gboard-style completions while typing.
+  /// Returns up to [max] dictionary words starting with the typed prefix.
+  List<String> autocompletePrefix(
+    String word,
+    String localeKey, {
+    int max = 3,
+  }) {
+    if (word.length < kMinShortcutTriggerLength) return const [];
+    final normalized = _normalizer.normalize(word);
+    if (normalized.length < kMinShortcutTriggerLength) return const [];
+    final hits = _manager
+        .bundleFor(localeKey)
+        .spell
+        .prefixCompletions(normalized, max: max);
+    if (hits.isEmpty) return const [];
+    return [for (final h in hits) _matchTypedCase(word, h)];
+  }
+
+  /// Preserve leading capital from what the user typed (Доб → Добрый).
+  static String _matchTypedCase(String typed, String lowerCandidate) {
+    if (typed.isEmpty || lowerCandidate.isEmpty) return lowerCandidate;
+    final cu = typed.codeUnitAt(0);
+    final upper =
+        (cu >= 0x41 && cu <= 0x5A) ||
+        (cu >= 0x0410 && cu <= 0x042F) ||
+        cu == 0x0401;
+    if (!upper) return lowerCandidate;
+    final first = lowerCandidate[0].toUpperCase();
+    if (lowerCandidate.length == 1) return first;
+    return '$first${lowerCandidate.substring(1)}';
+  }
 
   /// All word-boundary checks in one function — called on space / punctuation.
   WordBoundaryResult analyzeAtBoundary(TextContext ctx, String localeKey) {
@@ -76,28 +118,12 @@ final class WordBoundaryAnalyzer {
     final runLexicon = shouldRunLexiconAnalysis(word);
     final normalized = _normalizer.normalize(word);
     final lookup = bundle.spell.lookup(normalized);
-    final lexiconKey =
-        runLexicon ? _normalizer.normalizeForLexicon(word) : '';
+    final lexiconKey = runLexicon ? _normalizer.normalizeForLexicon(word) : '';
     final skipLexicon = !runLexicon || TextSkip.shouldSkip(word);
 
     final signals = <RuleSignal>[];
 
     if (!skipLexicon && lexiconKey.isNotEmpty) {
-      _checkPhraseSpell(
-        signals: signals,
-        ctx: ctx,
-        range: ctx.range,
-        bundle: bundle,
-      );
-      _checkSpell(
-        signals: signals,
-        word: word,
-        normalized: normalized,
-        lexiconKey: lexiconKey,
-        range: ctx.range,
-        bundle: bundle,
-        known: lookup.known,
-      );
       _checkMat(
         signals: signals,
         word: word,
@@ -111,7 +137,9 @@ final class WordBoundaryAnalyzer {
         lexiconKey: lexiconKey,
         range: ctx.range,
         bundle: bundle,
-        messageKey: _normalizer.normalizeForLexicon(ctx.fullMessage),
+        messageKey: _normalizer.normalizeForLexicon(
+          _trailingWindow(ctx.fullMessage),
+        ),
       );
       _checkImprove(signals: signals, ctx: ctx);
     }
@@ -122,66 +150,6 @@ final class WordBoundaryAnalyzer {
       normalized: normalized,
       lookup: lookup,
       signals: signals,
-    );
-  }
-
-  /// Live shortcut chips while typing (before space).
-  List<RuleSignal> analyzeShortcutOnly(TextContext ctx) {
-    final signals = <RuleSignal>[];
-    _checkShortcut(signals: signals, word: ctx.word, range: ctx.range);
-    return signals;
-  }
-
-  void _checkPhraseSpell({
-    required List<RuleSignal> signals,
-    required TextContext ctx,
-    required EditRange range,
-    required LocaleBundle bundle,
-  }) {
-    if (!spellEnabled) return;
-    if (bundle.phraseSpell.size == 0) return;
-    final messageKey = _normalizer.normalize(ctx.fullMessage);
-    final fix = bundle.phraseSpell.lookupTrailing(messageKey);
-    if (fix == null) return;
-
-    signals.add(
-      RuleSignal(
-        kind: SignalKind.spellError,
-        severity: 85,
-        confidence: 0.9,
-        range: range,
-        payload: SpellPayload(word: ctx.word, candidates: [fix]),
-      ),
-    );
-  }
-
-  void _checkSpell({
-    required List<RuleSignal> signals,
-    required String word,
-    required String normalized,
-    required String lexiconKey,
-    required EditRange range,
-    required LocaleBundle bundle,
-    required bool known,
-  }) {
-    if (!spellEnabled) return;
-    if (bundle.mat.contains(lexiconKey)) return;
-    if (known) return;
-    if (_personalWords.contains(normalized)) return;
-
-    final typoFix = bundle.typo.lookup(normalized);
-    final candidates =
-        typoFix != null ? [typoFix] : bundle.spell.candidates(normalized);
-    if (candidates.isEmpty) return;
-
-    signals.add(
-      RuleSignal(
-        kind: SignalKind.spellError,
-        severity: 80,
-        confidence: 0.85,
-        range: range,
-        payload: SpellPayload(word: word, candidates: candidates),
-      ),
     );
   }
 
@@ -273,7 +241,8 @@ final class WordBoundaryAnalyzer {
   }) {
     if (word.length < kMinShortcutTriggerLength) return;
 
-    final match = _shortcuts.lookup(word);
+    // Triggers are stored lowercased; skip alloc when already lower.
+    final match = _shortcuts.lookup(_shortcutKey(word));
     if (match == null) return;
 
     signals.add(
@@ -314,5 +283,27 @@ final class WordBoundaryAnalyzer {
       }
     }
     return count;
+  }
+
+  /// Phrase toxic scans only a trailing window — O(1) vs message length.
+  static const _toxicWindowChars = 96;
+
+  static String _trailingWindow(
+    String message, [
+    int chars = _toxicWindowChars,
+  ]) {
+    if (message.length <= chars) return message;
+    return message.substring(message.length - chars);
+  }
+
+  /// Avoid [String.toLowerCase] when the trigger has no uppercase letters.
+  static String _shortcutKey(String word) {
+    for (var i = 0; i < word.length; i++) {
+      final cu = word.codeUnitAt(i);
+      if (cu >= 0x41 && cu <= 0x5A) return word.toLowerCase();
+      if (cu >= 0x0410 && cu <= 0x042F) return word.toLowerCase();
+      if (cu == 0x0401) return word.toLowerCase(); // Ё
+    }
+    return word;
   }
 }

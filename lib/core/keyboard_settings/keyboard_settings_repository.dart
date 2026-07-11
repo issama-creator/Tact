@@ -14,6 +14,9 @@ final class KeyboardSettingsRepository {
 
   final KvStore _store;
 
+  /// Shared store used by IME sync to refresh prefs once per cycle.
+  KvStore get store => _store;
+
   static Future<KeyboardSettingsRepository> open() async {
     if (_instance != null) return _instance!;
     final store = await SharedPrefsKvStore.open();
@@ -33,13 +36,24 @@ final class KeyboardSettingsRepository {
     return repo;
   }
 
+  /// Drops SharedPreferences cache — call once before a batch of peeks.
+  Future<void> refresh() => _store.refreshFromDisk();
+
+  /// Cheap read — assumes [refresh] already ran (or same-engine write).
+  Future<String?> peekRaw() => _store.getString(storageKey);
+
+  /// Refresh + peek — for one-off companion reads.
   Future<String?> readRaw() async {
-    await _store.refreshFromDisk();
-    return _store.getString(storageKey);
+    await refresh();
+    return peekRaw();
   }
 
-  Future<KeyboardSettings> load() async {
-    final raw = await readRaw();
+  Future<KeyboardSettings> load({bool refreshFromDisk = true}) async {
+    final raw = refreshFromDisk ? await readRaw() : await peekRaw();
+    return parseRaw(raw);
+  }
+
+  static KeyboardSettings parseRaw(String? raw) {
     if (raw == null || raw.isEmpty) return KeyboardSettings.defaults;
     try {
       final decoded = jsonDecode(raw);

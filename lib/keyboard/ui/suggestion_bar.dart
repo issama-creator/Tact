@@ -58,27 +58,136 @@ final class _PanelMetrics {
   final double actionPadV;
   final double radius;
 
-  factory _PanelMetrics.of(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final tight = w < 340;
-    final compact = w < 380;
-    return _PanelMetrics(
-      width: w,
-      inlineSubtitle: compact,
-      iconSize: tight ? 16 : 18,
-      titleSize: tight ? 11 : 12,
-      subtitleSize: tight ? 10 : 11,
-      actionFontSize: tight ? 10 : 11,
-      chipFontSize: tight ? 11 : 12,
-      hPad: tight ? 6 : 8,
-      gap: tight ? 5 : 6,
-      chipPadH: tight ? 8 : 10,
-      chipPadV: tight ? 4 : 5,
-      actionPadH: tight ? 8 : 10,
-      actionPadV: tight ? 4 : 5,
-      radius: tight ? 7 : 8,
-    );
+  static const tight = _PanelMetrics(
+    width: 320,
+    inlineSubtitle: true,
+    iconSize: 16,
+    titleSize: 11,
+    subtitleSize: 10,
+    actionFontSize: 10,
+    chipFontSize: 11,
+    hPad: 6,
+    gap: 5,
+    chipPadH: 8,
+    chipPadV: 4,
+    actionPadH: 8,
+    actionPadV: 4,
+    radius: 7,
+  );
+
+  static const compact = _PanelMetrics(
+    width: 360,
+    inlineSubtitle: true,
+    iconSize: 18,
+    titleSize: 12,
+    subtitleSize: 11,
+    actionFontSize: 11,
+    chipFontSize: 12,
+    hPad: 8,
+    gap: 6,
+    chipPadH: 10,
+    chipPadV: 5,
+    actionPadH: 10,
+    actionPadV: 5,
+    radius: 8,
+  );
+
+  static const comfortable = _PanelMetrics(
+    width: 400,
+    inlineSubtitle: false,
+    iconSize: 18,
+    titleSize: 12,
+    subtitleSize: 11,
+    actionFontSize: 11,
+    chipFontSize: 12,
+    hPad: 8,
+    gap: 6,
+    chipPadH: 10,
+    chipPadV: 5,
+    actionPadH: 10,
+    actionPadV: 5,
+    radius: 8,
+  );
+
+  /// Bucketed metrics — zero alloc after first width class is known.
+  factory _PanelMetrics.forWidth(double width) {
+    if (width < 340) return tight;
+    if (width < 380) return compact;
+    return comfortable;
   }
+
+  TextStyle get titleStyle => switch (titleSize) {
+        11 => _title11,
+        _ => _title12,
+      };
+
+  TextStyle get subtitleStyle => switch (subtitleSize) {
+        10 => _subtitle10,
+        _ => _subtitle11,
+      };
+
+  TextStyle get chipStyle => switch (chipFontSize) {
+        11 => _chip11,
+        _ => _chip12,
+      };
+
+  TextStyle get actionStyle => switch (actionFontSize) {
+        10 => _action10,
+        _ => _action11,
+      };
+
+  static const _title11 = TextStyle(
+    color: _TactPanelColors.text,
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
+    height: 1.15,
+    decoration: TextDecoration.none,
+  );
+  static const _title12 = TextStyle(
+    color: _TactPanelColors.text,
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    height: 1.15,
+    decoration: TextDecoration.none,
+  );
+  static const _subtitle10 = TextStyle(
+    color: _TactPanelColors.textMuted,
+    fontSize: 10,
+    fontWeight: FontWeight.w500,
+    height: 1.15,
+    decoration: TextDecoration.none,
+  );
+  static const _subtitle11 = TextStyle(
+    color: _TactPanelColors.textMuted,
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    height: 1.15,
+    decoration: TextDecoration.none,
+  );
+  static const _chip11 = TextStyle(
+    color: _TactPanelColors.text,
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    decoration: TextDecoration.none,
+  );
+  static const _chip12 = TextStyle(
+    color: _TactPanelColors.text,
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    decoration: TextDecoration.none,
+  );
+  static const _action10 = TextStyle(
+    color: Colors.white,
+    fontSize: 10,
+    fontWeight: FontWeight.w600,
+    decoration: TextDecoration.none,
+  );
+  static const _action11 = TextStyle(
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
+    decoration: TextDecoration.none,
+  );
 }
 
 class SuggestionBar extends StatelessWidget {
@@ -102,19 +211,16 @@ class SuggestionBar extends StatelessWidget {
           ? const SizedBox.expand()
           : LayoutBuilder(
               builder: (context, constraints) {
-                return MediaQuery(
-                  data: MediaQuery.of(context).copyWith(
-                    size: Size(
-                      constraints.maxWidth,
-                      constraints.maxHeight,
-                    ),
+                final metrics = _PanelMetrics.forWidth(constraints.maxWidth);
+                return Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: constraints.maxWidth < 340 ? 4 : 6,
+                    vertical: 1,
                   ),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: constraints.maxWidth < 340 ? 4 : 6,
-                      vertical: 1,
-                    ),
-                    child: _PanelBody(panel: panel, onAction: onAction),
+                  child: _PanelBody(
+                    panel: panel,
+                    onAction: onAction,
+                    metrics: metrics,
                   ),
                 );
               },
@@ -124,10 +230,15 @@ class SuggestionBar extends StatelessWidget {
 }
 
 class _PanelBody extends StatelessWidget {
-  const _PanelBody({required this.panel, required this.onAction});
+  const _PanelBody({
+    required this.panel,
+    required this.onAction,
+    required this.metrics,
+  });
 
   final PanelState panel;
   final Future<void> Function(PanelAction action) onAction;
+  final _PanelMetrics metrics;
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +249,7 @@ class _PanelBody extends StatelessWidget {
           icon: Icons.check_circle_outline,
           title: label,
           actionLabel: 'Отменить',
+          metrics: metrics,
           onAction: () => onAction(const PanelActionUndo()),
         ),
       PanelSpell p => p.candidates.length <= 1
@@ -147,6 +259,7 @@ class _PanelBody extends StatelessWidget {
               title: 'Найдены ошибки',
               subtitle: p.word,
               actionLabel: 'Исправить',
+              metrics: metrics,
               onAction: p.candidates.isNotEmpty
                   ? () => onAction(PanelActionFixSpell(
                         panel: p,
@@ -157,6 +270,7 @@ class _PanelBody extends StatelessWidget {
           : _SpellChipRow(
               word: p.word,
               candidates: p.candidates.take(3).toList(),
+              metrics: metrics,
               onPick: (c) => onAction(PanelActionFixSpell(panel: p, candidate: c)),
             ),
       PanelMat p => _StatusBar(
@@ -165,6 +279,7 @@ class _PanelBody extends StatelessWidget {
           title: 'Обнаружен мат',
           subtitle: LocalTextTransform.censorForDisplay(p.word),
           actionLabel: 'Убрать',
+          metrics: metrics,
           onAction: () => onAction(PanelActionRemoveMat(panel: p)),
         ),
       PanelToxic p => _StatusBar(
@@ -175,6 +290,7 @@ class _PanelBody extends StatelessWidget {
               : 'Резкий тон',
           subtitle: LocalTextTransform.censorForDisplay(p.word),
           actionLabel: 'Смягчить',
+          metrics: metrics,
           onAction: () => onAction(PanelActionSoftenToxic(panel: p)),
         ),
       PanelImprove() => _StatusBar(
@@ -182,9 +298,11 @@ class _PanelBody extends StatelessWidget {
           icon: Icons.auto_awesome,
           title: 'Можно улучшить текст',
           actionLabel: 'Улучшить',
+          metrics: metrics,
           onAction: () => onAction(const PanelActionImprove()),
         ),
       PanelShortcut(:final trigger, :final expansions) => _ChipRow(
+          metrics: metrics,
           chips: expansions
               .take(3)
               .map(
@@ -196,6 +314,7 @@ class _PanelBody extends StatelessWidget {
               .toList(),
         ),
       PanelSuggestions(:final words) => _ChipRow(
+          metrics: metrics,
           chips: words
               .take(4)
               .map(
@@ -240,6 +359,7 @@ class _StatusBar extends StatelessWidget {
     required this.title,
     this.subtitle,
     required this.actionLabel,
+    required this.metrics,
     required this.onAction,
   });
 
@@ -248,11 +368,12 @@ class _StatusBar extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String actionLabel;
+  final _PanelMetrics metrics;
   final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    final m = _PanelMetrics.of(context);
+    final m = metrics;
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
 
     return DecoratedBox(
@@ -347,18 +468,8 @@ class _StatusMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = TextStyle(
-      color: _TactPanelColors.text,
-      fontSize: metrics.titleSize,
-      fontWeight: FontWeight.w600,
-      height: 1.15,
-    );
-    final subtitleStyle = TextStyle(
-      color: _TactPanelColors.textMuted,
-      fontSize: metrics.subtitleSize,
-      fontWeight: FontWeight.w500,
-      height: 1.15,
-    );
+    final titleStyle = metrics.titleStyle;
+    final subtitleStyle = metrics.subtitleStyle;
 
     if (subtitle == null) {
       return Align(
@@ -378,12 +489,12 @@ class _StatusMessage extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             text: TextSpan(
-              style: titleStyle.copyWith(decoration: TextDecoration.none),
+              style: titleStyle,
               children: [
                 TextSpan(text: title),
                 TextSpan(
                   text: ' · $subtitle',
-                  style: subtitleStyle.copyWith(decoration: TextDecoration.none),
+                  style: subtitleStyle,
                 ),
               ],
             ),
@@ -437,12 +548,7 @@ class _PanelActionButton extends StatelessWidget {
               ),
               child: _PanelText(
                 '$label →',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: metrics.actionFontSize,
-                  fontWeight: FontWeight.w600,
-                  height: 1.1,
-                ),
+                style: metrics.actionStyle,
               ),
             ),
           ),
@@ -456,16 +562,18 @@ class _SpellChipRow extends StatelessWidget {
   const _SpellChipRow({
     required this.word,
     required this.candidates,
+    required this.metrics,
     required this.onPick,
   });
 
   final String word;
   final List<String> candidates;
+  final _PanelMetrics metrics;
   final void Function(String candidate) onPick;
 
   @override
   Widget build(BuildContext context) {
-    final m = _PanelMetrics.of(context);
+    final m = metrics;
     return _PanelSurface(
       metrics: m,
       borderColor: _TactPanelColors.spell.withValues(alpha: 0.35),
@@ -480,11 +588,7 @@ class _SpellChipRow extends StatelessWidget {
           SizedBox(width: m.gap),
           _PanelText(
             word,
-            style: TextStyle(
-              color: _TactPanelColors.textMuted,
-              fontSize: m.subtitleSize,
-              fontWeight: FontWeight.w600,
-            ),
+            style: m.subtitleStyle.copyWith(fontWeight: FontWeight.w600),
           ),
           SizedBox(width: m.gap),
           Expanded(
@@ -509,17 +613,17 @@ final class _ChipData {
 }
 
 class _ChipRow extends StatelessWidget {
-  const _ChipRow({required this.chips});
+  const _ChipRow({required this.chips, required this.metrics});
 
   final List<_ChipData> chips;
+  final _PanelMetrics metrics;
 
   @override
   Widget build(BuildContext context) {
-    final m = _PanelMetrics.of(context);
     return _PanelSurface(
-      metrics: m,
+      metrics: metrics,
       borderColor: _TactPanelColors.border,
-      child: _ChipScroller(metrics: m, chips: chips),
+      child: _ChipScroller(metrics: metrics, chips: chips),
     );
   }
 }
@@ -612,12 +716,7 @@ class _SuggestionChip extends StatelessWidget {
               ),
               child: _PanelText(
                 chip.label,
-                style: TextStyle(
-                  color: _TactPanelColors.text,
-                  fontSize: metrics.chipFontSize,
-                  fontWeight: FontWeight.w500,
-                  height: 1.1,
-                ),
+                style: metrics.chipStyle,
               ),
             ),
           ),

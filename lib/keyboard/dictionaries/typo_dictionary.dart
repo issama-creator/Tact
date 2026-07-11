@@ -20,10 +20,11 @@ final class TypoDictionary {
 
   factory TypoDictionary.empty() => TypoDictionary._(const {});
 
-  /// Returns the correction when [word] is a known typo, else null.
-  String? lookup(String word) => _corrections[word.toLowerCase()];
+  /// Returns the correction when [normalizedWord] is a known typo, else null.
+  String? lookup(String normalizedWord) => _corrections[normalizedWord];
 
-  bool contains(String word) => _corrections.containsKey(word.toLowerCase());
+  bool contains(String normalizedWord) =>
+      _corrections.containsKey(normalizedWord);
 
   int get size => _corrections.length;
 }

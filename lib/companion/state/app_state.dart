@@ -13,7 +13,6 @@ class CompanionAppState extends ChangeNotifier {
   bool antiMat = true;
   bool antiToxic = true;
   bool fillerWords = true;
-  bool errorCorrection = true;
   bool textImprovement = true;
 
   // ── Appearance ────────────────────────────────────────────────────
@@ -50,8 +49,9 @@ class CompanionAppState extends ChangeNotifier {
     antiMat = settings.antiMat;
     antiToxic = settings.antiToxic;
     fillerWords = settings.fillerWords;
-    errorCorrection = settings.errorCorrection;
     textImprovement = settings.textImprovement;
+    vibration = settings.vibration;
+    sound = settings.sound;
     notifyListeners();
   }
 
@@ -59,8 +59,9 @@ class CompanionAppState extends ChangeNotifier {
         antiMat: antiMat,
         antiToxic: antiToxic,
         fillerWords: fillerWords,
-        errorCorrection: errorCorrection,
         textImprovement: textImprovement,
+        vibration: vibration,
+        sound: sound,
       );
 
   void _persistKeyboardModes() {
@@ -83,12 +84,6 @@ class CompanionAppState extends ChangeNotifier {
 
   void setFillerWords(bool v) {
     fillerWords = v;
-    notifyListeners();
-    _persistKeyboardModes();
-  }
-
-  void setErrorCorrection(bool v) {
-    errorCorrection = v;
     notifyListeners();
     _persistKeyboardModes();
   }
@@ -117,11 +112,13 @@ class CompanionAppState extends ChangeNotifier {
   void setVibration(bool v) {
     vibration = v;
     notifyListeners();
+    _persistKeyboardModes();
   }
 
   void setSound(bool v) {
     sound = v;
     notifyListeners();
+    _persistKeyboardModes();
   }
 
   void setShowTips(bool v) {

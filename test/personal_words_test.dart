@@ -38,13 +38,14 @@ TextContext ctx(String word) => TextContext(
     );
 
 void main() {
-  test('personal words skip spell check', () async {
+  test('personal words load into engine', () async {
     PersonalWordsRepository.bind(_MemoryKvStore());
     await PersonalWordsRepository.instance.add('tactbrand');
 
     final words = await PersonalWordsRepository.instance.loadAll();
     final engine = LocalIntelligenceEngine(personalWords: words);
     final result = engine.process(ctx('tactbrand'));
+    // Unknown to dict → idle (no spell panel); personal words reserved for suggestions.
     expect(result.decision.state, isA<PanelIdle>());
   });
 }

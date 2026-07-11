@@ -179,13 +179,12 @@ class KeyGridView @JvmOverloads constructor(
     fun refreshFromState() {
         // Called after state.shift / layer / language change. The pure-shift
         // case leaves the layer identical — setLayer would short-circuit —
-        // so we always force a full redraw here to reflect casing and the
-        // shift-key icon state.
+        // so we redraw only casing-sensitive keys (letters + shift icon).
         val target = Layouts.layerFor(state)
         if (target !== layer) {
             setLayer(target)
         } else {
-            invalidate()
+            invalidateShiftSensitiveKeys()
         }
     }
 
@@ -313,8 +312,9 @@ class KeyGridView @JvmOverloads constructor(
 
     private fun drawCharacterKey(canvas: Canvas, kr: KeyRect, action: KeyAction.Character) {
         val rect = kr.rect
+        // labelUpper is precomputed in Layouts — never allocate uppercase() here.
         val label = if (state.isUpperCase) {
-            (action.labelUpper ?: action.label.uppercase(state.language.javaLocale))
+            action.labelUpper ?: action.label
         } else {
             action.label
         }
@@ -799,7 +799,7 @@ class KeyGridView @JvmOverloads constructor(
         when (action) {
             is KeyAction.Character -> {
                 val chr = if (state.isUpperCase) {
-                    action.labelUpper ?: action.label.uppercase(state.language.javaLocale)
+                    action.labelUpper ?: action.label
                 } else {
                     action.label
                 }
@@ -811,7 +811,7 @@ class KeyGridView @JvmOverloads constructor(
                 notifyMaybeWordCommitted(" ")
                 val wasUpper = state.isUpperCase
                 state.consumeShiftAfterChar()
-                if (wasUpper && !state.isUpperCase) invalidate()
+                if (wasUpper && !state.isUpperCase) invalidateShiftSensitiveKeys()
             }
             KeyAction.Backspace -> {
                 haptics.deleteClickSound()
@@ -826,7 +826,7 @@ class KeyGridView @JvmOverloads constructor(
                 inputController.performEnter()
                 val wasUpper = state.isUpperCase
                 state.consumeShiftAfterChar()
-                if (wasUpper && !state.isUpperCase) invalidate()
+                if (wasUpper && !state.isUpperCase) invalidateShiftSensitiveKeys()
             }
             KeyAction.Shift -> {
                 haptics.modifier(this)
@@ -865,11 +865,9 @@ class KeyGridView @JvmOverloads constructor(
         notifyMaybeWordCommitted(chr)
         val wasUpper = state.isUpperCase
         state.consumeShiftAfterChar()
-        // If shift auto-released, the visible casing of every letter key
-        // changes — full invalidate. Otherwise nothing changes and per-key
-        // invalidation (already scheduled in onPointerUp) is enough.
+        // If shift auto-released, only letter labels + shift icon change.
         if (wasUpper && !state.isUpperCase) {
-            invalidate()
+            invalidateShiftSensitiveKeys()
         }
     }
 
@@ -891,7 +889,7 @@ class KeyGridView @JvmOverloads constructor(
         if (key.action !is KeyAction.Character) return
         val overlay = previewOverlay ?: return
         val label = if (state.isUpperCase) {
-            key.action.labelUpper ?: key.action.label.uppercase(state.language.javaLocale)
+            key.action.labelUpper ?: key.action.label
         } else {
             key.action.label
         }
@@ -1012,6 +1010,17 @@ class KeyGridView @JvmOverloads constructor(
             (r.bottom + 4).toInt(),
         )
         invalidate(tmpRect)
+    }
+
+    /** Letters + shift icon change on auto-shift release; skip function keys. */
+    private fun invalidateShiftSensitiveKeys() {
+        for (i in keyRects.indices) {
+            when (keyRects[i].key.action) {
+                is KeyAction.Character, KeyAction.Shift ->
+                    invalidateRect(keyRects[i].rect)
+                else -> Unit
+            }
+        }
     }
 
     override fun onDetachedFromWindow() {

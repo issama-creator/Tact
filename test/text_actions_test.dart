@@ -40,6 +40,39 @@ void main() {
     expect(plan.valueOrNull!.replacement, 'hello ');
   });
 
+  test('insertSuggestion appends trailing space like Gboard', () {
+    final plan = TextActions.insertSuggestion(
+      word: 'добрый',
+      ctx: const ActionContext(
+        word: 'доб',
+        locale: 'ru',
+        deleteBefore: 3,
+        deleteAfter: 0,
+        boundary: '',
+        before: '',
+        after: '',
+      ),
+    );
+    expect(plan.isOk, isTrue);
+    expect(plan.valueOrNull!.replacement, 'добрый ');
+  });
+
+  test('insertSuggestion skips double space when after already has one', () {
+    final plan = TextActions.insertSuggestion(
+      word: 'hello',
+      ctx: const ActionContext(
+        word: 'hel',
+        locale: 'en',
+        deleteBefore: 3,
+        deleteAfter: 0,
+        boundary: '',
+        before: '',
+        after: ' world',
+      ),
+    );
+    expect(plan.valueOrNull!.replacement, 'hello');
+  });
+
   test('mat removal deletes word', () {
     final plan = TextActions.removeMat(
       panel: const PanelMat(word: 'bad', range: EditRange(0, 3)),

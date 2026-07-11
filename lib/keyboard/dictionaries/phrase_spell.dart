@@ -41,24 +41,42 @@ final class PhraseSpellLexicon {
     return _corrections[key];
   }
 
-  /// Scans trailing [windowWords] of a message for a phrase correction.
+  /// Scans trailing [windowWords] of an already-normalized message.
   String? lookupTrailing(String normalizedMessage, {int windowWords = 4}) {
     if (normalizedMessage.isEmpty || _corrections.isEmpty) return null;
-    final tokens = normalizedMessage
-        .split(RegExp(r'\s+'))
-        .where((t) => t.isNotEmpty)
-        .toList();
+    final tokens = _splitTokens(normalizedMessage);
     if (tokens.isEmpty) return null;
 
     final start = tokens.length > windowWords ? tokens.length - windowWords : 0;
     for (var len = windowWords; len >= 2; len--) {
       for (var i = start; i + len <= tokens.length; i++) {
         final phrase = tokens.sublist(i, i + len).join(' ');
-        final fix = lookup(phrase);
+        if (_valid.contains(phrase)) continue;
+        final fix = _corrections[phrase];
         if (fix != null) return fix;
       }
     }
     return null;
+  }
+
+  static List<String> _splitTokens(String normalizedMessage) {
+    final out = <String>[];
+    var start = -1;
+    for (var i = 0; i < normalizedMessage.length; i++) {
+      final isSpace = normalizedMessage.codeUnitAt(i) == 0x20;
+      if (isSpace) {
+        if (start >= 0) {
+          out.add(normalizedMessage.substring(start, i));
+          start = -1;
+        }
+      } else if (start < 0) {
+        start = i;
+      }
+    }
+    if (start >= 0) {
+      out.add(normalizedMessage.substring(start));
+    }
+    return out;
   }
 
   int get size => _corrections.length;

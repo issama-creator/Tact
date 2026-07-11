@@ -11,21 +11,30 @@ import android.view.View
  * Feedback controller — one place for haptic and sound cues + a clipboard
  * accessor for future features.
  *
- * The [Sound] and [Clipboard] hooks are wired but intentionally minimal per
- * the current scope. They exist so that when a caller (suggestion bar
- * clipboard chip, sound-on-tap setting, etc.) needs them, it doesn't have
- * to hunt for the correct system API — everything is here.
+ * Enabled flags are driven by companion toggles via [setEnabled].
  */
 class KeyboardHaptics(context: Context) {
 
     private val audioManager: AudioManager =
         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
+    @Volatile
+    var vibrationEnabled: Boolean = true
+
+    @Volatile
+    var soundEnabled: Boolean = false
+
+    fun setEnabled(vibration: Boolean, sound: Boolean) {
+        vibrationEnabled = vibration
+        soundEnabled = sound
+    }
+
     /**
      * Play a subtle haptic tick for a key press. Non-blocking; if the
      * device disables key haptics globally, this is a no-op.
      */
     fun keyTap(view: View) {
+        if (!vibrationEnabled) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             view.performHapticFeedback(
                 HapticFeedbackConstants.KEYBOARD_TAP,
@@ -39,6 +48,7 @@ class KeyboardHaptics(context: Context) {
 
     /** A slightly stronger tick for a long-press trigger. */
     fun longPress(view: View) {
+        if (!vibrationEnabled) return
         view.performHapticFeedback(
             HapticFeedbackConstants.LONG_PRESS,
             HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
@@ -50,6 +60,7 @@ class KeyboardHaptics(context: Context) {
      * language switch) — distinguishable from a character tap.
      */
     fun modifier(view: View) {
+        if (!vibrationEnabled) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             view.performHapticFeedback(
                 HapticFeedbackConstants.CLOCK_TICK,
@@ -61,31 +72,31 @@ class KeyboardHaptics(context: Context) {
     }
 
     /**
-     * System key-click sound.
-     *
-     * Kept as an architecture hook: currently plays a soft system click on
-     * key tap only when the device's system-wide "keyboard sound on" toggle
-     * is enabled. A user-facing preference is a companion-app concern (out
-     * of scope for this deliverable).
+     * System key-click sound — only when companion sound toggle is on.
      */
     fun keyClickSound() {
+        if (!soundEnabled) return
         audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD, 0.35f)
     }
 
     fun spaceClickSound() {
+        if (!soundEnabled) return
         audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_SPACEBAR, 0.35f)
     }
 
     fun deleteClickSound() {
+        if (!soundEnabled) return
         audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_DELETE, 0.35f)
     }
 
     fun enterClickSound() {
+        if (!soundEnabled) return
         audioManager.playSoundEffect(AudioManager.FX_KEYPRESS_RETURN, 0.35f)
     }
 
     /** Subtle confirmation after a successful suggestion-bar action. */
     fun actionSuccess(view: View) {
+        if (!vibrationEnabled) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             view.performHapticFeedback(
                 HapticFeedbackConstants.CONFIRM,

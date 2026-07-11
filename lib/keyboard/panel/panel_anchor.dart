@@ -19,31 +19,70 @@ bool panelTracksAnchoredWord(PanelState panel) => anchoredWord(panel) != null;
 /// Returns true when [word] appears as a whole token in surrounding text.
 bool isAnchoredWordPresent(SurroundingSnapshot snap, String word) {
   if (word.isEmpty) return false;
+  // Prefer scanning halves separately to avoid '${before}${after}' alloc when
+  // the token cannot span the cursor (typical for panel anchors).
+  if (_containsWordToken(snap.before, word) ||
+      _containsWordToken(snap.after, word)) {
+    return true;
+  }
+  // Cursor mid-token edge case.
+  if (snap.before.isEmpty || snap.after.isEmpty) return false;
   final full = '${snap.before}${snap.after}';
   return _containsWordToken(full, word);
 }
 
 bool _containsWordToken(String text, String word) {
   if (text.isEmpty) return false;
-  final lower = text.toLowerCase();
-  final needle = word.toLowerCase();
+  final needle = _maybeLower(word);
   var from = 0;
-  while (from <= lower.length - needle.length) {
-    final idx = lower.indexOf(needle, from);
+  while (from <= text.length - needle.length) {
+    final idx = _indexOfIgnoreCase(text, needle, from);
     if (idx < 0) return false;
-    final beforeOk = idx == 0 || _isTokenBoundary(text[idx - 1]);
+    final beforeOk = idx == 0 || _isTokenBoundaryCu(text.codeUnitAt(idx - 1));
     final afterIdx = idx + needle.length;
-    final afterOk =
-        afterIdx >= text.length || _isTokenBoundary(text[afterIdx]);
+    final afterOk = afterIdx >= text.length ||
+        _isTokenBoundaryCu(text.codeUnitAt(afterIdx));
     if (beforeOk && afterOk) return true;
     from = idx + 1;
   }
   return false;
 }
 
-bool _isTokenBoundary(String char) {
-  if (char.isEmpty) return true;
-  final code = char.codeUnitAt(0);
+/// Returns [s] unchanged when already lower; otherwise a lowered copy.
+String _maybeLower(String s) {
+  for (var i = 0; i < s.length; i++) {
+    final cu = s.codeUnitAt(i);
+    if (cu >= 0x41 && cu <= 0x5A) return s.toLowerCase();
+    if (cu >= 0x0410 && cu <= 0x042F) return s.toLowerCase();
+    if (cu == 0x0401) return s.toLowerCase();
+  }
+  return s;
+}
+
+int _indexOfIgnoreCase(String haystack, String needleLower, int from) {
+  final nLen = needleLower.length;
+  if (nLen == 0 || from > haystack.length - nLen) return -1;
+  outer:
+  for (var i = from; i <= haystack.length - nLen; i++) {
+    for (var j = 0; j < nLen; j++) {
+      if (_lowerCu(haystack.codeUnitAt(i + j)) !=
+          needleLower.codeUnitAt(j)) {
+        continue outer;
+      }
+    }
+    return i;
+  }
+  return -1;
+}
+
+int _lowerCu(int cu) {
+  if (cu >= 0x41 && cu <= 0x5A) return cu + 32;
+  if (cu >= 0x0410 && cu <= 0x042F) return cu + 32;
+  if (cu == 0x0401) return 0x0451;
+  return cu;
+}
+
+bool _isTokenBoundaryCu(int code) {
   switch (code) {
     case 0x20: // space
     case 0x09: // \t
