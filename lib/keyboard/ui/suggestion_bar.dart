@@ -8,20 +8,20 @@ import '../panel/panel_state.dart';
 import '../rules/rule_signal.dart';
 import 'panel_actions.dart';
 
-/// Design tokens aligned with companion [PanelPreviewBar].
+/// Soft dark tokens — same family as keyboard, low-contrast alerts.
 abstract final class _TactPanelColors {
-  static const surface = Color(0xFF1A1D24);
+  /// Match native panel bar — no brown/yellow wash.
+  static const surface = Color(0xFF161920);
   static const chipBg = Color(0xFF2A2E36);
-  static const text = Color(0xFFF2F3F5);
+  static const text = Color(0xFFE8EAED);
   static const textMuted = Color(0xFF8B929C);
   static const action = Color(0xFF2A9B8F);
   static const actionPressed = Color(0xFF238078);
-  static const mat = Color(0xFFC94B4B);
-  static const toxic = Color(0xFFE8B339);
-  static const improve = Color(0xFF2A9B8F);
-  static const undo = Color(0xFF3DDC97);
-  static const border = Color(0xFF2F343C);
-  /// Suggestion separators (mid-gray on dark bar).
+  static const mat = Color(0xFFD07A7A);
+  static const toxic = Color(0xFFC9A86A);
+  static const improve = Color(0xFF5BA89E);
+  static const undo = Color(0xFF6BC49A);
+  static const border = Color(0xFF252A32);
   static const suggestionDivider = Color(0xFF5A616C);
 }
 
@@ -311,7 +311,7 @@ class _PanelBody extends StatelessWidget {
       PanelMat p => _StatusBar(
           accent: _TactPanelColors.mat,
           icon: Icons.block,
-          title: 'Обнаружен мат',
+          title: 'Мат',
           subtitle: LocalTextTransform.censorForDisplay(p.word),
           actionLabel: 'Убрать',
           metrics: metrics,
@@ -320,9 +320,7 @@ class _PanelBody extends StatelessWidget {
       PanelToxic p => _StatusBar(
           accent: _TactPanelColors.toxic,
           icon: Icons.warning_amber_rounded,
-          title: p.level == ToxicLevel.conflict
-              ? 'Возможен конфликт'
-              : 'Найдено токсичное слово',
+          title: p.level == ToxicLevel.conflict ? 'Конфликт' : 'Токсично',
           subtitle: LocalTextTransform.censorForDisplay(p.word),
           actionLabel: 'Смягчить',
           metrics: metrics,
@@ -331,7 +329,7 @@ class _PanelBody extends StatelessWidget {
       PanelImprove() => _StatusBar(
           accent: _TactPanelColors.improve,
           icon: Icons.auto_awesome,
-          title: 'Можно улучшить текст',
+          title: 'Можно улучшить',
           actionLabel: 'Улучшить',
           metrics: metrics,
           onAction: () => onAction(const PanelActionImprove()),
@@ -411,81 +409,34 @@ class _StatusBar extends StatelessWidget {
     final m = metrics;
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: _TactPanelColors.surface,
-        borderRadius: BorderRadius.circular(m.radius),
-        border: Border.all(color: _TactPanelColors.border),
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(m.radius),
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [
-              accent.withValues(alpha: 0.14),
-              accent.withValues(alpha: 0.03),
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: m.hPad,
-            vertical: m.vPad,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _AccentIcon(accent: accent, icon: icon, size: m.iconSize),
-              SizedBox(width: m.gap),
-              Expanded(
-                child: _StatusMessage(
-                  title: title,
-                  subtitle: hasSubtitle ? subtitle! : null,
-                  inline: m.inlineSubtitle,
-                  metrics: m,
-                ),
+    // Compact centered cluster — not stretched edge-to-edge.
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: m.hPad),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(icon, color: accent.withValues(alpha: 0.9), size: m.iconSize),
+            SizedBox(width: m.gap),
+            Flexible(
+              child: _StatusMessage(
+                title: title,
+                subtitle: hasSubtitle ? subtitle! : null,
+                inline: true,
+                metrics: m,
               ),
-              if (onAction != null) ...[
-                SizedBox(width: m.gap),
-                _PanelActionButton(
-                  label: actionLabel,
-                  metrics: m,
-                  onTap: onAction!,
-                ),
-              ],
+            ),
+            if (onAction != null) ...[
+              SizedBox(width: m.gap + 6),
+              _PanelActionButton(
+                label: actionLabel,
+                metrics: m,
+                onTap: onAction!,
+              ),
             ],
-          ),
+          ],
         ),
-      ),
-    );
-  }
-}
-
-class _AccentIcon extends StatelessWidget {
-  const _AccentIcon({
-    required this.accent,
-    required this.icon,
-    required this.size,
-  });
-
-  final Color accent;
-  final IconData icon;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final box = size + 8;
-    return SizedBox(
-      width: box,
-      height: box,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(size * 0.35),
-        ),
-        child: Center(child: Icon(icon, color: accent, size: size)),
       ),
     );
   }
@@ -576,8 +527,11 @@ class _PanelActionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(metrics.radius * 0.7),
           child: Ink(
             decoration: BoxDecoration(
-              color: _TactPanelColors.action,
+              color: _TactPanelColors.action.withValues(alpha: 0.22),
               borderRadius: BorderRadius.circular(metrics.radius * 0.7),
+              border: Border.all(
+                color: _TactPanelColors.action.withValues(alpha: 0.45),
+              ),
             ),
             child: Padding(
               padding: EdgeInsets.symmetric(
@@ -585,8 +539,11 @@ class _PanelActionButton extends StatelessWidget {
                 vertical: metrics.actionPadV,
               ),
               child: _PanelText(
-                '$label →',
-                style: metrics.actionStyle,
+                label,
+                style: metrics.actionStyle.copyWith(
+                  color: _TactPanelColors.text,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),

@@ -33,8 +33,8 @@ void main() {
     await _pumpBar(tester, panel: const PanelIdle());
     expect(find.byKey(const Key('tact_brand_mark')), findsOneWidget);
     expect(find.text('Tact'), findsOneWidget);
-    expect(find.text('Обнаружен мат'), findsNothing);
-    expect(find.textContaining('→'), findsNothing);
+    expect(find.bySemanticsLabel('Мат · х**'), findsNothing);
+    expect(find.text('Убрать'), findsNothing);
   });
 
   testWidgets('Active panel hides Tact brand mark', (tester) async {
@@ -50,9 +50,8 @@ void main() {
       tester,
       panel: const PanelMat(word: 'хуй', range: EditRange(0, 3)),
     );
-    expect(find.text('Обнаружен мат'), findsOneWidget);
-    expect(find.text('х**'), findsOneWidget);
-    expect(find.text('Убрать →'), findsOneWidget);
+    expect(find.bySemanticsLabel('Мат · х**'), findsOneWidget);
+    expect(find.text('Убрать'), findsOneWidget);
     expect(find.text('хуй'), findsNothing);
   });
 
@@ -73,8 +72,8 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.bySemanticsLabel('Обнаружен мат · х**'), findsOneWidget);
-    expect(find.text('Убрать →'), findsOneWidget);
+    expect(find.bySemanticsLabel('Мат · х**'), findsOneWidget);
+    expect(find.text('Убрать'), findsOneWidget);
   });
 
   testWidgets('PanelShortcut renders expansion chips', (tester) async {
@@ -112,8 +111,8 @@ void main() {
         range: EditRange(0, 5),
       ),
     );
-    expect(find.text('Найдено токсичное слово'), findsOneWidget);
-    expect(find.text('Смягчить →'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'Токсично')), findsOneWidget);
+    expect(find.text('Смягчить'), findsOneWidget);
   });
 
   testWidgets('PanelUndo shows case-specific label and Отменить', (tester) async {
@@ -122,7 +121,7 @@ void main() {
       panel: const PanelUndo(label: 'Мат удалён'),
     );
     expect(find.text('Мат удалён'), findsOneWidget);
-    expect(find.text('Отменить →'), findsOneWidget);
+    expect(find.text('Отменить'), findsOneWidget);
   });
 
   testWidgets('panel state swap rebuilds visible content', (tester) async {
@@ -130,7 +129,7 @@ void main() {
       tester,
       panel: const PanelMat(word: 'хуй', range: EditRange(0, 3)),
     );
-    expect(find.text('Обнаружен мат'), findsOneWidget);
+    expect(find.bySemanticsLabel('Мат · х**'), findsOneWidget);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -153,7 +152,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Обнаружен мат'), findsNothing);
+    expect(find.bySemanticsLabel('Мат · х**'), findsNothing);
     expect(find.text('др → Добрый день'), findsOneWidget);
   });
 }

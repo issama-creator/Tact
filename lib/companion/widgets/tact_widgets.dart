@@ -349,56 +349,62 @@ class PanelPreviewBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A22),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: TactColors.surfaceBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: TactColors.orange.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
+    return SizedBox(
+      height: 36,
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
               Icons.warning_amber_rounded,
-              color: TactColors.orange,
+              color: const Color(0xFFC9A86A).withValues(alpha: 0.9),
               size: 16,
             ),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Найдено токсичное слово • туп***',
-              style: TextStyle(
-                fontSize: 13,
-                color: TactColors.textPrimary,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: TactColors.purple,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              'Смягчить →',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+            const SizedBox(width: 8),
+            const Flexible(
+              child: Text.rich(
+                TextSpan(
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFE8EAED),
+                  ),
+                  children: [
+                    TextSpan(text: 'Токсично'),
+                    TextSpan(
+                      text: ' · туп***',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF8B929C),
+                      ),
+                    ),
+                  ],
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A9B8F).withValues(alpha: 0.22),
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(
+                  color: const Color(0xFF2A9B8F).withValues(alpha: 0.45),
+                ),
+              ),
+              child: const Text(
+                'Смягчить',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFE8EAED),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
