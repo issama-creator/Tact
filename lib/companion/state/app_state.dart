@@ -34,21 +34,36 @@ class CompanionAppState extends ChangeNotifier {
   bool showTips = true;
 
   // ── Dashboard stats / limits ──────────────────────────────────────
-  int communicationScore = 87;
-  int matBlockedCount = 48;
-  int toxicSoftenedCount = 23;
-  int aiAssistCount = 31;
-  int cleanStreakDays = 12;
-  int cleanRecordDays = 28;
+  int communicationScore = 100;
+  int matBlockedCount = 0;
+  int toxicSoftenedCount = 0;
+  int aiAssistCount = 0;
+  int cleanStreakDays = 0;
+  int cleanRecordDays = 0;
 
   int hotwordsCount = 0;
 
-  int orthographyUsed = 3;
+  int orthographyUsed = 0;
   int orthographyLimit = 10;
-  int punctuationUsed = 5;
+  int punctuationUsed = 0;
   int punctuationLimit = 10;
-  int improveTextUsed = 2;
+  int improveTextUsed = 0;
   int improveTextLimit = 10;
+
+  Future<void>? _hydrateInFlight;
+
+  /// Single entry for disk → memory sync (dedupes parallel callers).
+  Future<void> hydrate({bool forceRefresh = false}) {
+    if (!forceRefresh) {
+      final existing = _hydrateInFlight;
+      if (existing != null) return existing;
+    }
+    final future = _hydrateBody(forceRefresh: forceRefresh);
+    _hydrateInFlight = future;
+    return future.whenComplete(() {
+      if (identical(_hydrateInFlight, future)) _hydrateInFlight = null;
+    });
+  }
 
   /// Opens shared stores and hydrates UI from disk.
   Future<void> bindRepositories({
@@ -57,19 +72,49 @@ class CompanionAppState extends ChangeNotifier {
   }) async {
     _settingsRepo = settingsRepo;
     _prefsRepo = prefsRepo;
-    final settings = await settingsRepo.load();
-    final prefs = await prefsRepo.load();
-    applyKeyboardSettings(settings, notify: false);
-    applyCompanionPrefs(prefs, notify: false);
-    // Seed only when prefs were never written (IME needs theme on disk).
-    final raw = await prefsRepo.peekRaw();
-    if (raw == null || raw.isEmpty) {
-      _persistCompanionPrefs();
-      _persistKeyboardModes();
+    await hydrate();
+  }
+
+  Future<void> _hydrateBody({required bool forceRefresh}) async {
+    var settingsRepo = _settingsRepo;
+    var prefsRepo = _prefsRepo;
+    if (settingsRepo == null || prefsRepo == null) {
+      settingsRepo = await KeyboardSettingsRepository.open();
+      prefsRepo = await CompanionPrefsRepository.open();
+      _settingsRepo = settingsRepo;
+      _prefsRepo = prefsRepo;
     }
+
+    if (forceRefresh) {
+      await settingsRepo.refresh();
+      await prefsRepo.refresh();
+    }
+
+    final settings = await settingsRepo.load(refreshFromDisk: forceRefresh);
+    final raw = await prefsRepo.peekRaw();
+
+    if (raw == null || raw.isEmpty) {
+      applyKeyboardSettings(settings, notify: false);
+      applyCompanionPrefs(CompanionPrefs.defaults, notify: false);
+      await prefsRepo.save(toCompanionPrefs());
+      await settingsRepo.save(toKeyboardSettings());
+    } else {
+      final onDisk = CompanionPrefsRepository.parseRawUnmigrated(raw);
+      final prefs = onDisk.withoutLegacyDemoSeed();
+      applyKeyboardSettings(settings, notify: false);
+      applyCompanionPrefs(prefs, notify: false);
+      if (onDisk.isLegacyDemoSeed) {
+        await prefsRepo.save(toCompanionPrefs());
+      }
+    }
+
     await refreshHotwordsCount(notify: false);
     notifyListeners();
   }
+
+  /// Re-reads companion + keyboard prefs after external writes or app resume.
+  Future<void> reloadFromDisk({bool notify = true}) =>
+      hydrate(forceRefresh: true);
 
   /// Backward-compatible entry used by older call sites.
   Future<void> bindSettingsRepository(KeyboardSettingsRepository repo) async {
@@ -278,5 +323,15 @@ class CompanionAppState extends ChangeNotifier {
     if (improveTextUsed != null) this.improveTextUsed = improveTextUsed;
     notifyListeners();
     _persistCompanionPrefs();
+  }
+
+  /// Wipes dashboard counters so the user can track fresh activity.
+  Future<void> clearAllStats() async {
+    applyCompanionPrefs(toCompanionPrefs().withClearedStats(), notify: false);
+    final repo = _prefsRepo;
+    if (repo != null) {
+      await repo.save(toCompanionPrefs());
+    }
+    notifyListeners();
   }
 }

@@ -60,14 +60,22 @@ class CompanionApp extends StatefulWidget {
   State<CompanionApp> createState() => _CompanionAppState();
 }
 
-class _CompanionAppState extends State<CompanionApp> {
+class _CompanionAppState extends State<CompanionApp> with WidgetsBindingObserver {
   final _state = CompanionAppState();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ImePlatform.ensureInitialized();
     unawaited(_loadKeyboardSettings());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    if (lifecycle == AppLifecycleState.resumed) {
+      unawaited(_state.hydrate(forceRefresh: true));
+    }
   }
 
   Future<void> _loadKeyboardSettings() async {
@@ -82,7 +90,7 @@ class _CompanionAppState extends State<CompanionApp> {
 
   @override
   void dispose() {
-    _state.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 

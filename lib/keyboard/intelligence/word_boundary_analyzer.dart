@@ -57,6 +57,7 @@ final class WordBoundaryAnalyzer {
 
   String? _autoCacheKey;
   List<String> _autoCache = const [];
+
   /// Small LRU for consecutive prefix lookups while typing.
   final Map<String, List<String>> _autoLru = <String, List<String>>{};
   static const _autoLruMax = 8;

@@ -43,7 +43,11 @@ final class CompanionPrefsRepository {
     return parseRaw(raw);
   }
 
-  static CompanionPrefs parseRaw(String? raw) {
+  static CompanionPrefs parseRaw(String? raw) =>
+      parseRawUnmigrated(raw).withoutLegacyDemoSeed();
+
+  /// Parses disk JSON without stripping the legacy demo dashboard.
+  static CompanionPrefs parseRawUnmigrated(String? raw) {
     if (raw == null || raw.isEmpty) return CompanionPrefs.defaults;
     try {
       final decoded = jsonDecode(raw);

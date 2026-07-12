@@ -9,17 +9,17 @@ final class CompanionPrefs {
     this.panelHeight = 0.55,
     this.keyboardLanguage = 'Русский',
     this.showTips = true,
-    this.communicationScore = 87,
-    this.matBlockedCount = 48,
-    this.toxicSoftenedCount = 23,
-    this.aiAssistCount = 31,
-    this.cleanStreakDays = 12,
-    this.cleanRecordDays = 28,
-    this.orthographyUsed = 3,
+    this.communicationScore = 100,
+    this.matBlockedCount = 0,
+    this.toxicSoftenedCount = 0,
+    this.aiAssistCount = 0,
+    this.cleanStreakDays = 0,
+    this.cleanRecordDays = 0,
+    this.orthographyUsed = 0,
     this.orthographyLimit = 10,
-    this.punctuationUsed = 5,
+    this.punctuationUsed = 0,
     this.punctuationLimit = 10,
-    this.improveTextUsed = 2,
+    this.improveTextUsed = 0,
     this.improveTextLimit = 10,
   });
 
@@ -85,6 +85,47 @@ final class CompanionPrefs {
         improveTextLimit: improveTextLimit ?? this.improveTextLimit,
       );
 
+  /// Resets dashboard counters; keeps theme, limits and other prefs.
+  CompanionPrefs withClearedStats() => copyWith(
+        communicationScore: 100,
+        matBlockedCount: 0,
+        toxicSoftenedCount: 0,
+        aiAssistCount: 0,
+        cleanStreakDays: 0,
+        cleanRecordDays: 0,
+        orthographyUsed: 0,
+        punctuationUsed: 0,
+        improveTextUsed: 0,
+      );
+
+  /// Old companion builds seeded these demo counters on first save.
+  static const legacyDemoSeed = CompanionPrefs(
+    communicationScore: 87,
+    matBlockedCount: 48,
+    toxicSoftenedCount: 23,
+    aiAssistCount: 31,
+    cleanStreakDays: 12,
+    cleanRecordDays: 28,
+    orthographyUsed: 3,
+    punctuationUsed: 5,
+    improveTextUsed: 2,
+  );
+
+  bool get isLegacyDemoSeed =>
+      communicationScore == legacyDemoSeed.communicationScore &&
+      matBlockedCount == legacyDemoSeed.matBlockedCount &&
+      toxicSoftenedCount == legacyDemoSeed.toxicSoftenedCount &&
+      aiAssistCount == legacyDemoSeed.aiAssistCount &&
+      cleanStreakDays == legacyDemoSeed.cleanStreakDays &&
+      cleanRecordDays == legacyDemoSeed.cleanRecordDays &&
+      orthographyUsed == legacyDemoSeed.orthographyUsed &&
+      punctuationUsed == legacyDemoSeed.punctuationUsed &&
+      improveTextUsed == legacyDemoSeed.improveTextUsed;
+
+  /// Drops the baked-in demo dashboard so real usage can accumulate.
+  CompanionPrefs withoutLegacyDemoSeed() =>
+      isLegacyDemoSeed ? withClearedStats() : this;
+
   Map<String, dynamic> toJson() => {
         'selectedThemeIndex': selectedThemeIndex,
         'selectedPanelColorIndex': selectedPanelColorIndex,
@@ -117,17 +158,17 @@ final class CompanionPrefs {
       panelHeight: d('panelHeight', 0.55).clamp(0.0, 1.0),
       keyboardLanguage: json['keyboardLanguage'] as String? ?? 'Русский',
       showTips: json['showTips'] as bool? ?? true,
-      communicationScore: i('communicationScore', 87).clamp(0, 100),
-      matBlockedCount: i('matBlockedCount', 48).clamp(0, 999999),
-      toxicSoftenedCount: i('toxicSoftenedCount', 23).clamp(0, 999999),
-      aiAssistCount: i('aiAssistCount', 31).clamp(0, 999999),
-      cleanStreakDays: i('cleanStreakDays', 12).clamp(0, 99999),
-      cleanRecordDays: i('cleanRecordDays', 28).clamp(0, 99999),
-      orthographyUsed: i('orthographyUsed', 3).clamp(0, 9999),
+      communicationScore: i('communicationScore', 100).clamp(0, 100),
+      matBlockedCount: i('matBlockedCount', 0).clamp(0, 999999),
+      toxicSoftenedCount: i('toxicSoftenedCount', 0).clamp(0, 999999),
+      aiAssistCount: i('aiAssistCount', 0).clamp(0, 999999),
+      cleanStreakDays: i('cleanStreakDays', 0).clamp(0, 99999),
+      cleanRecordDays: i('cleanRecordDays', 0).clamp(0, 99999),
+      orthographyUsed: i('orthographyUsed', 0).clamp(0, 9999),
       orthographyLimit: i('orthographyLimit', 10).clamp(1, 9999),
-      punctuationUsed: i('punctuationUsed', 5).clamp(0, 9999),
+      punctuationUsed: i('punctuationUsed', 0).clamp(0, 9999),
       punctuationLimit: i('punctuationLimit', 10).clamp(1, 9999),
-      improveTextUsed: i('improveTextUsed', 2).clamp(0, 9999),
+      improveTextUsed: i('improveTextUsed', 0).clamp(0, 9999),
       improveTextLimit: i('improveTextLimit', 10).clamp(1, 9999),
     );
   }

@@ -56,7 +56,45 @@ void main() {
     final prefs = CompanionPrefsRepository.parseRaw(null);
     expect(prefs.selectedThemeIndex, CompanionPrefs.defaults.selectedThemeIndex);
     expect(prefs.orthographyLimit, 10);
-    expect(CompanionPrefsRepository.parseRaw('not-json').matBlockedCount, 48);
+    expect(CompanionPrefsRepository.parseRaw('not-json').matBlockedCount, 0);
+  });
+
+  test('legacy demo seed auto-migrates to cleared stats', () {
+    final raw = jsonEncode(CompanionPrefs.legacyDemoSeed.toJson());
+    final migrated = CompanionPrefsRepository.parseRaw(raw);
+    expect(migrated.matBlockedCount, 0);
+    expect(migrated.toxicSoftenedCount, 0);
+    expect(migrated.aiAssistCount, 0);
+    expect(migrated.cleanStreakDays, 0);
+    expect(migrated.communicationScore, 100);
+    expect(migrated.orthographyUsed, 0);
+  });
+
+  test('withClearedStats zeros counters but keeps limits', () {
+    const prefs = CompanionPrefs(
+      communicationScore: 42,
+      matBlockedCount: 9,
+      toxicSoftenedCount: 4,
+      aiAssistCount: 7,
+      cleanStreakDays: 3,
+      cleanRecordDays: 11,
+      orthographyUsed: 2,
+      punctuationUsed: 5,
+      improveTextUsed: 1,
+      orthographyLimit: 15,
+    );
+    final cleared = prefs.withClearedStats();
+    expect(cleared.communicationScore, 100);
+    expect(cleared.matBlockedCount, 0);
+    expect(cleared.toxicSoftenedCount, 0);
+    expect(cleared.aiAssistCount, 0);
+    expect(cleared.cleanStreakDays, 0);
+    expect(cleared.cleanRecordDays, 0);
+    expect(cleared.orthographyUsed, 0);
+    expect(cleared.punctuationUsed, 0);
+    expect(cleared.improveTextUsed, 0);
+    expect(cleared.orthographyLimit, 15);
+    expect(cleared.selectedThemeIndex, prefs.selectedThemeIndex);
   });
 
   test('round-trip json', () {

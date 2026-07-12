@@ -129,7 +129,7 @@ class SettingsScreen extends StatelessWidget {
                       title: 'Очистить статистику',
                       titleColor: TactColors.red,
                       showChevron: false,
-                      onTap: () {},
+                      onTap: () => _confirmClearStats(context),
                     ),
                   ],
                 ),
@@ -163,6 +163,45 @@ class SettingsScreen extends StatelessWidget {
           color: TactColors.textSecondary,
           letterSpacing: 0.2,
         ),
+      ),
+    );
+  }
+
+  void _confirmClearStats(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TactColors.surfaceElevated,
+        title: const Text(
+          'Очистить статистику?',
+          style: TextStyle(color: TactColors.textPrimary),
+        ),
+        content: const Text(
+          'Сбросятся счётчики, серия и Communication Score. '
+          'Лимиты ИИ и настройки клавиатуры не изменятся.',
+          style: TextStyle(color: TactColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await state.clearAllStats();
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Статистика очищена')),
+                );
+              }
+            },
+            child: const Text(
+              'Очистить',
+              style: TextStyle(color: TactColors.red),
+            ),
+          ),
+        ],
       ),
     );
   }

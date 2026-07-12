@@ -25,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(state.refreshHotwordsCount());
+      unawaited(state.hydrate(forceRefresh: true));
     });
   }
 
@@ -64,9 +64,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _header(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
       child: Row(
         children: [
+          const Text(
+            'TACT',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: TactColors.textPrimary,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const Spacer(),
           IconButton(
             icon: const Icon(Icons.menu_rounded, color: TactColors.textPrimary),
             tooltip: 'Настройки',
@@ -77,27 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
-          ),
-          const Expanded(
-            child: Text(
-              'TACT',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: TactColors.textPrimary,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.workspace_premium_rounded,
-              color: TactColors.gold,
-              size: 26,
-            ),
-            tooltip: 'Премиум',
-            onPressed: () {},
           ),
         ],
       ),
