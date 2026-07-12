@@ -32,7 +32,7 @@ class KeyboardThemeStyle {
     keyText: Color(0xFFF2F3F5),
     keyTextMuted: Color(0xFF8B929C),
     accent: Color(0xFF2A9B8F),
-    panel: Color(0xFF161920),
+    panel: Color(0xFF12141A),
     stroke: Color(0x28FFFFFF),
   );
 
@@ -44,7 +44,7 @@ class KeyboardThemeStyle {
     keyText: Color(0xFF1F2937),
     keyTextMuted: Color(0xFF6B7280),
     accent: Color(0xFF2A9B8F),
-    panel: Color(0xFFE8EAEF),
+    panel: Color(0xFFF3F4F6),
     stroke: Color(0x22000000),
   );
 
@@ -56,7 +56,7 @@ class KeyboardThemeStyle {
     keyText: Color(0xFFF5F3FF),
     keyTextMuted: Color(0xFFA5B4FC),
     accent: Color(0xFF8B5CF6),
-    panel: Color(0xFF15132F),
+    panel: Color(0xFF1E1B4B),
     stroke: Color(0x30FFFFFF),
   );
 
@@ -68,7 +68,7 @@ class KeyboardThemeStyle {
     keyText: Color(0xFFF4F4F5),
     keyTextMuted: Color(0xFFA1A1AA),
     accent: Color(0xFF2A9B8F),
-    panel: Color(0xFF1F1F23),
+    panel: Color(0xFF27272A),
     stroke: Color(0x28FFFFFF),
   );
 

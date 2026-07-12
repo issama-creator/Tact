@@ -82,6 +82,16 @@ class KeyPreviewOverlay @JvmOverloads constructor(
     }
 
     private val textBounds = Rect()
+
+    fun refreshColors() {
+        backgroundPaint.color = Theme.COLOR_KEY_PREVIEW_BG
+        strokePaint.color = Theme.COLOR_KEY_PREVIEW_STROKE
+        previewTextPaint.color = Theme.COLOR_KEY_TEXT
+        altsPopupPaint.color = Theme.COLOR_LONGPRESS_POPUP_BG
+        altsHighlightPaint.color = Theme.COLOR_LONGPRESS_POPUP_HIGHLIGHT
+        altsTextPaint.color = Theme.COLOR_KEY_TEXT
+        invalidate()
+    }
     private val tmpRectF = RectF()
     private val tmpInvalidateRect = Rect()
 

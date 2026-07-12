@@ -62,6 +62,7 @@ class KeyboardRootView(
 
     init {
         orientation = VERTICAL
+        ThemePrefs.applyFromStorage(context)
         setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
         clipChildren = false
         clipToPadding = false
@@ -126,7 +127,19 @@ class KeyboardRootView(
         }
 
         applyAdaptiveChrome(forceLog = true)
+        applyPersistedTheme()
         Log.i(TAG, "KeyboardRootView built (flutter=${flutterView != null})")
+    }
+
+    /** Reload companion theme and push colors to keys + Flutter panel. */
+    fun applyPersistedTheme() {
+        ThemePrefs.applyFromStorage(context)
+        setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+        suggestionBarContainer?.setBackgroundColor(Theme.COLOR_PANEL_BAR_BG)
+        keyGridView.refreshColors()
+        previewOverlay.refreshColors()
+        bridge?.sendTheme()
+        bumpFlutterRender()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -374,6 +387,7 @@ class KeyboardRootView(
         }
 
         keyGridView.refreshFromState()
+        applyPersistedTheme()
     }
 
     fun onSelectionChanged(oldStart: Int, oldEnd: Int, newStart: Int, newEnd: Int) {

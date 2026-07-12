@@ -31,6 +31,8 @@ object ImeCoordinator {
         ALREADY_ACTIVE,
         SELECTED,
         PICKER_SHOWN,
+        /** Direct switch blocked — companion should open the system picker. */
+        NEEDS_PICKER,
         TACT_DISABLED,
         GBOARD_DISABLED,
         NONE_ENABLED,
@@ -204,7 +206,8 @@ object ImeCoordinator {
             return Result.ALREADY_ACTIVE
         }
         if (trySetDefault(context, imeId)) return Result.SELECTED
-        if (!showPickerOnFailure) return Result.ALREADY_ACTIVE
+        // Without WRITE_SECURE_SETTINGS Android blocks putString — never pretend success.
+        if (!showPickerOnFailure) return Result.NEEDS_PICKER
         runCatching { com.example.tact.ime.ImeSwitcher.showPicker(context) }
             .onFailure { Log.e(TAG, "showPicker failed", it) }
         return Result.PICKER_SHOWN

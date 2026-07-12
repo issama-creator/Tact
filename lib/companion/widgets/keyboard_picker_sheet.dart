@@ -95,23 +95,50 @@ class _KeyboardPickerSheetState extends State<_KeyboardPickerSheet> {
     await _load();
     if (!mounted) return;
 
+    final confirmed = wanted == 'TACT'
+        ? (_status?.isTactActive ?? false)
+        : (_status?.isGboardActive ?? false);
+
     switch (result) {
       case ImeActivateResult.alreadyActive:
       case ImeActivateResult.selected:
-        Navigator.of(context).pop();
+        if (confirmed) {
+          Navigator.of(context).pop();
+          return;
+        }
+        await _openSystemPicker(
+          'Не удалось переключить напрямую. Выберите $wanted в списке Android.',
+        );
+        return;
+      case ImeActivateResult.needsPicker:
+      case ImeActivateResult.pickerShown:
+      case ImeActivateResult.unknown:
+        await _openSystemPicker(
+          'Выберите $wanted в системном списке клавиатур.',
+        );
+        return;
       case ImeActivateResult.tactDisabled:
       case ImeActivateResult.gboardDisabled:
       case ImeActivateResult.noneEnabled:
         setState(() {
           _hint = 'Сначала разрешите $wanted в настройках Android';
         });
-      case ImeActivateResult.pickerShown:
-      case ImeActivateResult.unknown:
-        setState(() {
-          _hint =
-              'Android не дал сменить клавиатуру напрямую. '
-              'Нажмите «Все клавиатуры» ниже.';
-        });
+    }
+  }
+
+  Future<void> _openSystemPicker(String hint) async {
+    if (!mounted) return;
+    setState(() => _hint = hint);
+    await ImePlatform.showInputMethodPicker();
+    // Refresh after user may have switched in the system dialog.
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    await _load();
+    final tactOn = _status?.isTactActive ?? false;
+    final gboardOn = _status?.isGboardActive ?? false;
+    if (tactOn || gboardOn) {
+      // Keep sheet open so the new selection is visible; user can dismiss.
+      setState(() => _hint = null);
     }
   }
 

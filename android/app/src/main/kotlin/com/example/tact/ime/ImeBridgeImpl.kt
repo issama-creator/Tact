@@ -133,8 +133,9 @@ class ImeBridgeImpl(
     )
 
     private fun themePayload(): Map<String, Any?> = mapOf(
-        "background" to Theme.COLOR_KEYBOARD_BG,
+        "background" to Theme.COLOR_PANEL_BAR_BG,
         "keyText" to Theme.COLOR_KEY_TEXT,
+        "keyTextMuted" to Theme.COLOR_KEY_TEXT_MUTED,
         "accent" to Theme.COLOR_KEY_ACCENT_BG,
     )
 

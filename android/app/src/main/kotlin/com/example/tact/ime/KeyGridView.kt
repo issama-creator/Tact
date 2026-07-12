@@ -187,6 +187,26 @@ class KeyGridView @JvmOverloads constructor(
         }
     }
 
+    /** Pull active [Theme] colors into paints after companion theme change. */
+    fun refreshColors() {
+        letterKeyPaint.color = Theme.COLOR_KEY_LETTER_BG
+        letterKeyPressedPaint.color = Theme.COLOR_KEY_LETTER_BG_PRESSED
+        functionKeyPaint.color = Theme.COLOR_KEY_FUNCTION_BG
+        functionKeyPressedPaint.color = Theme.COLOR_KEY_FUNCTION_BG_PRESSED
+        accentKeyPaint.color = Theme.COLOR_KEY_ACCENT_BG
+        accentKeyPressedPaint.color = Theme.COLOR_KEY_ACCENT_BG_PRESSED
+        keyStrokePaint.color = Theme.COLOR_KEY_STROKE
+        labelPaint.color = Theme.COLOR_KEY_TEXT
+        subLabelPaint.color = Theme.COLOR_KEY_TEXT_MUTED
+        functionLabelPaint.color = Theme.COLOR_KEY_TEXT_MUTED
+        accentLabelPaint.color = Theme.COLOR_KEY_TEXT_ACCENT
+        iconPaintStroke.color = Theme.COLOR_KEY_TEXT
+        iconPaintFill.color = Theme.COLOR_KEY_TEXT
+        ripplePaint.color = Theme.COLOR_RIPPLE
+        setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
+        invalidate()
+    }
+
     fun refreshFromState() {
         // Called after state.shift / layer / language change. The pure-shift
         // case leaves the layer identical — setLayer would short-circuit —

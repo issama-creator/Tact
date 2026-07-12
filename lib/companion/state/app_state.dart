@@ -58,6 +58,9 @@ class CompanionAppState extends ChangeNotifier {
     _prefsRepo = prefsRepo;
     applyKeyboardSettings(await settingsRepo.load());
     applyCompanionPrefs(await prefsRepo.load());
+    // Seed disk so IME can read theme even before first manual change.
+    _persistCompanionPrefs();
+    _persistKeyboardModes();
     await refreshHotwordsCount();
   }
 
@@ -84,6 +87,11 @@ class CompanionAppState extends ChangeNotifier {
     matVibration = settings.matVibration;
     vibration = settings.vibration;
     sound = settings.sound;
+    // Prefer companion prefs for theme; fall back to settings if prefs missing.
+    if (_prefsRepo == null) {
+      selectedThemeIndex =
+          settings.themeIndex.clamp(0, KeyboardThemeStyle.all.length - 1);
+    }
     notifyListeners();
   }
 
@@ -117,6 +125,7 @@ class CompanionAppState extends ChangeNotifier {
         matVibration: matVibration,
         vibration: vibration,
         sound: sound,
+        themeIndex: selectedThemeIndex,
       );
 
   CompanionPrefs toCompanionPrefs() => CompanionPrefs(
@@ -185,6 +194,8 @@ class CompanionAppState extends ChangeNotifier {
     selectedThemeIndex = i.clamp(0, KeyboardThemeStyle.all.length - 1);
     notifyListeners();
     _persistCompanionPrefs();
+    // Also write themeIndex into keyboard_settings for native IME readers.
+    _persistKeyboardModes();
   }
 
   void setPanelColorIndex(int i) {

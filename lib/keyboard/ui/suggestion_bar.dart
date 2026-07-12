@@ -223,24 +223,27 @@ final class _PanelMetrics {
 
 /// Quiet brand mark for the idle suggestion strip — almost a watermark.
 class _TactBrandMark extends StatelessWidget {
-  const _TactBrandMark();
+  const _TactBrandMark({required this.onLightSurface});
 
-  static const _style = TextStyle(
-    color: Color(0x3D8B929C),
-    fontSize: 9,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 2.0,
-    height: 1.0,
-    decoration: TextDecoration.none,
-  );
+  final bool onLightSurface;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final color = onLightSurface
+        ? const Color(0x592A2E36)
+        : const Color(0x3D8B929C);
+    return Center(
       child: Text(
         'Tact',
-        key: Key('tact_brand_mark'),
-        style: _style,
+        key: const Key('tact_brand_mark'),
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 2.0,
+          height: 1.0,
+          decoration: TextDecoration.none,
+        ),
         textAlign: TextAlign.center,
       ),
     );
@@ -261,11 +264,13 @@ class SuggestionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onLight = ThemeData.estimateBrightnessForColor(backgroundColor) ==
+        Brightness.light;
     return ColoredBox(
       key: const Key('suggestion_bar_root'),
       color: backgroundColor,
       child: panel is PanelIdle
-          ? const _TactBrandMark()
+          ? _TactBrandMark(onLightSurface: onLight)
           : LayoutBuilder(
               builder: (context, constraints) {
                 final metrics = _PanelMetrics.forConstraints(constraints);
@@ -280,6 +285,7 @@ class SuggestionBar extends StatelessWidget {
                     panel: panel,
                     onAction: onAction,
                     metrics: metrics,
+                    onLightSurface: onLight,
                   ),
                 );
               },
@@ -293,14 +299,23 @@ class _PanelBody extends StatelessWidget {
     required this.panel,
     required this.onAction,
     required this.metrics,
+    required this.onLightSurface,
   });
 
   final PanelState panel;
   final Future<void> Function(PanelAction action) onAction;
   final _PanelMetrics metrics;
+  final bool onLightSurface;
 
   @override
   Widget build(BuildContext context) {
+    final chipColor = onLightSurface
+        ? const Color(0xFF4B5563)
+        : _TactPanelColors.textMuted;
+    final dividerColor = onLightSurface
+        ? const Color(0xFFD1D5DB)
+        : _TactPanelColors.suggestionDivider.withValues(alpha: 0.55);
+
     return switch (panel) {
       PanelIdle() => const SizedBox.shrink(),
       PanelUndo(:final label) => _StatusBar(
@@ -351,6 +366,8 @@ class _PanelBody extends StatelessWidget {
         ),
       PanelShortcut(:final trigger, :final expansions) => _EqualChipRow(
           metrics: metrics,
+          chipColor: chipColor,
+          dividerColor: dividerColor,
           chips: expansions
               .take(3)
               .map(
@@ -363,6 +380,8 @@ class _PanelBody extends StatelessWidget {
         ),
       PanelSuggestions(:final words) => _EqualChipRow(
           metrics: metrics,
+          chipColor: chipColor,
+          dividerColor: dividerColor,
           chips: words
               .take(3)
               .map(
@@ -724,10 +743,17 @@ class _ChipRow extends StatelessWidget {
 
 /// Gboard-style: equal columns, hairline ticks, full-bleed strip.
 class _EqualChipRow extends StatelessWidget {
-  const _EqualChipRow({required this.chips, required this.metrics});
+  const _EqualChipRow({
+    required this.chips,
+    required this.metrics,
+    required this.chipColor,
+    required this.dividerColor,
+  });
 
   final List<_ChipData> chips;
   final _PanelMetrics metrics;
+  final Color chipColor;
+  final Color dividerColor;
 
   @override
   Widget build(BuildContext context) {
@@ -736,11 +762,13 @@ class _EqualChipRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < chips.length; i++) ...[
-          if (i > 0) _SuggestionDivider(inset: metrics.dividerInset + 2),
+          if (i > 0)
+            _SuggestionDivider(inset: metrics.dividerInset + 2, color: dividerColor),
           Expanded(
             child: _EqualSuggestionSlot(
               chip: chips[i],
               metrics: metrics,
+              textColor: chipColor,
             ),
           ),
         ],
@@ -751,9 +779,10 @@ class _EqualChipRow extends StatelessWidget {
 
 /// Short vertical tick — inset so it doesn't span the full bar height.
 class _SuggestionDivider extends StatelessWidget {
-  const _SuggestionDivider({required this.inset});
+  const _SuggestionDivider({required this.inset, required this.color});
 
   final double inset;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -762,16 +791,21 @@ class _SuggestionDivider extends StatelessWidget {
       thickness: 1,
       indent: inset,
       endIndent: inset,
-      color: _TactPanelColors.suggestionDivider.withValues(alpha: 0.55),
+      color: color,
     );
   }
 }
 
 class _EqualSuggestionSlot extends StatelessWidget {
-  const _EqualSuggestionSlot({required this.chip, required this.metrics});
+  const _EqualSuggestionSlot({
+    required this.chip,
+    required this.metrics,
+    required this.textColor,
+  });
 
   final _ChipData chip;
   final _PanelMetrics metrics;
+  final Color textColor;
 
   @override
   Widget build(BuildContext context) {
@@ -787,7 +821,7 @@ class _EqualSuggestionSlot extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: _PanelText(
                 chip.label,
-                style: metrics.chipStyle,
+                style: metrics.chipStyle.copyWith(color: textColor),
               ),
             ),
           ),

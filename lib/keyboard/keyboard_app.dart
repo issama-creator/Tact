@@ -207,7 +207,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
             return RepaintBoundary(
               child: SuggestionBar(
                 panel: _panel.value,
-                backgroundColor: KeyboardTheme.panelBarBackground,
+                backgroundColor: _backgroundColor,
                 onAction: _onPanelTap,
               ),
             );
