@@ -40,6 +40,17 @@ abstract final class ImePlatform {
   static Future<void> showInputMethodPicker() =>
       _channel.invokeMethod<void>('showInputMethodPicker');
 
+  /// Ask the running IME to reload theme from SharedPreferences.
+  static Future<void> notifyThemeChanged() async {
+    try {
+      await _channel.invokeMethod<void>('notifyThemeChanged');
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[TACT] notifyThemeChanged failed: $e\n$st');
+      }
+    }
+  }
+
   static Future<ImeActivateResult> activateTact({
     bool showPicker = false,
   }) async {

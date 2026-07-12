@@ -62,13 +62,15 @@ class KeyboardRootView(
 
     init {
         orientation = VERTICAL
-        ThemePrefs.applyFromStorage(context)
-        setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
         clipChildren = false
         clipToPadding = false
 
         val cfg = context.resources.configuration
         val barHeight = metrics.dpInt(Theme.suggestionBarHeightDp(cfg))
+
+        // Apply theme before building children so paints pick correct colors.
+        ThemePrefs.applyFromStorage(context)
+        setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
 
         val barContainer = FrameLayout(context).apply {
             setBackgroundColor(Theme.COLOR_PANEL_BAR_BG)
@@ -127,13 +129,20 @@ class KeyboardRootView(
         }
 
         applyAdaptiveChrome(forceLog = true)
-        applyPersistedTheme()
+        // Colors already applied above; only push theme to Flutter bridge.
+        bridge?.sendTheme()
         Log.i(TAG, "KeyboardRootView built (flutter=${flutterView != null})")
     }
 
-    /** Reload companion theme and push colors to keys + Flutter panel. */
+    /** Reload companion theme only when the stored index changed. */
     fun applyPersistedTheme() {
+        val before = Theme.activeIndex
         ThemePrefs.applyFromStorage(context)
+        if (before == Theme.activeIndex && Theme.colorsApplied) {
+            // Still refresh Flutter once if bridge attached late.
+            bridge?.sendTheme()
+            return
+        }
         setBackgroundColor(Theme.COLOR_KEYBOARD_BG)
         suggestionBarContainer?.setBackgroundColor(Theme.COLOR_PANEL_BAR_BG)
         keyGridView.refreshColors()

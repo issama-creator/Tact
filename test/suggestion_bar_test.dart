@@ -18,7 +18,7 @@ Future<void> _pumpBar(
           height: 38,
           child: SuggestionBar(
             panel: panel,
-            backgroundColor: KeyboardTheme.panelBarBackground,
+            surface: KeyboardSurfaceTheme.defaults,
             onAction: (_) async {},
           ),
         ),
@@ -64,7 +64,7 @@ void main() {
             height: 38,
             child: SuggestionBar(
               panel: const PanelMat(word: 'хуй', range: EditRange(0, 3)),
-              backgroundColor: KeyboardTheme.panelBarBackground,
+              surface: KeyboardSurfaceTheme.defaults,
               onAction: (_) async {},
             ),
           ),
@@ -143,7 +143,7 @@ void main() {
                 expansions: ['Добрый день'],
                 range: EditRange(0, 2),
               ),
-              backgroundColor: KeyboardTheme.panelBarBackground,
+              surface: KeyboardSurfaceTheme.defaults,
               onAction: (_) async {},
             ),
           ),

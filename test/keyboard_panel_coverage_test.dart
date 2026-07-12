@@ -62,7 +62,7 @@ Future<void> _pumpInChrome(
         barHeight: barHeight,
         panelSlot: SuggestionBar(
           panel: panel,
-          backgroundColor: KeyboardTheme.panelBarBackground,
+          surface: KeyboardSurfaceTheme.defaults,
           onAction: (_) async {},
         ),
       ),

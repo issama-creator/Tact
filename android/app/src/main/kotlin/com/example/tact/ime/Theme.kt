@@ -1,6 +1,7 @@
 package com.example.tact.ime
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.util.DisplayMetrics
@@ -38,11 +39,15 @@ object Theme {
     @JvmField var COLOR_LONGPRESS_POPUP_HIGHLIGHT: Int = COLOR_KEY_ACCENT_BG
     const val COLOR_TRANSPARENT: Int = Color.TRANSPARENT
 
-    @JvmField var activeIndex: Int = 0
+    @JvmField var activeIndex: Int = -1
+    @JvmField var colorsApplied: Boolean = false
 
     /** Matches companion KeyboardThemeStyle.all order. */
     fun applyIndex(index: Int) {
-        activeIndex = index.coerceIn(0, 3)
+        val next = index.coerceIn(0, 3)
+        if (next == activeIndex && colorsApplied) return
+        activeIndex = next
+        colorsApplied = true
         when (activeIndex) {
             0 -> applyPalette(
                 keyboardBg = 0xFF12141A.toInt(),
@@ -213,6 +218,17 @@ object Theme {
 
     fun keyLabelTextSizeSp(configuration: Configuration): Float =
         KeyboardSizing.keyLabelTextSizeSp(configuration)
+}
+
+/** Companion → IME theme refresh without refocusing the text field. */
+object ThemeChangeBus {
+    const val ACTION = "com.example.tact.action.THEME_CHANGED"
+
+    fun notify(context: Context) {
+        context.sendBroadcast(
+            Intent(ACTION).setPackage(context.packageName),
+        )
+    }
 }
 
 /** Reads companion theme index from Flutter SharedPreferences. */

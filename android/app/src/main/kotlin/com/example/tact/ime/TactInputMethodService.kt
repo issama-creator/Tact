@@ -1,8 +1,13 @@
 package com.example.tact.ime
 
+import android.content.BroadcastReceiver
 import android.content.ComponentCallbacks2
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -25,6 +30,14 @@ class TactInputMethodService : InputMethodService() {
     private lateinit var haptics: KeyboardHaptics
     private var bridge: ImeBridgeImpl? = null
     private var rootView: KeyboardRootView? = null
+    private var themeReceiverRegistered = false
+
+    private val themeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ThemeChangeBus.ACTION) return
+            rootView?.applyPersistedTheme()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -33,7 +46,30 @@ class TactInputMethodService : InputMethodService() {
         // Release only — mirrors Application prewarm when the IME process
         // path is the first thing the user hits after install.
         FlutterEngineHost.tryEagerPrewarm(applicationContext)
+        registerThemeReceiver()
         Log.i(TAG, "IME service created")
+    }
+
+    private fun registerThemeReceiver() {
+        if (themeReceiverRegistered) return
+        val filter = IntentFilter(ThemeChangeBus.ACTION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(themeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(themeReceiver, filter)
+        }
+        themeReceiverRegistered = true
+    }
+
+    private fun unregisterThemeReceiver() {
+        if (!themeReceiverRegistered) return
+        try {
+            unregisterReceiver(themeReceiver)
+        } catch (_: Throwable) {
+            // Already unregistered.
+        }
+        themeReceiverRegistered = false
     }
 
     override fun onCreateInputView(): View {
@@ -96,6 +132,7 @@ class TactInputMethodService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        unregisterThemeReceiver()
         rootView?.teardown()
         bridge?.dispose()
         bridge = null

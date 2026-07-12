@@ -7,6 +7,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import com.example.tact.ime.FlutterEngineHost
+import com.example.tact.ime.ThemeChangeBus
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -82,6 +83,10 @@ class MainActivity : FlutterActivity() {
                                 showPickerOnFailure = showPicker,
                             ).name.lowercase(),
                         )
+                    }
+                    "notifyThemeChanged" -> {
+                        ThemeChangeBus.notify(this)
+                        result.success(null)
                     }
                     else -> result.notImplemented()
                 }

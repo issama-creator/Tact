@@ -49,13 +49,16 @@ class _KeyboardAppState extends State<KeyboardApp> {
   /// Panel-only listenable — updates never call [setState] on the app shell.
   final ValueNotifier<PanelState> _panel =
       ValueNotifier<PanelState>(const PanelIdle());
-  Color _backgroundColor = KeyboardTheme.keyboardBackground;
+  KeyboardSurfaceTheme _surface = KeyboardSurfaceTheme.defaults;
 
   @override
   void initState() {
     super.initState();
     _bridge = ImeBridge();
-    _bridge.onThemeArgb = (argb) => _onTheme(Color(argb & 0xFFFFFFFF));
+    _bridge.onThemePalette = _onThemePalette;
+    _bridge.onThemeArgb = (argb) {
+      // Legacy path — background only if palette callback not used.
+    };
     _undoTracker = UndoTracker();
     _undoStack = UndoStack();
     _engine = LocalIntelligenceEngine(undo: _undoTracker);
@@ -168,10 +171,29 @@ class _KeyboardAppState extends State<KeyboardApp> {
     });
   }
 
+  void _onThemePalette(Map<String, dynamic> map) {
+    if (!mounted) return;
+    final next = KeyboardSurfaceTheme.fromArgbMap(map);
+    if (next.background == _surface.background &&
+        next.accent == _surface.accent &&
+        next.keyText == _surface.keyText) {
+      return;
+    }
+    setState(() => _surface = next);
+    _scheduleRepaint();
+  }
+
   void _onTheme(Color color) {
     if (!mounted) return;
-    if (_backgroundColor.value == color.value) return;
-    setState(() => _backgroundColor = color);
+    if (_surface.background.value == color.value) return;
+    setState(() {
+      _surface = KeyboardSurfaceTheme(
+        background: color,
+        accent: _surface.accent,
+        keyText: _surface.keyText,
+        keyTextMuted: _surface.keyTextMuted,
+      );
+    });
     _scheduleRepaint();
   }
 
@@ -199,7 +221,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
     // Shell is stable on panel changes — only [ListenableBuilder] subtree rebuilds.
     return ColoredBox(
       key: const Key('keyboard_app_shell'),
-      color: _backgroundColor,
+      color: _surface.background,
       child: SizedBox.expand(
         child: ListenableBuilder(
           listenable: _panel,
@@ -207,7 +229,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
             return RepaintBoundary(
               child: SuggestionBar(
                 panel: _panel.value,
-                backgroundColor: _backgroundColor,
+                surface: _surface,
                 onAction: _onPanelTap,
               ),
             );

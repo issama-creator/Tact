@@ -101,6 +101,7 @@ class ImeBridge {
   final StreamController<void> _textEdits = StreamController.broadcast();
 
   void Function(int argb)? onThemeArgb;
+  void Function(Map<String, dynamic> palette)? onThemePalette;
   void Function()? onInputViewStarted;
   void Function()? onFieldFinished;
 
@@ -325,6 +326,7 @@ class ImeBridge {
   void _handleTheme(Object? arguments) {
     final map = _asMap(arguments);
     if (map == null) return;
+    onThemePalette?.call(map);
     final bg = map['background'];
     final int? argb = switch (bg) {
       final int v => v,

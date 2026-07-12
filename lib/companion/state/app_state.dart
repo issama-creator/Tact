@@ -8,6 +8,7 @@ import '../../core/hotwords/hotwords_repository.dart';
 import '../../core/keyboard_settings/keyboard_settings.dart';
 import '../../core/keyboard_settings/keyboard_settings_repository.dart';
 import '../appearance/keyboard_theme.dart';
+import '../platform/ime_platform.dart';
 
 /// Companion UI state — loads/saves modes, theme, stats and limits locally.
 class CompanionAppState extends ChangeNotifier {
@@ -56,12 +57,18 @@ class CompanionAppState extends ChangeNotifier {
   }) async {
     _settingsRepo = settingsRepo;
     _prefsRepo = prefsRepo;
-    applyKeyboardSettings(await settingsRepo.load());
-    applyCompanionPrefs(await prefsRepo.load());
-    // Seed disk so IME can read theme even before first manual change.
-    _persistCompanionPrefs();
-    _persistKeyboardModes();
-    await refreshHotwordsCount();
+    final settings = await settingsRepo.load();
+    final prefs = await prefsRepo.load();
+    applyKeyboardSettings(settings, notify: false);
+    applyCompanionPrefs(prefs, notify: false);
+    // Seed only when prefs were never written (IME needs theme on disk).
+    final raw = await prefsRepo.peekRaw();
+    if (raw == null || raw.isEmpty) {
+      _persistCompanionPrefs();
+      _persistKeyboardModes();
+    }
+    await refreshHotwordsCount(notify: false);
+    notifyListeners();
   }
 
   /// Backward-compatible entry used by older call sites.
@@ -70,16 +77,16 @@ class CompanionAppState extends ChangeNotifier {
     await bindRepositories(settingsRepo: repo, prefsRepo: prefs);
   }
 
-  Future<void> refreshHotwordsCount() async {
+  Future<void> refreshHotwordsCount({bool notify = true}) async {
     try {
       await HotwordsRepository.open();
       final all = await HotwordsRepository.instance.loadAll();
       hotwordsCount = all.length;
-      notifyListeners();
+      if (notify) notifyListeners();
     } catch (_) {}
   }
 
-  void applyKeyboardSettings(KeyboardSettings settings) {
+  void applyKeyboardSettings(KeyboardSettings settings, {bool notify = true}) {
     antiMat = settings.antiMat;
     antiToxic = settings.antiToxic;
     aiAssistant = settings.aiAssistant;
@@ -92,10 +99,10 @@ class CompanionAppState extends ChangeNotifier {
       selectedThemeIndex =
           settings.themeIndex.clamp(0, KeyboardThemeStyle.all.length - 1);
     }
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
-  void applyCompanionPrefs(CompanionPrefs prefs) {
+  void applyCompanionPrefs(CompanionPrefs prefs, {bool notify = true}) {
     selectedThemeIndex =
         prefs.selectedThemeIndex.clamp(0, KeyboardThemeStyle.all.length - 1);
     selectedPanelColorIndex = prefs.selectedPanelColorIndex;
@@ -114,7 +121,7 @@ class CompanionAppState extends ChangeNotifier {
     punctuationLimit = prefs.punctuationLimit;
     improveTextUsed = prefs.improveTextUsed;
     improveTextLimit = prefs.improveTextLimit;
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
   KeyboardSettings toKeyboardSettings() => KeyboardSettings(
@@ -193,9 +200,19 @@ class CompanionAppState extends ChangeNotifier {
   void setThemeIndex(int i) {
     selectedThemeIndex = i.clamp(0, KeyboardThemeStyle.all.length - 1);
     notifyListeners();
-    _persistCompanionPrefs();
-    // Also write themeIndex into keyboard_settings for native IME readers.
-    _persistKeyboardModes();
+    unawaited(_persistThemeAndNotifyIme());
+  }
+
+  Future<void> _persistThemeAndNotifyIme() async {
+    final prefs = _prefsRepo;
+    final settings = _settingsRepo;
+    if (prefs != null) {
+      await prefs.save(toCompanionPrefs());
+    }
+    if (settings != null) {
+      await settings.save(toKeyboardSettings());
+    }
+    await ImePlatform.notifyThemeChanged();
   }
 
   void setPanelColorIndex(int i) {

@@ -92,12 +92,10 @@ class _KeyboardPickerSheetState extends State<_KeyboardPickerSheet> {
 
   Future<void> _finish(ImeActivateResult result, {required String wanted}) async {
     widget.onChanged?.call();
-    await _load();
-    if (!mounted) return;
 
-    final confirmed = wanted == 'TACT'
-        ? (_status?.isTactActive ?? false)
-        : (_status?.isGboardActive ?? false);
+    // Secure Settings can lag — poll a few times before treating as failure.
+    final confirmed = await _waitUntilActive(wanted);
+    if (!mounted) return;
 
     switch (result) {
       case ImeActivateResult.alreadyActive:
@@ -113,6 +111,12 @@ class _KeyboardPickerSheetState extends State<_KeyboardPickerSheet> {
       case ImeActivateResult.needsPicker:
       case ImeActivateResult.pickerShown:
       case ImeActivateResult.unknown:
+        // One more short poll — sometimes status flips after needs_picker.
+        if (await _waitUntilActive(wanted, attempts: 3, stepMs: 120)) {
+          if (!mounted) return;
+          Navigator.of(context).pop();
+          return;
+        }
         await _openSystemPicker(
           'Выберите $wanted в системном списке клавиатур.',
         );
@@ -124,6 +128,26 @@ class _KeyboardPickerSheetState extends State<_KeyboardPickerSheet> {
           _hint = 'Сначала разрешите $wanted в настройках Android';
         });
     }
+  }
+
+  /// Polls [getImeStatus] until [wanted] is active or attempts are exhausted.
+  Future<bool> _waitUntilActive(
+    String wanted, {
+    int attempts = 6,
+    int stepMs = 150,
+  }) async {
+    for (var i = 0; i < attempts; i++) {
+      await _load();
+      if (!mounted) return false;
+      final ok = wanted == 'TACT'
+          ? (_status?.isTactActive ?? false)
+          : (_status?.isGboardActive ?? false);
+      if (ok) return true;
+      if (i < attempts - 1) {
+        await Future<void>.delayed(Duration(milliseconds: stepMs));
+      }
+    }
+    return false;
   }
 
   Future<void> _openSystemPicker(String hint) async {

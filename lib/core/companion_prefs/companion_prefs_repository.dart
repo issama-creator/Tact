@@ -35,9 +35,11 @@ final class CompanionPrefsRepository {
 
   Future<void> refresh() => _store.refreshFromDisk();
 
+  Future<String?> peekRaw() => _store.getString(storageKey);
+
   Future<CompanionPrefs> load({bool refreshFromDisk = true}) async {
     if (refreshFromDisk) await refresh();
-    final raw = await _store.getString(storageKey);
+    final raw = await peekRaw();
     return parseRaw(raw);
   }
 

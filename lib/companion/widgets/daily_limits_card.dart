@@ -24,7 +24,7 @@ class _DailyLimitsCardState extends State<DailyLimitsCard> {
   void initState() {
     super.initState();
     _untilReset = _remainingToday();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (!mounted) return;
       setState(() => _untilReset = _remainingToday());
     });
@@ -45,8 +45,7 @@ class _DailyLimitsCardState extends State<DailyLimitsCard> {
   static String _formatDuration(Duration d) {
     final h = d.inHours.toString().padLeft(2, '0');
     final m = (d.inMinutes % 60).toString().padLeft(2, '0');
-    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    return '$h:$m:$s';
+    return '$h:$m';
   }
 
   @override

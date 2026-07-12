@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../actions/local_text_transform.dart';
 import '../panel/panel_state.dart';
 import '../rules/rule_signal.dart';
+import '../theme/keyboard_theme.dart';
 import 'panel_actions.dart';
 
 /// Soft dark tokens — same family as keyboard, low-contrast alerts.
@@ -254,21 +255,20 @@ class SuggestionBar extends StatelessWidget {
   const SuggestionBar({
     super.key,
     required this.panel,
-    required this.backgroundColor,
+    required this.surface,
     required this.onAction,
   });
 
   final PanelState panel;
-  final Color backgroundColor;
+  final KeyboardSurfaceTheme surface;
   final Future<void> Function(PanelAction action) onAction;
 
   @override
   Widget build(BuildContext context) {
-    final onLight = ThemeData.estimateBrightnessForColor(backgroundColor) ==
-        Brightness.light;
+    final onLight = surface.isLight;
     return ColoredBox(
       key: const Key('suggestion_bar_root'),
-      color: backgroundColor,
+      color: surface.background,
       child: panel is PanelIdle
           ? _TactBrandMark(onLightSurface: onLight)
           : LayoutBuilder(
@@ -286,6 +286,7 @@ class SuggestionBar extends StatelessWidget {
                     onAction: onAction,
                     metrics: metrics,
                     onLightSurface: onLight,
+                    surface: surface,
                   ),
                 );
               },
@@ -300,26 +301,27 @@ class _PanelBody extends StatelessWidget {
     required this.onAction,
     required this.metrics,
     required this.onLightSurface,
+    required this.surface,
   });
 
   final PanelState panel;
   final Future<void> Function(PanelAction action) onAction;
   final _PanelMetrics metrics;
   final bool onLightSurface;
+  final KeyboardSurfaceTheme surface;
 
   @override
   Widget build(BuildContext context) {
-    final chipColor = onLightSurface
-        ? const Color(0xFF4B5563)
-        : _TactPanelColors.textMuted;
-    final dividerColor = onLightSurface
-        ? const Color(0xFFD1D5DB)
-        : _TactPanelColors.suggestionDivider.withValues(alpha: 0.55);
+    final chipColor =
+        onLightSurface ? const Color(0xFF4B5563) : surface.keyTextMuted;
+    final dividerColor = surface.divider.withValues(alpha: onLightSurface ? 1 : 0.55);
+    final brand = surface.accent;
 
     return switch (panel) {
       PanelIdle() => const SizedBox.shrink(),
       PanelUndo(:final label) => _StatusBar(
           accent: _TactPanelColors.undo,
+          brandAccent: brand,
           icon: Icons.check_circle_outline,
           title: label,
           actionLabel: 'Отменить',
@@ -328,6 +330,7 @@ class _PanelBody extends StatelessWidget {
         ),
       PanelMat p => _StatusBar(
           accent: _TactPanelColors.mat,
+          brandAccent: brand,
           icon: Icons.block,
           title: 'Мат',
           subtitle: LocalTextTransform.censorForDisplay(p.word),
@@ -337,6 +340,7 @@ class _PanelBody extends StatelessWidget {
         ),
       PanelToxic p => _StatusBar(
           accent: _TactPanelColors.toxic,
+          brandAccent: brand,
           icon: Icons.warning_amber_rounded,
           title: p.level == ToxicLevel.conflict ? 'Конфликт' : 'Токсично',
           subtitle: LocalTextTransform.censorForDisplay(p.word),
@@ -345,7 +349,8 @@ class _PanelBody extends StatelessWidget {
           onAction: () => onAction(PanelActionSoftenToxic(panel: p)),
         ),
       PanelImprove() => _StatusBar(
-          accent: _TactPanelColors.improve,
+          accent: brand,
+          brandAccent: brand,
           icon: Icons.auto_awesome,
           title: 'Можно улучшить',
           actionLabel: 'Улучшить',
@@ -354,6 +359,9 @@ class _PanelBody extends StatelessWidget {
         ),
       PanelAiAssist() => _AiAssistBar(
           metrics: metrics,
+          brandAccent: brand,
+          chipBg: surface.chipBg,
+          textColor: surface.keyText,
           onOrthography: () => onAction(
             const PanelActionAiAssist(chip: AiAssistChip.orthography),
           ),
@@ -422,6 +430,7 @@ class _PanelText extends StatelessWidget {
 class _StatusBar extends StatelessWidget {
   const _StatusBar({
     required this.accent,
+    required this.brandAccent,
     required this.icon,
     required this.title,
     this.subtitle,
@@ -431,6 +440,7 @@ class _StatusBar extends StatelessWidget {
   });
 
   final Color accent;
+  final Color brandAccent;
   final IconData icon;
   final String title;
   final String? subtitle;
@@ -466,6 +476,7 @@ class _StatusBar extends StatelessWidget {
               _PanelActionButton(
                 label: actionLabel,
                 metrics: m,
+                brandAccent: brandAccent,
                 onTap: onAction!,
               ),
             ],
@@ -542,11 +553,13 @@ class _PanelActionButton extends StatelessWidget {
   const _PanelActionButton({
     required this.label,
     required this.metrics,
+    required this.brandAccent,
     required this.onTap,
   });
 
   final String label;
   final _PanelMetrics metrics;
+  final Color brandAccent;
   final VoidCallback onTap;
 
   @override
@@ -561,10 +574,10 @@ class _PanelActionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(metrics.radius * 0.7),
           child: Ink(
             decoration: BoxDecoration(
-              color: _TactPanelColors.action.withValues(alpha: 0.22),
+              color: brandAccent.withValues(alpha: 0.22),
               borderRadius: BorderRadius.circular(metrics.radius * 0.7),
               border: Border.all(
-                color: _TactPanelColors.action.withValues(alpha: 0.45),
+                color: brandAccent.withValues(alpha: 0.45),
               ),
             ),
             child: Padding(
@@ -597,12 +610,18 @@ final class _ChipData {
 class _AiAssistBar extends StatelessWidget {
   const _AiAssistBar({
     required this.metrics,
+    required this.brandAccent,
+    required this.chipBg,
+    required this.textColor,
     required this.onOrthography,
     required this.onPunctuation,
     required this.onImprove,
   });
 
   final _PanelMetrics metrics;
+  final Color brandAccent;
+  final Color chipBg;
+  final Color textColor;
   final VoidCallback onOrthography;
   final VoidCallback onPunctuation;
   final VoidCallback onImprove;
@@ -614,10 +633,10 @@ class _AiAssistBar extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
           decoration: BoxDecoration(
-            color: _TactPanelColors.improve.withValues(alpha: 0.18),
+            color: brandAccent.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(metrics.radius * 0.7),
             border: Border.all(
-              color: _TactPanelColors.improve.withValues(alpha: 0.4),
+              color: brandAccent.withValues(alpha: 0.4),
             ),
           ),
           child: Row(
@@ -626,13 +645,13 @@ class _AiAssistBar extends StatelessWidget {
               Icon(
                 Icons.auto_awesome,
                 size: metrics.iconSize * 0.85,
-                color: _TactPanelColors.improve,
+                color: brandAccent,
               ),
               const SizedBox(width: 4),
               Text(
                 'ИИ',
                 style: TextStyle(
-                  color: _TactPanelColors.improve,
+                  color: brandAccent,
                   fontSize: metrics.actionFontSize,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.4,
@@ -651,18 +670,27 @@ class _AiAssistBar extends StatelessWidget {
                 _AiActionPill(
                   label: PanelAiAssist.chipLabels[0],
                   metrics: metrics,
+                  brandAccent: brandAccent,
+                  chipBg: chipBg,
+                  textColor: textColor,
                   onTap: onOrthography,
                 ),
                 SizedBox(width: metrics.gap),
                 _AiActionPill(
                   label: PanelAiAssist.chipLabels[1],
                   metrics: metrics,
+                  brandAccent: brandAccent,
+                  chipBg: chipBg,
+                  textColor: textColor,
                   onTap: onPunctuation,
                 ),
                 SizedBox(width: metrics.gap),
                 _AiActionPill(
                   label: PanelAiAssist.chipLabels[2],
                   metrics: metrics,
+                  brandAccent: brandAccent,
+                  chipBg: chipBg,
+                  textColor: textColor,
                   onTap: onImprove,
                 ),
               ],
@@ -678,11 +706,17 @@ class _AiActionPill extends StatelessWidget {
   const _AiActionPill({
     required this.label,
     required this.metrics,
+    required this.brandAccent,
+    required this.chipBg,
+    required this.textColor,
     required this.onTap,
   });
 
   final String label;
   final _PanelMetrics metrics;
+  final Color brandAccent;
+  final Color chipBg;
+  final Color textColor;
   final VoidCallback onTap;
 
   @override
@@ -697,10 +731,10 @@ class _AiActionPill extends StatelessWidget {
           borderRadius: BorderRadius.circular(metrics.radius * 0.7),
           child: Ink(
             decoration: BoxDecoration(
-              color: _TactPanelColors.chipBg,
+              color: chipBg,
               borderRadius: BorderRadius.circular(metrics.radius * 0.7),
               border: Border.all(
-                color: _TactPanelColors.improve.withValues(alpha: 0.35),
+                color: brandAccent.withValues(alpha: 0.35),
               ),
             ),
             child: Padding(
@@ -711,7 +745,7 @@ class _AiActionPill extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  color: _TactPanelColors.text,
+                  color: textColor,
                   fontSize: metrics.chipFontSize.clamp(11, 13).toDouble(),
                   fontWeight: FontWeight.w600,
                   decoration: TextDecoration.none,
