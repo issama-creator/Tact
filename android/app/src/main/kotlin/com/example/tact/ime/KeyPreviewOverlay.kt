@@ -82,6 +82,8 @@ class KeyPreviewOverlay @JvmOverloads constructor(
     }
 
     private val textBounds = Rect()
+    private val tmpRectF = RectF()
+    private val tmpInvalidateRect = Rect()
 
     // ── Animators ─────────────────────────────────────────────────────
 
@@ -92,6 +94,21 @@ class KeyPreviewOverlay @JvmOverloads constructor(
         setWillNotDraw(false)
         isClickable = false
         isFocusable = false
+        applyScaledChrome()
+    }
+
+    /** Refresh paint sizes after orientation / density change. */
+    fun onAdaptiveMetricsChanged() {
+        applyScaledChrome()
+        if (altsVisible) computeAltsGeometry()
+        invalidate()
+    }
+
+    private fun applyScaledChrome() {
+        val cfg = resources.configuration
+        strokePaint.strokeWidth = metrics.dp(KeyboardSizing.keyPreviewStrokeWidthDp(cfg))
+        previewTextPaint.textSize = metrics.sp(KeyboardSizing.keyPreviewTextSizeSp(cfg))
+        altsTextPaint.textSize = metrics.sp(KeyboardSizing.longPressPopupTextSizeSp(cfg))
     }
 
     // ── Public API ────────────────────────────────────────────────────
@@ -178,14 +195,15 @@ class KeyPreviewOverlay @JvmOverloads constructor(
     }
 
     private fun drawPreview(canvas: Canvas) {
-        val height = metrics.dp(Theme.KEY_PREVIEW_HEIGHT_DP)
-        val lift = metrics.dp(Theme.KEY_PREVIEW_LIFT_DP)
-        val width = maxOf(previewKeyRect.width() * 1.15f, metrics.dp(48f))
+        val cfg = resources.configuration
+        val height = metrics.dp(KeyboardSizing.keyPreviewHeightDp(cfg))
+        val lift = metrics.dp(KeyboardSizing.keyPreviewLiftDp(cfg))
+        val width = maxOf(previewKeyRect.width() * 1.15f, metrics.dp(48f * KeyboardSizing.keyboardScale(cfg)))
         val cx = previewKeyRect.centerX()
         val top = previewKeyRect.top - height - lift
         val left = cx - width / 2f
         val rect = tmpRectF.also { it.set(left, top, left + width, top + height) }
-        val radius = metrics.dp(Theme.KEY_PREVIEW_CORNER_RADIUS_DP)
+        val radius = metrics.dp(KeyboardSizing.keyPreviewCornerRadiusDp(cfg))
 
         val saved = canvas.saveLayerAlpha(rect, (previewAlpha * 255).toInt())
         canvas.drawRoundRect(rect, radius, radius, backgroundPaint)
@@ -196,12 +214,13 @@ class KeyPreviewOverlay @JvmOverloads constructor(
     }
 
     private fun drawAlternatives(canvas: Canvas) {
-        val radius = metrics.dp(Theme.LONGPRESS_POPUP_CORNER_RADIUS_DP)
+        val cfg = resources.configuration
+        val radius = metrics.dp(KeyboardSizing.longPressPopupCornerRadiusDp(cfg))
         val saved = canvas.saveLayerAlpha(altsPopupRect, (altsAlpha * 255).toInt())
         canvas.drawRoundRect(altsPopupRect, radius, radius, altsPopupPaint)
 
         val itemWidth = altsPopupRect.width() / altsLabels.size
-        val itemPadding = metrics.dp(Theme.LONGPRESS_POPUP_PADDING_DP)
+        val itemPadding = metrics.dp(KeyboardSizing.longPressPopupPaddingDp(cfg))
         for (i in altsLabels.indices) {
             val itemLeft = altsPopupRect.left + i * itemWidth
             altsItemRect.set(
@@ -224,9 +243,10 @@ class KeyPreviewOverlay @JvmOverloads constructor(
     // ── Geometry ──────────────────────────────────────────────────────
 
     private fun computeAltsGeometry() {
-        val itemW = metrics.dp(Theme.LONGPRESS_POPUP_ITEM_WIDTH_DP)
-        val itemH = metrics.dp(Theme.LONGPRESS_POPUP_ITEM_HEIGHT_DP)
-        val padding = metrics.dp(Theme.LONGPRESS_POPUP_PADDING_DP)
+        val cfg = resources.configuration
+        val itemW = metrics.dp(KeyboardSizing.longPressPopupItemWidthDp(cfg))
+        val itemH = metrics.dp(KeyboardSizing.longPressPopupItemHeightDp(cfg))
+        val padding = metrics.dp(KeyboardSizing.longPressPopupPaddingDp(cfg))
         val count = altsLabels.size
         val totalW = itemW * count + padding * 2f
         val totalH = itemH + padding * 2f
@@ -245,16 +265,17 @@ class KeyPreviewOverlay @JvmOverloads constructor(
             left = viewWidth - totalW
         }
 
-        val bottom = altsAnchorRect.top - metrics.dp(Theme.KEY_PREVIEW_LIFT_DP)
+        val bottom = altsAnchorRect.top - metrics.dp(KeyboardSizing.keyPreviewLiftDp(cfg))
         val top = bottom - totalH
 
         altsPopupRect.set(left, top, right, bottom)
     }
 
     private fun previewInvalidateRect(): Rect {
-        val height = metrics.dp(Theme.KEY_PREVIEW_HEIGHT_DP)
-        val lift = metrics.dp(Theme.KEY_PREVIEW_LIFT_DP)
-        val width = maxOf(previewKeyRect.width() * 1.15f, metrics.dp(48f))
+        val cfg = resources.configuration
+        val height = metrics.dp(KeyboardSizing.keyPreviewHeightDp(cfg))
+        val lift = metrics.dp(KeyboardSizing.keyPreviewLiftDp(cfg))
+        val width = maxOf(previewKeyRect.width() * 1.15f, metrics.dp(48f * KeyboardSizing.keyboardScale(cfg)))
         val cx = previewKeyRect.centerX()
         val top = previewKeyRect.top - height - lift
         val left = cx - width / 2f
@@ -333,7 +354,5 @@ class KeyPreviewOverlay @JvmOverloads constructor(
 
     // ── Reused temporaries (avoid allocations in onDraw / invalidate) ─
 
-    private val tmpRectF = RectF()
-    private val tmpInvalidateRect = Rect()
     private val decelerate = DecelerateInterpolator()
 }

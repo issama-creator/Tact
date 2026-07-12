@@ -9,14 +9,9 @@ import android.view.View
 /**
  * Static Material 3 dark theme for the TACT keyboard surface.
  *
- * A deliberately fixed dark palette for MVP. Theme switching is a companion-app
- * concern that is out of scope for this deliverable. Colors were chosen for
- * calm contrast, clear letter/function separation, and OLED-friendliness
- * (near-black background).
- *
- * All measurements are density-independent. Concrete pixel values are computed
- * at layout time by [Metrics] from the current [Configuration] and
- * [DisplayMetrics].
+ * Colors are fixed for MVP. **Sizing** (gaps, heights, content width) lives in
+ * [KeyboardSizing] so the layout stays finger-consistent across phones and
+ * tablets. Base dp/sp constants below are the scale=1.0 reference values.
  */
 object Theme {
 
@@ -70,11 +65,12 @@ object Theme {
     const val KEYBOARD_BOTTOM_PADDING_DP_PHONE_LAND: Float = 4f
     const val KEYBOARD_BOTTOM_PADDING_DP_TABLET: Float = 10f
 
-    const val KEY_GRID_PADDING_X_DP: Float = 3f
+    // Flush to screen edges (Gboard). Gap between keys only — no side gutter.
+    const val KEY_GRID_PADDING_X_DP: Float = 0f
     const val KEY_GRID_PADDING_Y_DP: Float = 2f
-    const val KEY_HORIZONTAL_GAP_DP: Float = 3.5f
-    const val KEY_VERTICAL_GAP_DP: Float = 4f
-    const val KEY_CORNER_RADIUS_DP: Float = 6f
+    const val KEY_HORIZONTAL_GAP_DP: Float = 4.5f
+    const val KEY_VERTICAL_GAP_DP: Float = 5f
+    const val KEY_CORNER_RADIUS_DP: Float = 8f
     const val KEY_BOTTOM_ROW_HEIGHT_WEIGHT: Float = 0.88f
 
     const val KEY_LABEL_TEXT_SIZE_SP: Float = 21f
@@ -109,68 +105,28 @@ object Theme {
     const val SHIFT_DOUBLE_TAP_WINDOW_MS: Long = 300L
     const val SPACE_CURSOR_SLIDE_THRESHOLD_DP: Float = 10f
 
-    // --- Device-class heuristics --------------------------------------------
+    // --- Device-class heuristics (delegates to KeyboardSizing) -------------
 
-    fun isTablet(configuration: Configuration): Boolean {
-        return configuration.smallestScreenWidthDp >= 600
-    }
+    fun isTablet(configuration: Configuration): Boolean =
+        KeyboardSizing.isTablet(configuration)
 
-    fun isLandscape(configuration: Configuration): Boolean {
-        return configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    }
+    fun isLandscape(configuration: Configuration): Boolean =
+        KeyboardSizing.isLandscape(configuration)
 
-    fun suggestionBarHeightDp(configuration: Configuration): Float {
-        val tablet = isTablet(configuration)
-        val land = isLandscape(configuration)
-        return when {
-            tablet -> SUGGESTION_BAR_HEIGHT_DP_TABLET
-            land -> SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND
-            else -> SUGGESTION_BAR_HEIGHT_DP_PHONE
-        }
-    }
+    fun suggestionBarHeightDp(configuration: Configuration): Float =
+        KeyboardSizing.suggestionBarHeightDp(configuration)
 
     /**
-     * Adaptive key-grid height: a fraction of the current screen height,
-     * clamped per device class so it scales across phones, foldables and
-     * tablets, in both orientations, at any density.
+     * Adaptive key-grid height — see [KeyboardSizing.keyAreaHeightDp].
      */
-    fun keyAreaHeightDp(configuration: Configuration): Float {
-        val tablet = isTablet(configuration)
-        val land = isLandscape(configuration)
-        // screenHeightDp is orientation-aware (short side in landscape).
-        val screenH = configuration.screenHeightDp.toFloat().coerceAtLeast(1f)
-        val fraction: Float
-        val min: Float
-        val max: Float
-        when {
-            tablet && land -> {
-                fraction = KEY_AREA_FRACTION_TABLET_LAND
-                min = KEY_AREA_MIN_DP_TABLET_LAND; max = KEY_AREA_MAX_DP_TABLET_LAND
-            }
-            tablet -> {
-                fraction = KEY_AREA_FRACTION_TABLET
-                min = KEY_AREA_MIN_DP_TABLET; max = KEY_AREA_MAX_DP_TABLET
-            }
-            land -> {
-                fraction = KEY_AREA_FRACTION_PHONE_LAND
-                min = KEY_AREA_MIN_DP_PHONE_LAND; max = KEY_AREA_MAX_DP_PHONE_LAND
-            }
-            else -> {
-                fraction = KEY_AREA_FRACTION_PHONE
-                min = KEY_AREA_MIN_DP_PHONE; max = KEY_AREA_MAX_DP_PHONE
-            }
-        }
-        return (screenH * fraction).coerceIn(min, max)
-    }
+    fun keyAreaHeightDp(configuration: Configuration): Float =
+        KeyboardSizing.keyAreaHeightDp(configuration)
 
-    fun keyboardBottomPaddingDp(configuration: Configuration): Float = when {
-        isTablet(configuration) -> KEYBOARD_BOTTOM_PADDING_DP_TABLET
-        isLandscape(configuration) -> KEYBOARD_BOTTOM_PADDING_DP_PHONE_LAND
-        else -> KEYBOARD_BOTTOM_PADDING_DP_PHONE
-    }
+    fun keyboardBottomPaddingDp(configuration: Configuration): Float =
+        KeyboardSizing.keyboardBottomPaddingDp(configuration)
 
     fun keyLabelTextSizeSp(configuration: Configuration): Float =
-        if (isTablet(configuration)) KEY_LABEL_TEXT_SIZE_SP_TABLET else KEY_LABEL_TEXT_SIZE_SP
+        KeyboardSizing.keyLabelTextSizeSp(configuration)
 }
 
 /**

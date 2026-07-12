@@ -196,17 +196,30 @@ class KeyGridView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        applyScaledChrome()
+        computeKeyRects()
+    }
+
+    /** Re-read scaled gaps / text after orientation or density change. */
+    fun onAdaptiveMetricsChanged() {
+        applyScaledChrome()
+        if (width > 0 && height > 0) {
+            computeKeyRects()
+            invalidate()
+        }
+    }
+
+    private fun applyScaledChrome() {
         val cfg = resources.configuration
-        keyLabelTextSize = metrics.sp(Theme.keyLabelTextSizeSp(cfg))
-        subLabelTextSize = metrics.sp(Theme.KEY_SUB_LABEL_TEXT_SIZE_SP)
-        functionLabelTextSize = metrics.sp(Theme.KEY_FUNCTION_TEXT_SIZE_SP)
-        cornerRadius = metrics.dp(Theme.KEY_CORNER_RADIUS_DP)
+        keyLabelTextSize = metrics.sp(KeyboardSizing.keyLabelTextSizeSp(cfg))
+        subLabelTextSize = metrics.sp(KeyboardSizing.keySubLabelTextSizeSp(cfg))
+        functionLabelTextSize = metrics.sp(KeyboardSizing.keyFunctionTextSizeSp(cfg))
+        cornerRadius = metrics.dp(KeyboardSizing.keyCornerRadiusDp(cfg))
         labelPaint.textSize = keyLabelTextSize
         subLabelPaint.textSize = subLabelTextSize
         functionLabelPaint.textSize = functionLabelTextSize
         accentLabelPaint.textSize = functionLabelTextSize
-        iconPaintStroke.strokeWidth = metrics.dp(2f)
-        computeKeyRects()
+        iconPaintStroke.strokeWidth = metrics.dp(2f * KeyboardSizing.keyboardScale(cfg))
     }
 
     private fun computeKeyRects() {
@@ -214,19 +227,12 @@ class KeyGridView @JvmOverloads constructor(
         val rows = layer.rows
         if (rows.isEmpty() || width <= 0 || height <= 0) return
 
-        val hGap = metrics.dp(Theme.KEY_HORIZONTAL_GAP_DP)
-        val vGap = metrics.dp(Theme.KEY_VERTICAL_GAP_DP)
-        val paddingX = metrics.dp(Theme.KEY_GRID_PADDING_X_DP)
-        val paddingY = metrics.dp(Theme.KEY_GRID_PADDING_Y_DP)
+        val cfg = resources.configuration
+        val hGap = metrics.dp(KeyboardSizing.keyHorizontalGapDp(cfg))
+        val vGap = metrics.dp(KeyboardSizing.keyVerticalGapDp(cfg))
+        val paddingX = metrics.dp(KeyboardSizing.keyGridPaddingXDp(cfg))
+        val paddingY = metrics.dp(KeyboardSizing.keyGridPaddingYDp(cfg))
         val innerWidth = width - paddingX * 2
-
-        // One key-unit derived from the widest row — shorter rows center-align.
-        val refRow = rows.maxBy { row ->
-            row.keys.sumOf { it.weight.toDouble() }
-        }
-        val refWeight = refRow.keys.sumOf { it.weight.toDouble() }.toFloat()
-        val refGaps = hGap * (refRow.keys.size - 1).coerceAtLeast(0)
-        val keyUnitWidth = (innerWidth - refGaps) / refWeight
 
         val totalHeightWeight = rows.sumOf { it.heightWeight.toDouble() }.toFloat()
         val usableHeight = (height - paddingY * 2) - vGap * (rows.size - 1)
@@ -237,13 +243,16 @@ class KeyGridView @JvmOverloads constructor(
             val row = rows[rowIndex]
             val rowHeight = rowUnitHeight * row.heightWeight
             val totalKeyWeight = row.keys.sumOf { it.weight.toDouble() }.toFloat()
+                .coerceAtLeast(0.001f)
             val rowGaps = hGap * (row.keys.size - 1).coerceAtLeast(0)
-            val rowWidth = keyUnitWidth * totalKeyWeight + rowGaps
-            var x = paddingX + (innerWidth - rowWidth) / 2f
+            // Every row spans the full width — no side gutters on shorter
+            // rows (ф/э, a/l). Keys share the row proportionally by weight.
+            val available = (innerWidth - rowGaps).coerceAtLeast(0f)
+            var x = paddingX
 
             for (keyIndex in row.keys.indices) {
                 val key = row.keys[keyIndex]
-                val keyW = keyUnitWidth * key.weight
+                val keyW = available * (key.weight / totalKeyWeight)
                 val rect = RectF(x, y, x + keyW, y + rowHeight)
                 keyRects.add(KeyRect(key, rect, rowIndex, keyIndex))
                 x += keyW + hGap
@@ -469,17 +478,21 @@ class KeyGridView @JvmOverloads constructor(
     }
 
     private fun drawEmojiIcon(canvas: Canvas, rect: RectF) {
-        val r = minOf(rect.width(), rect.height()) * 0.28f
+        // Gboard: smiley above, comma below.
+        val r = minOf(rect.width(), rect.height()) * 0.22f
         val cx = rect.centerX()
-        val cy = rect.centerY()
+        val cy = rect.centerY() - r * 0.55f
         iconPaintStroke.color = Theme.COLOR_KEY_TEXT
+        iconPaintFill.color = Theme.COLOR_KEY_TEXT
         canvas.drawCircle(cx, cy, r, iconPaintStroke)
-        canvas.drawCircle(cx - r * 0.35f, cy - r * 0.1f, r * 0.1f, iconPaintFill.apply {
-            color = Theme.COLOR_KEY_TEXT
-        })
+        canvas.drawCircle(cx - r * 0.35f, cy - r * 0.1f, r * 0.1f, iconPaintFill)
         canvas.drawCircle(cx + r * 0.35f, cy - r * 0.1f, r * 0.1f, iconPaintFill)
         tmpRectF.set(cx - r * 0.45f, cy - r * 0.2f, cx + r * 0.45f, cy + r * 0.5f)
         canvas.drawArc(tmpRectF, 20f, 140f, false, iconPaintStroke)
+
+        val commaCy =
+            rect.centerY() + r * 1.15f - (subLabelPaint.descent() + subLabelPaint.ascent()) / 2f
+        canvas.drawText(",", cx, commaCy, subLabelPaint)
     }
 
     private fun drawRipple(canvas: Canvas, ripple: Ripple) {
@@ -858,9 +871,8 @@ class KeyGridView @JvmOverloads constructor(
                 refreshFromState()
             }
             KeyAction.Emoji -> {
-                // Emoji panel is out of scope for MVP; a subtle no-op keeps
-                // the surface valid without producing accidental input.
-                haptics.modifier(this)
+                // Gboard: short press inserts comma (emoji panel later).
+                commitCharacter(",")
             }
         }
     }

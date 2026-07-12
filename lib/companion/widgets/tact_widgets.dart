@@ -428,26 +428,25 @@ class MiniKeyboardPreview extends StatelessWidget {
             const SizedBox(height: 6),
           ],
           Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 6),
             child: Column(
               children: [
-                _keyRow(['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з']),
+                _keyRow(['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х', 'ъ']),
                 const SizedBox(height: 3),
-                _keyRow(['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д']),
+                _keyRow(['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д', 'ж', 'э']),
                 const SizedBox(height: 3),
-                _keyRow(['⇧', 'я', 'ч', 'с', 'м', 'и', 'т', 'ь', '⌫'],
-                    flexLast: true),
+                _keyRow(['⇧', 'я', 'ч', 'с', 'м', 'и', 'т', 'ь', 'б', 'ю', '⌫']),
                 const SizedBox(height: 3),
                 Row(
                   children: [
-                    _fnKey('?123', flex: 1.2),
+                    _fnKey('?123', flex: 1.35),
+                    _fnKey('🙂,', flex: 1),
                     _fnKey('🌐', flex: 1),
-                    _fnKey(',', flex: 0.8),
                     Expanded(
-                      flex: 4,
+                      flex: 48,
                       child: Container(
                         height: 28,
-                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                        margin: const EdgeInsets.symmetric(horizontal: 1),
                         decoration: BoxDecoration(
                           color: const Color(0xFF1F1F22),
                           borderRadius: BorderRadius.circular(6),
@@ -462,8 +461,8 @@ class MiniKeyboardPreview extends StatelessWidget {
                         ),
                       ),
                     ),
-                    _fnKey('.', flex: 0.8),
-                    _fnKey('↵', flex: 1.5, accent: true),
+                    _fnKey('.', flex: 1),
+                    _fnKey('↵', flex: 1.6, accent: true),
                   ],
                 ),
               ],
@@ -479,12 +478,14 @@ class MiniKeyboardPreview extends StatelessWidget {
       children: [
         for (var i = 0; i < keys.length; i++)
           Expanded(
-            flex: flexLast && i == keys.length - 1 ? 15 : 10,
             child: Container(
               height: 28,
-              margin: const EdgeInsets.symmetric(horizontal: 1.5),
+              margin: EdgeInsets.only(
+                left: i == 0 ? 0 : 1,
+                right: i == keys.length - 1 ? 0 : 1,
+              ),
               decoration: BoxDecoration(
-                color: i == 0 || (flexLast && i == keys.length - 1)
+                color: i == 0 || i == keys.length - 1
                     ? const Color(0xFF1F1F22)
                     : const Color(0xFF2A2A2E),
                 borderRadius: BorderRadius.circular(6),
@@ -509,7 +510,7 @@ class MiniKeyboardPreview extends StatelessWidget {
       flex: (flex * 10).round(),
       child: Container(
         height: 28,
-        margin: const EdgeInsets.symmetric(horizontal: 1.5),
+        margin: const EdgeInsets.symmetric(horizontal: 1),
         decoration: BoxDecoration(
           color: accent ? TactColors.purple : const Color(0xFF1F1F22),
           borderRadius: BorderRadius.circular(6),

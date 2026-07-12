@@ -38,19 +38,33 @@ object Layouts {
 
     private val shiftKey = Key(action = KeyAction.Shift, weight = 1.5f)
     private val backspaceKey = Key(action = KeyAction.Backspace, weight = 1.5f)
-    private val enterKey = Key(action = KeyAction.Enter, weight = 1.8f)
-    private val languageKey = Key(action = KeyAction.LanguageSwitch, weight = 1.2f)
+    private val enterKey = Key(action = KeyAction.Enter, weight = 1.6f)
+    private val languageKey = Key(action = KeyAction.LanguageSwitch, weight = 1f)
     private val spaceKey = Key(action = KeyAction.Space, weight = 5f)
-    private val symbolsKey = Key(action = KeyAction.LayerSwitch(LayerKind.SYMBOLS), weight = 1.2f)
-    private val alphaFromSymbols = Key(action = KeyAction.LayerSwitch(LayerKind.ALPHA), weight = 1.2f)
-    private val symbolsAltKey = Key(action = KeyAction.LayerSwitch(LayerKind.SYMBOLS_ALT), weight = 1.2f)
-    private val symbolsMainKey = Key(action = KeyAction.LayerSwitch(LayerKind.SYMBOLS), weight = 1.2f)
-    private val commaKey = Key(action = KeyAction.Character(","), weight = 1f, subLabel = null)
+    private val symbolsKey = Key(action = KeyAction.LayerSwitch(LayerKind.SYMBOLS), weight = 1.35f)
+    private val alphaFromSymbols = Key(action = KeyAction.LayerSwitch(LayerKind.ALPHA), weight = 1.35f)
+    private val symbolsAltKey = Key(action = KeyAction.LayerSwitch(LayerKind.SYMBOLS_ALT), weight = 1.5f)
+    private val symbolsMainKey = Key(action = KeyAction.LayerSwitch(LayerKind.SYMBOLS), weight = 1.5f)
+    /** Gboard-style: emoji glyph + comma; short press inserts ",". */
+    private val emojiCommaKey = Key(action = KeyAction.Emoji, weight = 1f)
     private val periodKey = Key(
         action = KeyAction.Character("."),
         weight = 1f,
         longPress = "…",
         longPressAlternatives = listOf(".", ",", "?", "!", ";", ":"),
+    )
+
+    /** Bottom row order matches Gboard: ?123 · 🙂/, · 🌐 · space · . · ↵ */
+    private fun bottomRow(alphaOrSymbols: Key): KeyRow = KeyRow(
+        heightWeight = Theme.KEY_BOTTOM_ROW_HEIGHT_WEIGHT,
+        keys = listOf(
+            alphaOrSymbols,
+            emojiCommaKey,
+            languageKey,
+            spaceKey,
+            periodKey,
+            enterKey,
+        ),
     )
 
     // ── English (QWERTY) ─────────────────────────────────────────────────
@@ -100,21 +114,11 @@ object Layouts {
                     backspaceKey,
                 ),
             ),
-            KeyRow(
-                heightWeight = Theme.KEY_BOTTOM_ROW_HEIGHT_WEIGHT,
-                keys = listOf(
-                    symbolsKey,
-                    languageKey,
-                    commaKey,
-                    spaceKey,
-                    periodKey,
-                    enterKey,
-                ),
-            ),
+            bottomRow(symbolsKey),
         ),
     )
 
-    // ── Russian (ЙЦУКЕН, 12-11-9) ────────────────────────────────────────
+    // ── Russian (ЙЦУКЕН, Gboard 12-11-9) ─────────────────────────────────
 
     val jcukenRu: KeyboardLayer = KeyboardLayer(
         id = "jcuken_ru",
@@ -133,7 +137,7 @@ object Layouts {
                     c("ш", sub = "8", alt = listOf("8", "щ")),
                     c("щ", sub = "9", alt = listOf("9")),
                     c("з", sub = "0", alt = listOf("0")),
-                    c("х", alt = listOf("ъ")),
+                    c("х"),
                     c("ъ"),
                 ),
             ),
@@ -167,17 +171,7 @@ object Layouts {
                     backspaceKey,
                 ),
             ),
-            KeyRow(
-                heightWeight = Theme.KEY_BOTTOM_ROW_HEIGHT_WEIGHT,
-                keys = listOf(
-                    symbolsKey,
-                    languageKey,
-                    commaKey,
-                    spaceKey,
-                    periodKey,
-                    enterKey,
-                ),
-            ),
+            bottomRow(symbolsKey),
         ),
     )
 
@@ -208,17 +202,7 @@ object Layouts {
                     backspaceKey,
                 ),
             ),
-            KeyRow(
-                heightWeight = Theme.KEY_BOTTOM_ROW_HEIGHT_WEIGHT,
-                keys = listOf(
-                    alphaFromSymbols,
-                    languageKey,
-                    commaKey,
-                    spaceKey,
-                    periodKey,
-                    enterKey,
-                ),
-            ),
+            bottomRow(alphaFromSymbols),
         ),
     )
 
@@ -249,17 +233,7 @@ object Layouts {
                     backspaceKey,
                 ),
             ),
-            KeyRow(
-                heightWeight = Theme.KEY_BOTTOM_ROW_HEIGHT_WEIGHT,
-                keys = listOf(
-                    alphaFromSymbols,
-                    languageKey,
-                    commaKey,
-                    spaceKey,
-                    periodKey,
-                    enterKey,
-                ),
-            ),
+            bottomRow(alphaFromSymbols),
         ),
     )
 

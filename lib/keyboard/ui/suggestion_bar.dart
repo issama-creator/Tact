@@ -21,6 +21,8 @@ abstract final class _TactPanelColors {
   static const improve = Color(0xFF7C5CFF);
   static const undo = Color(0xFF3DDC97);
   static const border = Color(0xFF33323C);
+  /// Gboard-style suggestion separators (mid-gray on dark bar).
+  static const suggestionDivider = Color(0xFF6A6A72);
 }
 
 /// Responsive sizing for ~38dp IME suggestion slots (320–430+ px wide).
@@ -585,7 +587,7 @@ class _ChipRow extends StatelessWidget {
   }
 }
 
-/// Gboard-style: chips share the full bar width equally (not left-packed).
+/// Gboard-style: suggestions share the bar equally, thin ticks between them.
 class _EqualChipRow extends StatelessWidget {
   const _EqualChipRow({required this.chips, required this.metrics});
 
@@ -599,12 +601,7 @@ class _EqualChipRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < chips.length; i++) ...[
-          if (i > 0)
-            const VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: _TactPanelColors.border,
-            ),
+          if (i > 0) const _SuggestionDivider(),
           Expanded(
             child: _EqualSuggestionSlot(
               chip: chips[i],
@@ -613,6 +610,22 @@ class _EqualChipRow extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Short vertical tick — does not span the full bar height (like Gboard).
+class _SuggestionDivider extends StatelessWidget {
+  const _SuggestionDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const VerticalDivider(
+      width: 12,
+      thickness: 1,
+      indent: 8,
+      endIndent: 8,
+      color: _TactPanelColors.suggestionDivider,
     );
   }
 }

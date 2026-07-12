@@ -12,6 +12,8 @@ import io.flutter.embedding.android.FlutterTextureView
 import io.flutter.embedding.android.FlutterView
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.renderer.FlutterUiDisplayListener
+import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Root IME view: suggestion bar (Flutter or native fallback) + key grid.
@@ -45,6 +47,7 @@ class KeyboardRootView(
     private var engineAttached = false
 
     private var suggestionBarContainer: FrameLayout? = null
+    private var keyAreaContainer: FrameLayout? = null
     private var flutterLayoutListener: View.OnLayoutChangeListener? = null
 
     private val flutterUiListener = object : FlutterUiDisplayListener {
@@ -64,7 +67,6 @@ class KeyboardRootView(
         clipToPadding = false
 
         val cfg = context.resources.configuration
-        setPadding(0, 0, 0, metrics.dpInt(Theme.keyboardBottomPaddingDp(cfg)))
         val barHeight = metrics.dpInt(Theme.suggestionBarHeightDp(cfg))
 
         val barContainer = FrameLayout(context).apply {
@@ -88,6 +90,7 @@ class KeyboardRootView(
             clipChildren = false
             clipToPadding = false
         }
+        keyAreaContainer = keyContainer
         val keyAreaHeight = metrics.dpInt(Theme.keyAreaHeightDp(cfg))
         addView(
             keyContainer,
@@ -122,7 +125,62 @@ class KeyboardRootView(
             bridge?.onTextEdited()
         }
 
+        applyAdaptiveChrome(forceLog = true)
         Log.i(TAG, "KeyboardRootView built (flutter=${flutterView != null})")
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w != oldw) applyAdaptiveChrome()
+    }
+
+    /**
+     * Centers content on wide screens (max [KeyboardSizing.CONTENT_MAX_WIDTH_DP])
+     * and refreshes bar / key-area heights from [KeyboardSizing].
+     */
+    private fun applyAdaptiveChrome(forceLog: Boolean = false) {
+        val cfg = resources.configuration
+        val bottom = metrics.dpInt(Theme.keyboardBottomPaddingDp(cfg))
+        val side = if (KeyboardSizing.isTablet(cfg)) {
+            if (width > 0) {
+                val contentPx = metrics.dpInt(KeyboardSizing.contentMaxWidthDp(cfg))
+                ((width - contentPx) / 2).coerceAtLeast(0)
+            } else {
+                KeyboardSizing.contentSideInsetPx(cfg, metrics)
+            }
+        } else {
+            0 // phones: flush edge-to-edge
+        }
+        setPadding(side, 0, side, bottom)
+
+        val barHeight = metrics.dpInt(Theme.suggestionBarHeightDp(cfg))
+        suggestionBarContainer?.let { bar ->
+            val lp = bar.layoutParams as LayoutParams
+            if (lp.height != barHeight) {
+                lp.height = barHeight
+                bar.layoutParams = lp
+            }
+        }
+
+        val keyAreaHeight = metrics.dpInt(Theme.keyAreaHeightDp(cfg))
+        keyAreaContainer?.let { keys ->
+            val lp = keys.layoutParams as LayoutParams
+            if (lp.height != keyAreaHeight) {
+                lp.height = keyAreaHeight
+                keys.layoutParams = lp
+            }
+        }
+
+        if (forceLog) {
+            Log.i(
+                TAG,
+                "adaptive class=${KeyboardSizing.deviceClass(cfg)} " +
+                    "scale=${String.format(Locale.US, "%.2f", KeyboardSizing.keyboardScale(cfg))} " +
+                    "content=${KeyboardSizing.contentMaxWidthDp(cfg).roundToInt()}dp " +
+                    "keyH=${keyAreaHeight}px " +
+                    "letter≈${String.format(Locale.US, "%.1f", KeyboardSizing.estimatedLetterKeyWidthDp(cfg))}dp",
+            )
+        }
     }
 
     /**
@@ -325,18 +383,10 @@ class KeyboardRootView(
     }
 
     fun onConfigurationChanged() {
-        val cfg = resources.configuration
-        setPadding(0, 0, 0, metrics.dpInt(Theme.keyboardBottomPaddingDp(cfg)))
-        val barHeight = metrics.dpInt(Theme.suggestionBarHeightDp(cfg))
-        val bar = getChildAt(0)
-        bar.layoutParams = (bar.layoutParams as LayoutParams).also { it.height = barHeight }
-
-        val keyContainer = getChildAt(1) as ViewGroup
-        val keyAreaHeight = metrics.dpInt(Theme.keyAreaHeightDp(cfg))
-        keyContainer.layoutParams =
-            (keyContainer.layoutParams as LayoutParams).also { it.height = keyAreaHeight }
-
+        applyAdaptiveChrome(forceLog = true)
         requestLayout()
+        keyGridView.onAdaptiveMetricsChanged()
+        previewOverlay.onAdaptiveMetricsChanged()
         keyGridView.refreshFromState()
         flutterView?.post { bumpFlutterRender() }
     }

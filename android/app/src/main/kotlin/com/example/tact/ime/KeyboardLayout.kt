@@ -62,12 +62,11 @@ sealed class KeyAction {
     /** Move to another layer (letters ↔ symbols ↔ symbols-alt ↔ numbers). */
     data class LayerSwitch(val target: LayerKind) : KeyAction()
 
-    /** Emoji key. Emoji panel itself is out of scope; the action exists so
-     *  the layout looks like a real keyboard. Behavior: no-op for MVP. */
+    /**
+     * Gboard-style emoji/comma key: drawn as smiley + ",", short press
+     * inserts comma. Emoji picker can hook here later.
+     */
     object Emoji : KeyAction()
-
-    /** Comma / period / etc. — a character with a specific role. Not used for
-     *  branching in the current MVP; the label carries the character. */
 }
 
 /**
