@@ -24,8 +24,17 @@ import android.view.inputmethod.InputConnection
 class InputController(private val ime: InputMethodService) {
 
     /** Tracks characters committed through this IME when [InputConnection]
-     *  does not expose surrounding text (Chrome, Google Search, etc.). */
+     *  does not expose surrounding text (Chrome, Google Search, etc.).
+     *
+     *  Valid only while the caret stays at the end of append-only typing.
+     *  Cursor moves (space-slide, tap-in-text, host selection) invalidate it. */
     private val commitBuffer = StringBuilder(512)
+
+    /** False after cursor moves away from the append-only tip of [commitBuffer]. */
+    private var bufferValid = true
+
+    /** Selection end we expect after our own mutation; host drift invalidates buffer. */
+    private var expectedSelEnd = -1
 
     /** Reused for [getExtractedText] — avoids per-call allocation. */
     private val extractedRequest = android.view.inputmethod.ExtractedTextRequest()
@@ -52,7 +61,7 @@ class InputController(private val ime: InputMethodService) {
     // ── Lifecycle ─────────────────────────────────────────────────────
 
     fun restart(info: EditorInfo?) {
-        commitBuffer.setLength(0)
+        clearCommitBuffer()
         cachedSelStart = -1
         cachedSelEnd = -1
         cachedTextLength = -1
@@ -78,7 +87,7 @@ class InputController(private val ime: InputMethodService) {
     }
 
     fun finish() {
-        commitBuffer.setLength(0)
+        clearCommitBuffer()
         cachedSelStart = -1
         cachedSelEnd = -1
         cachedTextLength = -1
@@ -90,6 +99,31 @@ class InputController(private val ime: InputMethodService) {
     fun onSelectionChanged(start: Int, end: Int) {
         cachedSelStart = start
         cachedSelEnd = end
+        // Host moved the caret (or autocorrect adjusted) — buffer is append-only.
+        if (bufferValid && expectedSelEnd >= 0 && end != expectedSelEnd) {
+            invalidateCommitBuffer()
+        } else if (bufferValid) {
+            expectedSelEnd = end
+        }
+    }
+
+    private fun clearCommitBuffer() {
+        commitBuffer.setLength(0)
+        bufferValid = true
+        expectedSelEnd = -1
+    }
+
+    private fun invalidateCommitBuffer() {
+        commitBuffer.setLength(0)
+        bufferValid = false
+        expectedSelEnd = -1
+    }
+
+    /** After cursor move: drop append-only cache; next keystroke reseeds from IC. */
+    private fun noteCursorMoved() {
+        invalidateCommitBuffer()
+        cachedTextLength = -1
+        warmMoveCount = 0
     }
 
     // ── Text mutations ────────────────────────────────────────────────
@@ -99,12 +133,28 @@ class InputController(private val ime: InputMethodService) {
     fun commitText(text: CharSequence) {
         val ic = ime.currentInputConnection ?: return
         ic.commitText(text, 1)
-        trackCommitted(text)
+        if (!bufferValid) {
+            seedBufferFromConnection()
+        } else {
+            trackCommitted(text)
+        }
         cachedTextLength = -1
         warmMoveCount = 0
         if (cachedSelStart >= 0) {
             cachedSelStart += text.length
             cachedSelEnd = cachedSelStart
+        }
+        expectedSelEnd = cachedSelEnd
+        bufferValid = true
+    }
+
+    private fun seedBufferFromConnection() {
+        commitBuffer.setLength(0)
+        val before = ime.currentInputConnection
+            ?.getTextBeforeCursor(512, 0)
+            ?.toString()
+        if (!before.isNullOrEmpty()) {
+            commitBuffer.append(before)
         }
     }
 
@@ -116,7 +166,7 @@ class InputController(private val ime: InputMethodService) {
     }
 
     private fun trackDeleted(count: Int) {
-        if (count <= 0 || commitBuffer.isEmpty()) return
+        if (!bufferValid || count <= 0 || commitBuffer.isEmpty()) return
         val keep = (commitBuffer.length - count).coerceAtLeast(0)
         commitBuffer.setLength(keep)
     }
@@ -126,16 +176,21 @@ class InputController(private val ime: InputMethodService) {
         val selectedLength = cachedSelectionLength()
         if (selectedLength > 0) {
             ic.commitText("", 1)
-            trackDeleted(selectedLength.coerceAtMost(commitBuffer.length))
+            if (bufferValid) {
+                trackDeleted(selectedLength.coerceAtMost(commitBuffer.length))
+            }
             cachedSelEnd = cachedSelStart
         } else {
             ic.deleteSurroundingText(1, 0)
-            trackDeleted(1)
+            if (bufferValid) {
+                trackDeleted(1)
+            }
             if (cachedSelEnd > 0) {
                 cachedSelStart--
                 cachedSelEnd--
             }
         }
+        expectedSelEnd = cachedSelEnd
     }
 
     /**
@@ -145,23 +200,32 @@ class InputController(private val ime: InputMethodService) {
      */
     fun deleteBackwardWord() {
         val ic = ime.currentInputConnection ?: return
-        val before = ic.getTextBeforeCursor(64, 0)?.toString() ?: return
+        val before = ic.getTextBeforeCursor(64, 0) ?: return
         if (before.isEmpty()) return
 
         var i = before.length
-        // Trailing whitespace.
+        // Trailing whitespace — scan CharSequence, no String copy.
         while (i > 0 && before[i - 1].isWhitespace()) i--
         // The word itself.
         while (i > 0 && !before[i - 1].isWhitespace()) i--
         val toDelete = before.length - i
         if (toDelete > 0) {
             ic.deleteSurroundingText(toDelete, 0)
-            trackDeleted(toDelete.coerceAtMost(commitBuffer.length))
+            if (bufferValid) {
+                trackDeleted(toDelete.coerceAtMost(commitBuffer.length))
+            }
         } else {
             ic.deleteSurroundingText(1, 0)
-            trackDeleted(1)
+            if (bufferValid) {
+                trackDeleted(1)
+            }
         }
         invalidateSelectionCache()
+        if (bufferValid) {
+            expectedSelEnd = cachedSelEnd
+        } else {
+            expectedSelEnd = -1
+        }
     }
 
     /**
@@ -202,6 +266,17 @@ class InputController(private val ime: InputMethodService) {
 
         if (isMultiLineField) {
             ic.commitText("\n", 1)
+            if (bufferValid) {
+                trackCommitted("\n")
+            } else {
+                seedBufferFromConnection()
+                bufferValid = true
+            }
+            if (cachedSelStart >= 0) {
+                cachedSelStart += 1
+                cachedSelEnd = cachedSelStart
+            }
+            expectedSelEnd = cachedSelEnd
             return
         }
         sendDownUpKeyEvent(KeyEvent.KEYCODE_ENTER)
@@ -226,6 +301,7 @@ class InputController(private val ime: InputMethodService) {
         ic.setSelection(target, target)
         cachedSelStart = target
         cachedSelEnd = target
+        noteCursorMoved()
     }
 
     /**
@@ -242,6 +318,7 @@ class InputController(private val ime: InputMethodService) {
                 sendDownUpKeyEvent(
                     if (delta > 0) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT,
                 )
+                noteCursorMoved()
                 return
             }
             val max = info.text?.length ?: current
@@ -250,6 +327,7 @@ class InputController(private val ime: InputMethodService) {
             ic.setSelection(target, target)
             cachedSelStart = target
             cachedSelEnd = target
+            noteCursorMoved()
             return
         }
         if (warmMoveCount++ >= 16 || cachedTextLength < 0) {
@@ -262,6 +340,7 @@ class InputController(private val ime: InputMethodService) {
         ic.setSelection(target, target)
         cachedSelStart = target
         cachedSelEnd = target
+        noteCursorMoved()
     }
 
     fun setSelection(start: Int, end: Int) {
@@ -271,6 +350,7 @@ class InputController(private val ime: InputMethodService) {
         ic.setSelection(s, e)
         cachedSelStart = s
         cachedSelEnd = e
+        noteCursorMoved()
     }
 
     /**
@@ -312,9 +392,15 @@ class InputController(private val ime: InputMethodService) {
         val extracted = ic.getExtractedText(extractedRequest, 0)
         val selStart = extracted?.selectionStart ?: -1
         val selEnd = extracted?.selectionEnd ?: selStart
-        syncBufferReplace(deleteBefore, replacement)
+        if (bufferValid) {
+            syncBufferReplace(deleteBefore, replacement)
+        } else {
+            seedBufferFromConnection()
+            bufferValid = true
+        }
         cachedSelStart = selStart
         cachedSelEnd = selEnd
+        expectedSelEnd = selEnd
         return ReplaceOutcome(
             ok = true,
             selectionStart = selStart,
@@ -380,7 +466,7 @@ class InputController(private val ime: InputMethodService) {
         try {
             ic.finishComposingText()
             ic.deleteSurroundingText(before, after)
-            if (before > 0) trackDeleted(before)
+            if (bufferValid && before > 0) trackDeleted(before)
         } finally {
             ic.endBatchEdit()
         }
@@ -396,7 +482,9 @@ class InputController(private val ime: InputMethodService) {
     fun lastCompletedWord(justCommitted: CharSequence): String? {
         val ch = justCommitted.firstOrNull() ?: return null
         if (!isWordBoundary(ch)) return null
-        parseLastWordFromBuffer()?.word?.let { return it }
+        if (bufferValid) {
+            parseLastWordFromBuffer()?.word?.let { return it }
+        }
         return parseLastWordFromConnection()
     }
 
@@ -407,7 +495,7 @@ class InputController(private val ime: InputMethodService) {
     fun lastCompletedWordInfo(justCommitted: CharSequence): WordCommitInfo? {
         val ch = justCommitted.firstOrNull() ?: return null
         if (!isWordBoundary(ch)) return null
-        val fromBuffer = parseLastWordFromBuffer()
+        val fromBuffer = if (bufferValid) parseLastWordFromBuffer() else null
         val parsed = fromBuffer ?: parseLastWordFromConnectionParsed() ?: return null
         val boundary = justCommitted.toString()
         val beforeCtx = when {
@@ -435,15 +523,51 @@ class InputController(private val ime: InputMethodService) {
     }
 
     /**
+     * Flush the trailing incomplete word before Enter / IME action — without
+     * faking a space boundary. [boundary] should be `"\n"` or `""`.
+     */
+    fun flushTrailingWordInfo(boundary: String): WordCommitInfo? {
+        val parsed = if (bufferValid) {
+            parseTrailingWordFromBuffer()
+        } else {
+            parseTrailingWordFromConnection()
+        } ?: return null
+        val beforeCtx = when {
+            bufferValid && parsed.start > 0 ->
+                commitBuffer.substring(0, parsed.start)
+            else -> {
+                val icBefore = ime.currentInputConnection
+                    ?.getTextBeforeCursor(256, 0)?.toString() ?: ""
+                if (parsed.start > 0 && parsed.start <= icBefore.length) {
+                    icBefore.substring(0, parsed.start)
+                } else {
+                    ""
+                }
+            }
+        }
+        return WordCommitInfo(
+            word = parsed.word,
+            deleteBefore = parsed.word.length + boundary.length,
+            deleteAfter = 0,
+            boundary = boundary,
+            before = beforeCtx,
+            after = "",
+        )
+    }
+
+    /**
      * Trailing word at the cursor without a terminating boundary — used for
      * live shortcut chips (e.g. «др» before space).
      */
     fun trailingWordFragment(): WordCommitInfo? {
-        if (commitBuffer.isEmpty()) return null
-        // Mid-word only — after a space/punct there is no live fragment
-        // (next-word chips stay until the field is emptied).
-        if (isWordBoundary(commitBuffer[commitBuffer.length - 1])) return null
-        val parsed = parseTrailingWordFromBuffer() ?: return null
+        val parsed = if (bufferValid) {
+            if (commitBuffer.isEmpty()) return null
+            // Mid-word only — after a space/punct there is no live fragment.
+            if (isWordBoundary(commitBuffer[commitBuffer.length - 1])) return null
+            parseTrailingWordFromBuffer()
+        } else {
+            parseTrailingWordFromConnection()
+        } ?: return null
         return WordCommitInfo(
             word = parsed.word,
             deleteBefore = parsed.word.length,
@@ -454,13 +578,27 @@ class InputController(private val ime: InputMethodService) {
         )
     }
 
-    /** True when the IME commit buffer has no characters (field treated empty). */
-    fun isCommitBufferEmpty(): Boolean = commitBuffer.isEmpty()
+    /** True when there is no text before/after the cursor (field treated empty). */
+    fun isCommitBufferEmpty(): Boolean {
+        if (bufferValid) return commitBuffer.isEmpty()
+        val ic = ime.currentInputConnection ?: return true
+        val before = ic.getTextBeforeCursor(8, 0)
+        if (!before.isNullOrEmpty()) return false
+        val after = ic.getTextAfterCursor(4, 0)
+        return after.isNullOrEmpty()
+    }
 
     /** Cursor sits on/after a word boundary (space/punct) — no live incomplete word. */
     fun commitBufferEndsWithBoundary(): Boolean {
-        if (commitBuffer.isEmpty()) return true
-        return isWordBoundary(commitBuffer[commitBuffer.length - 1])
+        if (bufferValid) {
+            if (commitBuffer.isEmpty()) return true
+            return isWordBoundary(commitBuffer[commitBuffer.length - 1])
+        }
+        val before = ime.currentInputConnection
+            ?.getTextBeforeCursor(8, 0)
+            ?.toString()
+        if (before.isNullOrEmpty()) return true
+        return isWordBoundary(before[before.length - 1])
     }
 
     private data class ParsedWord(val word: String, val start: Int, val end: Int)
@@ -474,6 +612,26 @@ class InputController(private val ime: InputMethodService) {
         while (start > 0 && !isWordBoundary(commitBuffer[start - 1])) start--
         if (end - start < 2) return null
         return ParsedWord(commitBuffer.substring(start, end), start, end)
+    }
+
+    private fun parseTrailingWordFromConnection(): ParsedWord? {
+        val ic = ime.currentInputConnection ?: return null
+        var before = ic.getTextBeforeCursor(96, 0)?.toString()
+        if (before.isNullOrEmpty()) {
+            val extracted = ic.getExtractedText(extractedRequest, 0)
+            val text = extracted?.text?.toString()
+            val sel = extracted?.selectionStart ?: -1
+            if (!text.isNullOrEmpty() && sel > 0) {
+                before = text.substring(0, sel.coerceAtMost(text.length))
+            }
+        }
+        if (before.isNullOrEmpty()) return null
+        if (isWordBoundary(before[before.length - 1])) return null
+        var end = before.length
+        var start = end
+        while (start > 0 && !isWordBoundary(before[start - 1])) start--
+        if (end - start < 2) return null
+        return ParsedWord(before.substring(start, end), start, end)
     }
 
     private fun parseLastWordFromBuffer(): ParsedWord? {

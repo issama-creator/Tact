@@ -27,10 +27,10 @@ final class TextContext {
     required this.after,
     required this.range,
     required this.locale,
-    required this.fullMessage,
+    String? fullMessage,
     this.lexiconKey,
     this.boundary = '',
-  });
+  }) : _fullMessage = fullMessage;
 
   /// The completed word as typed (trimmed, not normalized).
   final String word;
@@ -47,14 +47,21 @@ final class TextContext {
   /// Active language tag, e.g. `en` or `ru`.
   final String locale;
 
-  /// `before + word + after` — used by ImproveEngine.
-  final String fullMessage;
+  /// Optional prebuilt `before + word + after` — prefer [fullMessage] getter.
+  final String? _fullMessage;
 
   /// Precomputed [Normalizer.normalizeForLexicon] — set once in the pipeline.
   final String? lexiconKey;
 
   /// Boundary character that closed the word (space, `.`, `!`, `?`, …).
   final String boundary;
+
+  /// `before + word + after` — allocated only when first needed.
+  String get fullMessage => _fullMessage ?? '$before$word$after';
+
+  /// Length without building [fullMessage] when override is absent.
+  int get messageLength =>
+      _fullMessage?.length ?? (before.length + word.length + after.length);
 
   TextContext copyWith({
     String? word,
@@ -72,7 +79,7 @@ final class TextContext {
       after: after ?? this.after,
       range: range ?? this.range,
       locale: locale ?? this.locale,
-      fullMessage: fullMessage ?? this.fullMessage,
+      fullMessage: fullMessage ?? _fullMessage,
       lexiconKey: lexiconKey ?? this.lexiconKey,
       boundary: boundary ?? this.boundary,
     );

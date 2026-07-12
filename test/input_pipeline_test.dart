@@ -86,7 +86,7 @@ void main() {
       partial: true,
       deleteBefore: 2,
     ));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
     expect(last, isA<PanelShortcut>());
     pipeline.dispose();
   });
@@ -116,7 +116,7 @@ void main() {
       partial: true,
       deleteBefore: 2,
     ));
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
     expect(last, isA<PanelMat>());
     pipeline.dispose();
   });
@@ -195,7 +195,7 @@ void main() {
     pipeline.dispose();
   });
 
-  test('keystroke clears panel', () {
+  test('keystroke bumps generation without clearing panel', () {
     final bridge = ImeBridge(fakeField: FakeTextField());
     final engine = LocalIntelligenceEngine();
     PanelState? last;
@@ -204,8 +204,11 @@ void main() {
       engine: engine,
       onPanel: (s) => last = s,
     );
+    pipeline.adoptPanel(const PanelImprove(messageLength: 40));
     pipeline.onKeystroke();
-    expect(last, isA<PanelIdle>());
+    // Generation bump only — anchored/improve panels stay until validated.
+    expect(pipeline.panel, isA<PanelImprove>());
+    expect(last, isNull);
     pipeline.dispose();
   });
 }

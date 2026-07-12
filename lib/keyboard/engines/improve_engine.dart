@@ -12,7 +12,7 @@ final class ImproveEngine implements SignalProvider {
 
   @override
   List<RuleSignal> analyze(TextContext ctx) {
-    if (ctx.fullMessage.length < minChars) return const [];
+    if (ctx.messageLength < minChars) return const [];
     return [
       RuleSignal(
         kind: SignalKind.improve,

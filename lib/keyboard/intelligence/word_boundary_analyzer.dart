@@ -57,6 +57,9 @@ final class WordBoundaryAnalyzer {
 
   String? _autoCacheKey;
   List<String> _autoCache = const [];
+  /// Small LRU for consecutive prefix lookups while typing.
+  final Map<String, List<String>> _autoLru = <String, List<String>>{};
+  static const _autoLruMax = 8;
 
   void setShortcuts(ShortcutTable table) => _shortcuts = table;
 
@@ -84,6 +87,7 @@ final class WordBoundaryAnalyzer {
   void clearAutocompleteCache() {
     _autoCacheKey = null;
     _autoCache = const [];
+    _autoLru.clear();
   }
 
   /// Live shortcut chips while typing (before space).
@@ -108,16 +112,52 @@ final class WordBoundaryAnalyzer {
     final caseCu = word.isEmpty ? 0 : word.codeUnitAt(0);
     final cacheKey = '$localeKey|$normalized|$max|$caseCu';
     if (_autoCacheKey == cacheKey) return _autoCache;
+    final lruHit = _autoLru.remove(cacheKey);
+    if (lruHit != null) {
+      _autoLru[cacheKey] = lruHit;
+      _autoCacheKey = cacheKey;
+      _autoCache = lruHit;
+      return lruHit;
+    }
 
     final hits = _manager
         .bundleFor(localeKey)
         .spell
         .prefixCompletions(normalized, max: max);
-    final out = hits.isEmpty
+    var out = hits.isEmpty
         ? const <String>[]
         : [for (final h in hits) _matchTypedCase(word, h)];
+
+    // Personal dictionary: boost matching words ahead of corpus hits.
+    if (_personalWords.isNotEmpty) {
+      final personal = <String>[];
+      for (final p in _personalWords) {
+        if (p.length <= normalized.length) continue;
+        if (!p.startsWith(normalized)) continue;
+        personal.add(_matchTypedCase(word, p));
+        if (personal.length >= max) break;
+      }
+      if (personal.isNotEmpty) {
+        final seen = <String>{};
+        final merged = <String>[];
+        for (final h in personal) {
+          if (seen.add(h.toLowerCase())) merged.add(h);
+          if (merged.length >= max) break;
+        }
+        for (final h in out) {
+          if (seen.add(h.toLowerCase())) merged.add(h);
+          if (merged.length >= max) break;
+        }
+        out = merged;
+      }
+    }
+
     _autoCacheKey = cacheKey;
     _autoCache = out;
+    _autoLru[cacheKey] = out;
+    if (_autoLru.length > _autoLruMax) {
+      _autoLru.remove(_autoLru.keys.first);
+    }
     return out;
   }
 
@@ -148,23 +188,26 @@ final class WordBoundaryAnalyzer {
     final signals = <RuleSignal>[];
 
     if (!skipLexicon && lexiconKey.isNotEmpty) {
-      _checkMat(
-        signals: signals,
-        word: word,
-        lexiconKey: lexiconKey,
-        range: ctx.range,
-        bundle: bundle,
-      );
-      _checkToxic(
-        signals: signals,
-        word: word,
-        lexiconKey: lexiconKey,
-        range: ctx.range,
-        bundle: bundle,
-        messageKey: _normalizer.normalizeForLexicon(
-          _trailingWindow(ctx.fullMessage),
-        ),
-      );
+      final personal = _personalWords.contains(lexiconKey);
+      if (!personal) {
+        _checkMat(
+          signals: signals,
+          word: word,
+          lexiconKey: lexiconKey,
+          range: ctx.range,
+          bundle: bundle,
+        );
+        _checkToxic(
+          signals: signals,
+          word: word,
+          lexiconKey: lexiconKey,
+          range: ctx.range,
+          bundle: bundle,
+          messageKey: _normalizer.normalizeForLexicon(
+            _trailingWindowParts(ctx.before, ctx.word, ctx.after),
+          ),
+        );
+      }
     }
 
     // AI chips: after . ! ? once the message is long enough — independent of lexicon.
@@ -250,7 +293,7 @@ final class WordBoundaryAnalyzer {
     required TextContext ctx,
   }) {
     if (!improveEnabled) return;
-    if (ctx.fullMessage.length < improveMinChars) return;
+    if (ctx.messageLength < improveMinChars) return;
     // Require enough content — avoids improve spam on short padded messages.
     if (_wordCount(ctx.fullMessage) < 5) return;
 
@@ -277,7 +320,7 @@ final class WordBoundaryAnalyzer {
     final b = ctx.boundary.trim();
     if (b.isEmpty || !_sentenceEnds.contains(b)) return;
     // Include the terminator so "…текст." counts toward the threshold.
-    final len = ctx.fullMessage.length + b.length;
+    final len = ctx.messageLength + b.length;
     if (len < _aiMinChars) return;
 
     signals.add(
@@ -343,6 +386,28 @@ final class WordBoundaryAnalyzer {
 
   /// Phrase toxic scans only a trailing window — O(1) vs message length.
   static const _toxicWindowChars = 96;
+
+  /// Last [chars] of before+word+after without building the full message.
+  static String _trailingWindowParts(
+    String before,
+    String word,
+    String after, [
+    int chars = _toxicWindowChars,
+  ]) {
+    if (after.length >= chars) {
+      return after.substring(after.length - chars);
+    }
+    var need = chars - after.length;
+    if (word.length >= need) {
+      return '${word.substring(word.length - need)}$after';
+    }
+    need -= word.length;
+    if (before.length <= need) {
+      if (before.isEmpty && after.isEmpty) return word;
+      return '$before$word$after';
+    }
+    return '${before.substring(before.length - need)}$word$after';
+  }
 
   static String _trailingWindow(
     String message, [

@@ -35,6 +35,7 @@ class TactInputMethodService : InputMethodService() {
     private val themeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != ThemeChangeBus.ACTION) return
+            ThemePrefs.invalidate()
             rootView?.applyPersistedTheme()
         }
     }

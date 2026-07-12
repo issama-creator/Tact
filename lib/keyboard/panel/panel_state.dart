@@ -102,6 +102,7 @@ final class PanelSettings {
 }
 
 /// Applies hysteresis so the panel does not flicker between modes.
+/// Safety panels (mat / toxic) always win immediately.
 PanelState reducePanel({
   required PanelState previous,
   required PanelDecision next,
@@ -110,9 +111,11 @@ PanelState reducePanel({
   int? lastChangeMs,
 }) {
   if (previous is PanelIdle) return next.state;
-  if (lastChangeMs == null) return next.state;
+  final incoming = next.state;
+  if (incoming is PanelMat || incoming is PanelToxic) return incoming;
+  if (lastChangeMs == null) return incoming;
   if (nowMs - lastChangeMs < settings.hysteresisMs) return previous;
-  return next.state;
+  return incoming;
 }
 
 bool _expansionsEqual(List<String> a, List<String> b) {

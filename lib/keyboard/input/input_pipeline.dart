@@ -49,11 +49,15 @@ final class InputPipeline {
   StreamSubscription<void>? _partialClearSub;
   StreamSubscription<void>? _textEditSub;
   Timer? _anchorValidationDebounce;
+  Timer? _partialDebounce;
+  WordEvent? _pendingPartial;
   PanelState _panel = const PanelIdle();
   /// True when [PanelShortcut] was shown by live partial-word typing only.
   bool _panelFromPartialOnly = false;
   int? _lastChangeMs;
   int _generation = 0;
+  /// Monotonic token for in-flight [_validatePanelAnchor] / text-edit IPC.
+  int _anchorValidationGeneration = 0;
   bool _disposed = false;
 
   PanelState get panel => _panel;
@@ -78,10 +82,16 @@ final class InputPipeline {
     _textEditSub = null;
     _anchorValidationDebounce?.cancel();
     _anchorValidationDebounce = null;
+    _partialDebounce?.cancel();
+    _partialDebounce = null;
+    _pendingPartial = null;
   }
 
   void _onWord(WordEvent event) {
     if (_disposed || _bridge.isPasswordField) return;
+    // Commit supersedes any coalesced partial still waiting.
+    _partialDebounce?.cancel();
+    _pendingPartial = null;
     final word = event.word.trim();
     if (!shouldProcessWordBoundary(word)) return;
     if (kDebugMode) {
@@ -100,6 +110,31 @@ final class InputPipeline {
   }
 
   void _onPartialWord(WordEvent event) {
+    if (_disposed || _bridge.isPasswordField) {
+      _partialDebounce?.cancel();
+      _pendingPartial = null;
+      _clearPartialPanel();
+      return;
+    }
+    // Supersede any in-flight committed-word analysis from a prior boundary.
+    _generation++;
+    // Coalesce rapid keystrokes — last event wins after ~1 frame.
+    _pendingPartial = event;
+    _partialDebounce?.cancel();
+    _partialDebounce = Timer(
+      const Duration(milliseconds: 24),
+      _flushPendingPartial,
+    );
+  }
+
+  void _flushPendingPartial() {
+    final event = _pendingPartial;
+    _pendingPartial = null;
+    if (event == null || _disposed) return;
+    _processPartialWord(event);
+  }
+
+  void _processPartialWord(WordEvent event) {
     if (_disposed || _bridge.isPasswordField) {
       _clearPartialPanel();
       return;
@@ -176,6 +211,9 @@ final class InputPipeline {
 
   void _onPartialWordClear() {
     // Native only sends clear when the commit buffer is empty.
+    _partialDebounce?.cancel();
+    _pendingPartial = null;
+    _generation++;
     _clearPanelForEmptyField(reason: 'empty field');
     if (!_shouldValidateAnchor(_panel)) return;
     _anchorValidationDebounce?.cancel();
@@ -202,6 +240,7 @@ final class InputPipeline {
 
     _anchorValidationDebounce?.cancel();
     // Prefer native commit buffers — no InputConnection round-trip on typing.
+    // Coalesce via generation so overlapping validates can't clear a fresh panel.
     unawaited(
       _validatePanelAnchor(
         localHint: SurroundingSnapshot(
@@ -227,10 +266,11 @@ final class InputPipeline {
     _onPanel?.call(_panel);
   }
 
-  /// Field is empty — drop suggestions, shortcuts, improve, mat, toxic.
+  /// Field is empty — drop suggestions, shortcuts, improve, mat, toxic, undo.
   void _clearPanelForEmptyField({required String reason}) {
-    if (_panel is PanelIdle || _panel is PanelUndo) {
+    if (_panel is PanelIdle) {
       _panelFromPartialOnly = false;
+      _onFieldCleared?.call();
       return;
     }
     if (kDebugMode) {
@@ -239,6 +279,7 @@ final class InputPipeline {
       );
     }
     _panelFromPartialOnly = false;
+    _onFieldCleared?.call();
     _panel = const PanelIdle();
     _onPanel?.call(_panel);
   }
@@ -246,6 +287,7 @@ final class InputPipeline {
   /// Hides mat/spell/toxic/shortcut panels when the user erased the word.
   Future<void> _validatePanelAnchor({SurroundingSnapshot? localHint}) async {
     if (_disposed) return;
+    final token = ++_anchorValidationGeneration;
     final panel = _panel;
     if (panel is PanelUndo || panel is PanelIdle) return;
     if (!panelTracksAnchoredWord(panel)) return;
@@ -254,11 +296,14 @@ final class InputPipeline {
     if (word == null || word.isEmpty) return;
 
     if (localHint != null) {
+      if (token != _anchorValidationGeneration) return;
       if (isAnchoredWordPresent(localHint, word)) return;
       // Commit buffer is authoritative while typing in the IME.
       if (kDebugMode) {
         debugPrint('[TACT Pipeline] anchor "$word" removed -> PanelIdle');
       }
+      if (token != _anchorValidationGeneration) return;
+      if (!panelModesEqual(_panel, panel)) return;
       _panelFromPartialOnly = false;
       _panel = const PanelIdle();
       _onPanel?.call(_panel);
@@ -268,12 +313,16 @@ final class InputPipeline {
     // Host-driven edits: small window is enough for panel anchors.
     final snap = await _bridge.getSurroundingText(before: 96, after: 32);
     if (_disposed || snap == null) return;
+    if (token != _anchorValidationGeneration) return;
+    if (!panelModesEqual(_panel, panel)) return;
 
     if (isAnchoredWordPresent(snap, word)) return;
 
     if (kDebugMode) {
       debugPrint('[TACT Pipeline] anchor "$word" removed -> PanelIdle');
     }
+    if (token != _anchorValidationGeneration) return;
+    if (!panelModesEqual(_panel, panel)) return;
     _panelFromPartialOnly = false;
     _panel = const PanelIdle();
     _onPanel?.call(_panel);
@@ -281,7 +330,7 @@ final class InputPipeline {
 
   void _scheduleAnchorValidation() {
     final panel = _panel;
-    if (panel is PanelUndo || panel is PanelIdle) return;
+    if (panel is PanelIdle) return;
 
     _anchorValidationDebounce?.cancel();
     _anchorValidationDebounce = Timer(
@@ -294,31 +343,36 @@ final class InputPipeline {
   /// validate mat/toxic anchors.
   Future<void> _onTextEditedTick() async {
     if (_disposed) return;
+    final token = ++_anchorValidationGeneration;
     final panel = _panel;
-    if (panel is PanelUndo || panel is PanelIdle) return;
+    if (panel is PanelIdle) return;
 
-    // Improve / chips have no word anchor — check emptiness via surrounding text.
-    if (panel is PanelImprove ||
+    // Undo / improve / chips: check emptiness via surrounding text.
+    if (panel is PanelUndo ||
+        panel is PanelImprove ||
         panel is PanelAiAssist ||
         panel is PanelSuggestions ||
         panel is PanelShortcut) {
       final snap = await _bridge.getSurroundingText(before: 48, after: 8);
       if (_disposed) return;
+      if (token != _anchorValidationGeneration) return;
+      if (!panelModesEqual(_panel, panel)) return;
       if (snap == null ||
           (snap.before.trim().isEmpty && snap.after.trim().isEmpty)) {
         _clearPanelForEmptyField(reason: 'host field empty');
         return;
       }
+      if (panel is PanelUndo) return;
     }
 
-    if (_shouldValidateAnchor(panel)) {
+    if (_shouldValidateAnchor(_panel)) {
       await _validatePanelAnchor();
     }
   }
 
   Future<void> _enrichActionContext(WordEvent event, String word) async {
     if (_disposed) return;
-    final snap = await _bridge.getSurroundingText();
+    final snap = await _bridge.getSurroundingText(before: 160, after: 32);
     if (_disposed || snap == null || snap.before.isEmpty) return;
     _onActionContext?.call(
       ActionContext(
@@ -357,7 +411,6 @@ final class InputPipeline {
       after: after,
       range: EditRange(before.length, before.length + word.length),
       locale: event.locale,
-      fullMessage: '$before$word$after',
       boundary: event.boundary,
     );
     final result = _engine.process(ctx);
@@ -398,13 +451,10 @@ final class InputPipeline {
     }
   }
 
-  /// Subsequent typing invalidates in-flight panel updates.
+  /// Bumps analysis generation so in-flight [_dispatch] results are dropped.
+  /// Does not clear an anchored mat/toxic panel — that is [_validatePanelAnchor]'s job.
   void onKeystroke() {
     _generation++;
-    if (_panel is! PanelUndo) {
-      _panel = const PanelIdle();
-      _onPanel?.call(_panel);
-    }
   }
 
   void onFieldFinished() {

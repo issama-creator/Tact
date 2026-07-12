@@ -124,6 +124,52 @@ void main() {
     expect(find.text('Отменить'), findsOneWidget);
   });
 
+  testWidgets('light theme renders mat status strip', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 38,
+            child: SuggestionBar(
+              panel: const PanelMat(word: 'хуй', range: EditRange(0, 3)),
+              surface: KeyboardSurfaceTheme.light,
+              onAction: (_) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.bySemanticsLabel('Мат · х**'), findsOneWidget);
+    expect(find.text('Убрать'), findsOneWidget);
+    expect(
+      KeyboardSurfaceTheme.light.keyText.computeLuminance(),
+      lessThan(KeyboardSurfaceTheme.light.background.computeLuminance()),
+    );
+  });
+
+  testWidgets('midnight theme passes accent to action chip', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 38,
+            child: SuggestionBar(
+              panel: const PanelImprove(messageLength: 42),
+              surface: KeyboardSurfaceTheme.midnight,
+              onAction: (_) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Улучшить'), findsOneWidget);
+  });
+
   testWidgets('panel state swap rebuilds visible content', (tester) async {
     await _pumpBar(
       tester,

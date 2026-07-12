@@ -153,17 +153,33 @@ class KeyGridView @JvmOverloads constructor(
 
     // ── Ripples ───────────────────────────────────────────────────────
 
-    private data class Ripple(
-        val cx: Float,
-        val cy: Float,
-        val clip: RectF,
-        var radius: Float,
-        var alpha: Int,
-        val maxRadius: Float,
-        val animator: ValueAnimator,
+    private class RippleSlot {
+        var cx = 0f
+        var cy = 0f
+        val clip = RectF()
+        var radius = 0f
+        var alpha = 0
+        var maxRadius = 0f
+        var active = false
+        var invalidateTarget: RectF? = null
+        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = Theme.RIPPLE_ANIM_MS
+            interpolator = android.view.animation.DecelerateInterpolator()
+        }
+    }
+
+    private val ripplePool = Array(4) { RippleSlot() }
+    private val activeRipples = ArrayList<RippleSlot>(4)
+
+    // ── Row hit bands (rebuilt with keyRects) ─────────────────────────
+
+    private class RowBand(
+        val top: Float,
+        val bottom: Float,
+        val keys: ArrayList<KeyRect> = ArrayList(12),
     )
 
-    private val ripples = ArrayList<Ripple>(4)
+    private val rowBands = ArrayList<RowBand>(5)
 
     // ── Configuration hint ────────────────────────────────────────────
 
@@ -254,6 +270,7 @@ class KeyGridView @JvmOverloads constructor(
 
     private fun computeKeyRects() {
         keyRects.clear()
+        rowBands.clear()
         val rows = layer.rows
         if (rows.isEmpty() || width <= 0 || height <= 0) return
 
@@ -311,13 +328,17 @@ class KeyGridView @JvmOverloads constructor(
                 sharedUnit to (paddingX + (innerWidth - rowWidth) / 2f)
             }
 
+            val band = RowBand(top = y, bottom = y + rowHeight)
             var x = startX
             for (keyIndex in row.keys.indices) {
                 val key = row.keys[keyIndex]
                 val keyW = unit * key.weight
-                keyRects.add(KeyRect(key, RectF(x, y, x + keyW, y + rowHeight), rowIndex, keyIndex))
+                val kr = KeyRect(key, RectF(x, y, x + keyW, y + rowHeight), rowIndex, keyIndex)
+                keyRects.add(kr)
+                band.keys.add(kr)
                 x += keyW + hGap
             }
+            rowBands.add(band)
             y += rowHeight + vGap
         }
     }
@@ -335,9 +356,9 @@ class KeyGridView @JvmOverloads constructor(
                 drawKey(canvas, keyRects[i])
             }
         }
-        if (ripples.isNotEmpty()) {
-            for (i in ripples.indices) {
-                val r = ripples[i]
+        if (activeRipples.isNotEmpty()) {
+            for (i in activeRipples.indices) {
+                val r = activeRipples[i]
                 if (r.clip.left < clip.right && r.clip.right > clip.left &&
                     r.clip.top < clip.bottom && r.clip.bottom > clip.top
                 ) {
@@ -565,7 +586,7 @@ class KeyGridView @JvmOverloads constructor(
         canvas.drawText(",", cx, commaCy, subLabelPaint)
     }
 
-    private fun drawRipple(canvas: Canvas, ripple: Ripple) {
+    private fun drawRipple(canvas: Canvas, ripple: RippleSlot) {
         val saved = canvas.save()
         canvas.clipRect(ripple.clip)
         ripplePaint.alpha = ripple.alpha
@@ -822,8 +843,7 @@ class KeyGridView @JvmOverloads constructor(
             }
             is KeyAction.Character -> {
                 val alts = if (key.longPressAlternatives.isNotEmpty()) {
-                    // Uppercase alternatives when shift is engaged.
-                    if (state.isUpperCase) key.longPressAlternatives.map { it.uppercase(state.language.javaLocale) }
+                    if (state.isUpperCase) key.longPressAlternativesUpper
                     else key.longPressAlternatives
                 } else emptyList()
 
@@ -911,8 +931,12 @@ class KeyGridView @JvmOverloads constructor(
             }
             KeyAction.Enter -> {
                 haptics.enterClickSound()
-                // Flush word BEFORE send — messengers clear the field on IME_ACTION_SEND.
-                notifyMaybeWordCommitted(" ")
+                // Flush trailing word BEFORE send — messengers clear the field on IME_ACTION_SEND.
+                // Use "\n" (or empty) boundary — never fake a space.
+                val flushBoundary =
+                    if (inputController.isMultiLineField) "\n" else ""
+                val flushed = inputController.flushTrailingWordInfo(flushBoundary)
+                if (flushed != null) onWordCommitted?.invoke(flushed)
                 inputController.performEnter()
                 val wasUpper = state.isUpperCase
                 state.consumeShiftAfterChar()
@@ -1001,62 +1025,92 @@ class KeyGridView @JvmOverloads constructor(
     }
 
     private fun startRippleAt(kr: KeyRect, x: Float, y: Float) {
-        val maxRadius = kotlin.math.hypot(kr.rect.width().toDouble(), kr.rect.height().toDouble()).toFloat()
-        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = Theme.RIPPLE_ANIM_MS
-            interpolator = android.view.animation.DecelerateInterpolator()
+        val slot = ripplePool.firstOrNull { !it.active } ?: run {
+            // Reuse oldest active ripple under rapid typing.
+            activeRipples.firstOrNull()?.also {
+                it.animator.cancel()
+                it.active = false
+                activeRipples.remove(it)
+            } ?: return
         }
-        val ripple = Ripple(
-            cx = x,
-            cy = y,
-            clip = RectF(kr.rect),
-            radius = 0f,
-            alpha = 0x33,
-            maxRadius = maxRadius,
-            animator = animator,
-        )
-        animator.addUpdateListener { va ->
+        val maxRadius = kotlin.math.hypot(
+            kr.rect.width().toDouble(),
+            kr.rect.height().toDouble(),
+        ).toFloat()
+        slot.cx = x
+        slot.cy = y
+        slot.clip.set(kr.rect)
+        slot.radius = 0f
+        slot.alpha = 0x33
+        slot.maxRadius = maxRadius
+        slot.invalidateTarget = kr.rect
+        slot.active = true
+        slot.animator.removeAllUpdateListeners()
+        slot.animator.removeAllListeners()
+        slot.animator.addUpdateListener { va ->
             val t = va.animatedValue as Float
-            ripple.radius = maxRadius * t
-            ripple.alpha = (0x33 * (1f - t)).toInt().coerceIn(0, 0xFF)
+            slot.radius = maxRadius * t
+            slot.alpha = (0x33 * (1f - t)).toInt().coerceIn(0, 0xFF)
             invalidateRect(kr.rect)
         }
-        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
+        slot.animator.addListener(object : android.animation.AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: android.animation.Animator) {
-                ripples.remove(ripple)
+                slot.active = false
+                activeRipples.remove(slot)
                 invalidateRect(kr.rect)
             }
         })
-        ripples.add(ripple)
-        animator.start()
+        activeRipples.add(slot)
+        slot.animator.start()
     }
 
     // ── Utility ───────────────────────────────────────────────────────
 
     private fun keyAt(x: Float, y: Float): KeyRect? {
-        for (i in keyRects.indices) {
-            val kr = keyRects[i]
+        // Row band first — O(rows) then O(keys in row), not O(all keys).
+        var band: RowBand? = null
+        for (i in rowBands.indices) {
+            val b = rowBands[i]
+            if (y >= b.top && y <= b.bottom) {
+                band = b
+                break
+            }
+        }
+        if (band == null) {
+            // Slight Y overshoot — pick nearest row by center.
+            var bestDy = Float.MAX_VALUE
+            for (i in rowBands.indices) {
+                val b = rowBands[i]
+                val mid = (b.top + b.bottom) * 0.5f
+                val dy = kotlin.math.abs(y - mid)
+                if (dy < bestDy) {
+                    bestDy = dy
+                    band = b
+                }
+            }
+            if (band == null || bestDy > metrics.dp(12f)) return null
+        }
+        val resolved = band ?: return null
+        val keys = resolved.keys
+        for (i in keys.indices) {
+            val kr = keys[i]
             if (kr.rect.contains(x, y)) return kr
         }
-        // Nothing hit exactly; find nearest key on the same row (helps the
-        // user hit small keys with fat thumbs). Distance in Y first.
         var best: KeyRect? = null
-        var bestDy = Float.MAX_VALUE
-        for (i in keyRects.indices) {
-            val kr = keyRects[i]
-            if (y < kr.rect.top || y > kr.rect.bottom) continue
+        var bestDx = Float.MAX_VALUE
+        for (i in keys.indices) {
+            val kr = keys[i]
             val dx = when {
                 x < kr.rect.left -> kr.rect.left - x
                 x > kr.rect.right -> x - kr.rect.right
                 else -> 0f
             }
-            if (dx < bestDy) {
-                bestDy = dx
+            if (dx < bestDx) {
+                bestDx = dx
                 best = kr
             }
         }
-        // Only forgive up to ~8dp of overshoot.
-        return if (best != null && bestDy < metrics.dp(8f)) best else null
+        return if (best != null && bestDx < metrics.dp(8f)) best else null
     }
 
     private fun cancelLongPress(ps: PointerState) {
@@ -1093,10 +1147,11 @@ class KeyGridView @JvmOverloads constructor(
     }
 
     private fun cancelRipples() {
-        for (i in ripples.indices) {
-            ripples[i].animator.cancel()
+        for (i in activeRipples.indices) {
+            activeRipples[i].animator.cancel()
+            activeRipples[i].active = false
         }
-        ripples.clear()
+        activeRipples.clear()
     }
 
     private fun invalidateRect(r: RectF) {

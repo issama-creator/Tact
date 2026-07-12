@@ -150,8 +150,8 @@ class _KeyboardAppState extends State<KeyboardApp> {
 
   void _onPanel(PanelState state) {
     if (!mounted) return;
-    _pipeline.adoptPanel(state);
     if (panelModesEqual(_panel.value, state)) return;
+    _pipeline.adoptPanel(state);
     if (kDebugMode) {
       debugPrint('[TACT UI] render panel=${state.runtimeType}');
     }
@@ -176,7 +176,10 @@ class _KeyboardAppState extends State<KeyboardApp> {
     final next = KeyboardSurfaceTheme.fromArgbMap(map);
     if (next.background == _surface.background &&
         next.accent == _surface.accent &&
-        next.keyText == _surface.keyText) {
+        next.keyText == _surface.keyText &&
+        next.keyTextMuted == _surface.keyTextMuted &&
+        next.chipBg == _surface.chipBg &&
+        next.stroke == _surface.stroke) {
       return;
     }
     setState(() => _surface = next);
@@ -192,6 +195,8 @@ class _KeyboardAppState extends State<KeyboardApp> {
         accent: _surface.accent,
         keyText: _surface.keyText,
         keyTextMuted: _surface.keyTextMuted,
+        chipBg: _surface.chipBg,
+        stroke: _surface.stroke,
       );
     });
     _scheduleRepaint();

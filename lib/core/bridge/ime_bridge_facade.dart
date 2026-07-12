@@ -39,7 +39,6 @@ final class WordEvent {
       after: after,
       range: EditRange(start, start + word.length),
       locale: locale,
-      fullMessage: '$before$word$after',
     );
   }
 
@@ -96,7 +95,8 @@ class ImeBridge {
 
   final MethodChannel _channel;
   final FakeTextField? _fake;
-  final StreamController<WordEvent> _words = StreamController.broadcast();
+  final StreamController<WordEvent> _committed = StreamController.broadcast();
+  final StreamController<WordEvent> _partial = StreamController.broadcast();
   final StreamController<void> _partialClears = StreamController.broadcast();
   final StreamController<void> _textEdits = StreamController.broadcast();
 
@@ -108,15 +108,19 @@ class ImeBridge {
   /// True while the focused field is a password — lexicon analysis is skipped.
   bool isPasswordField = false;
 
-  Stream<WordEvent> get onWordCommitted => _words.stream.where((e) => !e.partial);
-  Stream<WordEvent> get onPartialWord => _words.stream.where((e) => e.partial);
+  Stream<WordEvent> get onWordCommitted => _committed.stream;
+  Stream<WordEvent> get onPartialWord => _partial.stream;
   Stream<void> get onPartialWordClear => _partialClears.stream;
   Stream<void> get onTextEdited => _textEdits.stream;
 
   bool get isFake => _fake != null;
 
   void emitWord(WordEvent event) {
-    if (!_words.isClosed) _words.add(event);
+    if (event.partial) {
+      if (!_partial.isClosed) _partial.add(event);
+    } else {
+      if (!_committed.isClosed) _committed.add(event);
+    }
   }
 
   void emitPartialWordClear() {
@@ -268,10 +272,10 @@ class ImeBridge {
   Future<Object?> _onCall(MethodCall call) async {
     switch (call.method) {
       case 'onWordCommitted':
-        _handleWord(call.arguments, partial: false);
+        _handleWord(call.arguments);
         return null;
       case 'onPartialWord':
-        _handleWord(call.arguments, partial: true);
+        _handlePartialWord(call.arguments);
         return null;
       case 'onPartialWordClear':
         if (!_partialClears.isClosed) _partialClears.add(null);
@@ -287,6 +291,8 @@ class ImeBridge {
         onFieldFinished?.call();
         return null;
       case 'onSelectionChanged':
+        // Cursor move may leave an anchored mat/toxic panel stale.
+        if (!_textEdits.isClosed) _textEdits.add(null);
         return null;
       case 'onTextEdited':
         if (!_textEdits.isClosed) _textEdits.add(null);
@@ -300,16 +306,17 @@ class ImeBridge {
     }
   }
 
-  void _handleWord(Object? arguments, {required bool partial}) {
+  void _handleWord(Object? arguments) {
     final map = _asMap(arguments);
     if (map == null) return;
     final word = map['word'];
     final locale = map['locale'];
     if (word is! String || locale is! String) return;
-    if (kDebugMode && !partial) {
+    if (kDebugMode) {
       debugPrint('[TACT IME] word="$word" locale=$locale');
     }
-    _words.add(
+    if (_committed.isClosed) return;
+    _committed.add(
       WordEvent(
         word: word,
         locale: locale,
@@ -318,7 +325,28 @@ class ImeBridge {
         deleteBefore: map['deleteBefore'] as int? ?? word.length,
         deleteAfter: map['deleteAfter'] as int? ?? 0,
         boundary: map['boundary'] as String? ?? '',
-        partial: partial,
+        partial: false,
+      ),
+    );
+  }
+
+  void _handlePartialWord(Object? arguments) {
+    final map = _asMap(arguments);
+    if (map == null) return;
+    final word = map['word'];
+    final locale = map['locale'];
+    if (word is! String || locale is! String) return;
+    if (_partial.isClosed) return;
+    _partial.add(
+      WordEvent(
+        word: word,
+        locale: locale,
+        before: map['before'] as String? ?? '',
+        after: map['after'] as String? ?? '',
+        deleteBefore: map['deleteBefore'] as int? ?? word.length,
+        deleteAfter: map['deleteAfter'] as int? ?? 0,
+        boundary: map['boundary'] as String? ?? '',
+        partial: true,
       ),
     );
   }
@@ -372,7 +400,8 @@ class ImeBridge {
 
   void dispose() {
     detachHandler();
-    _words.close();
+    _committed.close();
+    _partial.close();
     _partialClears.close();
     _textEdits.close();
   }

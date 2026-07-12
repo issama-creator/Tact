@@ -27,6 +27,11 @@ object Layouts {
         weight = weight,
         longPress = alt.firstOrNull(),
         longPressAlternatives = alt,
+        longPressAlternativesUpper = if (alt.isEmpty()) {
+            emptyList()
+        } else {
+            alt.map { it.uppercase() }
+        },
         subLabel = sub,
     )
 
@@ -52,6 +57,7 @@ object Layouts {
         weight = 1f,
         longPress = "…",
         longPressAlternatives = listOf(".", ",", "?", "!", ";", ":"),
+        longPressAlternativesUpper = listOf(".", ",", "?", "!", ";", ":"),
     )
 
     /** Bottom row order matches Gboard: ?123 · 🙂/, · 🌐 · space · . · ↵ */

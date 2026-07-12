@@ -88,6 +88,8 @@ data class Key(
     val weight: Float = 1f,
     val longPress: String? = null,
     val longPressAlternatives: List<String> = emptyList(),
+    /** Precomputed uppercase [longPressAlternatives] — no alloc on long-press. */
+    val longPressAlternativesUpper: List<String> = emptyList(),
     val subLabel: String? = null,
 )
 

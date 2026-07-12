@@ -234,12 +234,14 @@ class KeyboardRootView(
             bridge = impl
             onBridgeReady(impl)
 
-            val layoutListener = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val layoutListener = View.OnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
                 if (v.width <= 0 || v.height <= 0) return@OnLayoutChangeListener
                 if (!engineAttached) {
                     // First real layout after attach-to-window — bind engine now.
                     attachFlutterEngineIfNeeded()
-                } else {
+                } else if (right - left != oldRight - oldLeft ||
+                    bottom - top != oldBottom - oldTop
+                ) {
                     bumpFlutterRender()
                 }
             }
@@ -290,10 +292,17 @@ class KeyboardRootView(
     }
 
     /** Force a raster pass — Dart setState alone is not enough in IME windows. */
+    private var bumpPosted = false
+
     fun bumpFlutterRender() {
         val view = flutterView ?: return
         if (!engineAttached) return
-        view.invalidate()
+        if (bumpPosted) return
+        bumpPosted = true
+        view.post {
+            bumpPosted = false
+            flutterView?.invalidate()
+        }
     }
 
     private fun nativeSuggestionBar(context: Context): View =
@@ -326,11 +335,13 @@ class KeyboardRootView(
         val view = flutterView ?: return
         // Listener may have been cleared on detach — restore so size→attach works.
         if (flutterLayoutListener == null) {
-            val layoutListener = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val layoutListener = View.OnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
                 if (v.width <= 0 || v.height <= 0) return@OnLayoutChangeListener
                 if (!engineAttached) {
                     attachFlutterEngineIfNeeded()
-                } else {
+                } else if (right - left != oldRight - oldLeft ||
+                    bottom - top != oldBottom - oldTop
+                ) {
                     bumpFlutterRender()
                 }
             }
@@ -377,21 +388,22 @@ class KeyboardRootView(
     fun configureFor(info: EditorInfo?) {
         info ?: return
 
+        // Don't carry caps lock / symbols layer into the next field.
+        keyboardState.resetForNewField()
+
         val cls = info.inputType and android.text.InputType.TYPE_MASK_CLASS
         if (cls == android.text.InputType.TYPE_CLASS_NUMBER ||
             cls == android.text.InputType.TYPE_CLASS_PHONE ||
             cls == android.text.InputType.TYPE_CLASS_DATETIME
         ) {
             keyboardState.setLayer(LayerKind.NUMBERS)
-        } else if (keyboardState.layer == LayerKind.NUMBERS) {
-            keyboardState.setLayer(LayerKind.ALPHA)
         }
 
         val autoCapMask = android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or
             android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or
             android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS
         val requestsAutoCap = (info.inputType and autoCapMask) != 0
-        if (requestsAutoCap && keyboardState.shift == ShiftState.OFF) {
+        if (requestsAutoCap && !inputController.isPasswordField) {
             keyboardState.tapShift()
         }
 

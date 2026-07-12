@@ -10,30 +10,55 @@ final class KeyboardSurfaceTheme {
     required this.accent,
     required this.keyText,
     required this.keyTextMuted,
+    required this.chipBg,
+    required this.stroke,
   });
 
   final Color background;
   final Color accent;
   final Color keyText;
   final Color keyTextMuted;
+  /// Native letter-key fill — used for suggestion / AI chips.
+  final Color chipBg;
+  /// Native key stroke (ARGB, may include alpha).
+  final Color stroke;
 
   bool get isLight =>
       ThemeData.estimateBrightnessForColor(background) == Brightness.light;
 
-  Color get chipBg =>
-      isLight ? const Color(0xFFFFFFFF) : const Color(0xFF2A2E36);
+  Color get border => stroke;
 
-  Color get border =>
-      isLight ? const Color(0x22000000) : const Color(0xFF252A32);
-
-  Color get divider =>
-      isLight ? const Color(0xFFD1D5DB) : const Color(0xFF3A4048);
+  Color get divider => isLight
+      ? const Color(0xFFD1D5DB)
+      : Color.lerp(stroke, keyTextMuted, 0.45) ?? stroke;
 
   static const defaults = KeyboardSurfaceTheme(
     background: Color(0xFF12141A),
     accent: Color(0xFF2A9B8F),
-    keyText: Color(0xFFE8EAED),
+    keyText: Color(0xFFF2F3F5),
     keyTextMuted: Color(0xFF8B929C),
+    chipBg: Color(0xFF2A2E36),
+    stroke: Color(0x28FFFFFF),
+  );
+
+  /// Companion [KeyboardThemeStyle.light] — for tests and previews.
+  static const light = KeyboardSurfaceTheme(
+    background: Color(0xFFF3F4F6),
+    accent: Color(0xFF2A9B8F),
+    keyText: Color(0xFF1F2937),
+    keyTextMuted: Color(0xFF6B7280),
+    chipBg: Color(0xFFFFFFFF),
+    stroke: Color(0x22000000),
+  );
+
+  /// Companion [KeyboardThemeStyle.midnight] — for tests and previews.
+  static const midnight = KeyboardSurfaceTheme(
+    background: Color(0xFF1E1B4B),
+    accent: Color(0xFF8B5CF6),
+    keyText: Color(0xFFF5F3FF),
+    keyTextMuted: Color(0xFFA5B4FC),
+    chipBg: Color(0xFF3730A3),
+    stroke: Color(0x30FFFFFF),
   );
 
   factory KeyboardSurfaceTheme.fromArgbMap(Map<String, dynamic> map) {
@@ -53,6 +78,8 @@ final class KeyboardSurfaceTheme {
       accent: c('accent', defaults.accent),
       keyText: c('keyText', defaults.keyText),
       keyTextMuted: c('keyTextMuted', defaults.keyTextMuted),
+      chipBg: c('chipBg', defaults.chipBg),
+      stroke: c('stroke', defaults.stroke),
     );
   }
 }

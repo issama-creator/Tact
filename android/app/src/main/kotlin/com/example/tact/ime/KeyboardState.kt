@@ -81,6 +81,15 @@ class KeyboardState(
     }
 
     /**
+     * Reset layer/shift for a new input field. Language is kept (user preference).
+     */
+    fun resetForNewField() {
+        layer = LayerKind.ALPHA
+        shift = ShiftState.OFF
+        shiftLastTapUptimeMs = 0L
+    }
+
+    /**
      * Force a specific language (used when the app requests a numeric-only
      * field: we switch to NUMBERS layer regardless of language).
      */

@@ -1,9 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tact/core/personal_words/personal_words_repository.dart';
 import 'package:tact/core/kv_store.dart';
+import 'package:tact/keyboard/dictionaries/mat_lexicon.dart';
 import 'package:tact/keyboard/intelligence/local_intelligence_engine.dart';
 import 'package:tact/keyboard/input/text_context.dart';
 import 'package:tact/keyboard/panel/panel_state.dart';
+import 'package:tact/keyboard/rules/rule_signal.dart';
 
 final class _MemoryKvStore implements KvStore {
   final _data = <String, String>{};
@@ -28,13 +30,14 @@ final class _MemoryKvStore implements KvStore {
   Future<void> refreshFromDisk() async {}
 }
 
-TextContext ctx(String word) => TextContext(
+TextContext ctx(String word, {String locale = 'en', String boundary = ' '}) =>
+    TextContext(
       word: word,
       before: '',
       after: '',
       range: EditRange(0, word.length),
-      locale: 'en',
-      fullMessage: word,
+      locale: locale,
+      boundary: boundary,
     );
 
 void main() {
@@ -45,7 +48,31 @@ void main() {
     final words = await PersonalWordsRepository.instance.loadAll();
     final engine = LocalIntelligenceEngine(personalWords: words);
     final result = engine.process(ctx('tactbrand'));
-    // Unknown to dict → idle (no spell panel); personal words reserved for suggestions.
     expect(result.decision.state, isA<PanelIdle>());
+  });
+
+  test('personal word suppresses mat false positive', () {
+    final engine = LocalIntelligenceEngine(
+      personalWords: {'сука'},
+    );
+    // Without personal: would be PanelMat. With personal: skipped.
+    final result = engine.process(ctx('сука', locale: 'ru'));
+    expect(
+      result.signals.where((s) => s.kind == SignalKind.mat),
+      isEmpty,
+    );
+  });
+
+  test('personal word boosted in autocomplete', () {
+    final engine = LocalIntelligenceEngine(
+      personalWords: {'добрячок'},
+    );
+    final result = engine.processPartial(ctx('доб', locale: 'ru'));
+    final panel = result.decision.state;
+    expect(panel, isA<PanelSuggestions>());
+    expect(
+      (panel as PanelSuggestions).words.first.toLowerCase(),
+      'добрячок',
+    );
   });
 }

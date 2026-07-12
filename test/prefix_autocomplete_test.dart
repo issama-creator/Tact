@@ -91,7 +91,7 @@ void main() {
         partial: true,
         deleteBefore: 3,
       ));
-      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
       expect(last, isA<PanelSuggestions>());
       pipeline.dispose();
     });

@@ -65,16 +65,19 @@ final class RulesEngine {
     }
 
     if (toxic != null) {
-      final payload = toxic.payload! as ToxicPayload;
-      return PanelDecision(
-        state: PanelToxic(
-          word: payload.word,
-          level: payload.level,
-          score: payload.score,
-          range: toxic.range,
-        ),
-        producedAtMs: nowMs,
-      );
+      final payload = toxic.payload;
+      if (payload is ToxicPayload) {
+        return PanelDecision(
+          state: PanelToxic(
+            word: payload.word,
+            level: payload.level,
+            score: payload.score,
+            range: toxic.range,
+          ),
+          producedAtMs: nowMs,
+        );
+      }
+      // Malformed toxic signal — fall through to lower-priority panels.
     }
 
     if (aiAssist != null) {
@@ -92,16 +95,18 @@ final class RulesEngine {
     }
 
     if (shortcut != null) {
-      final payload = shortcut.payload! as ShortcutPayload;
-      final expansions = payload.expansions.take(3).toList(growable: false);
-      return PanelDecision(
-        state: PanelShortcut(
-          trigger: payload.trigger,
-          expansions: expansions,
-          range: shortcut.range,
-        ),
-        producedAtMs: nowMs,
-      );
+      final payload = shortcut.payload;
+      if (payload is ShortcutPayload) {
+        final expansions = payload.expansions.take(3).toList(growable: false);
+        return PanelDecision(
+          state: PanelShortcut(
+            trigger: payload.trigger,
+            expansions: expansions,
+            range: shortcut.range,
+          ),
+          producedAtMs: nowMs,
+        );
+      }
     }
 
     if (defaultSuggestions.isNotEmpty) {

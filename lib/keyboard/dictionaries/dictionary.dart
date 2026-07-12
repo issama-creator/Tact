@@ -103,14 +103,15 @@ final class Dictionary {
       scored.add(_PrefixHit(w, _frequency[w] ?? 1));
     }
     if (scored.isEmpty) return const [];
-
-    scored.sort((a, b) {
-      final byFreq = b.frequency.compareTo(a.frequency);
-      if (byFreq != 0) return byFreq;
-      final byLen = a.word.length.compareTo(b.word.length);
-      if (byLen != 0) return byLen;
-      return a.word.compareTo(b.word);
-    });
+    if (scored.length > 1) {
+      scored.sort((a, b) {
+        final byFreq = b.frequency.compareTo(a.frequency);
+        if (byFreq != 0) return byFreq;
+        final byLen = a.word.length.compareTo(b.word.length);
+        if (byLen != 0) return byLen;
+        return a.word.compareTo(b.word);
+      });
+    }
 
     final n = scored.length < max ? scored.length : max;
     return List<String>.generate(n, (i) => scored[i].word, growable: false);

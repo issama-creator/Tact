@@ -31,6 +31,12 @@ class ImeBridgeImpl(
     private var pendingSelection: Map<String, Any?>? = null
     private var selectionFlushPosted = false
 
+    /** Coalesces backspace / host text-edit spam into one Dart tick. */
+    private var textEditedPosted = false
+
+    /** Skips identical setTheme IPC when focus changes but palette is unchanged. */
+    private var lastThemeSignature: String? = null
+
     /** Native repaint hook — IME FlutterView may not paint after Dart setState alone. */
     var onRequestRepaint: (() -> Unit)? = null
 
@@ -52,7 +58,13 @@ class ImeBridgeImpl(
 
     // ── Native → Dart ─────────────────────────────────────────────────
 
-    fun sendTheme() = invokeDart("setTheme", themePayload())
+    fun sendTheme(force: Boolean = false) {
+        val payload = themePayload()
+        val signature = themeSignature(payload)
+        if (!force && signature == lastThemeSignature) return
+        lastThemeSignature = signature
+        invokeDart("setTheme", payload)
+    }
 
     fun onStartInputView(packageName: String?, inputType: Int, imeOptions: Int, locale: String?) {
         lastPartialSignature = null
@@ -98,7 +110,14 @@ class ImeBridgeImpl(
         return "${info.word}|$locale|${info.deleteBefore}"
     }
 
-    fun onTextEdited() = invokeDart("onTextEdited", null)
+    fun onTextEdited() {
+        if (textEditedPosted) return
+        textEditedPosted = true
+        mainHandler.postDelayed({
+            textEditedPosted = false
+            invokeDart("onTextEdited", null)
+        }, 40)
+    }
 
     fun onSelectionChanged(oldStart: Int, oldEnd: Int, newStart: Int, newEnd: Int) {
         pendingSelection = mapOf(
@@ -137,7 +156,14 @@ class ImeBridgeImpl(
         "keyText" to Theme.COLOR_KEY_TEXT,
         "keyTextMuted" to Theme.COLOR_KEY_TEXT_MUTED,
         "accent" to Theme.COLOR_KEY_ACCENT_BG,
+        "chipBg" to Theme.COLOR_KEY_LETTER_BG,
+        "stroke" to Theme.COLOR_KEY_STROKE,
     )
+
+    private fun themeSignature(payload: Map<String, Any?>): String =
+        "${payload["background"]}|${payload["keyText"]}|" +
+            "${payload["keyTextMuted"]}|${payload["accent"]}|" +
+            "${payload["chipBg"]}|${payload["stroke"]}"
 
     private fun invokeDart(method: String, arguments: Any?) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -212,6 +238,8 @@ class ImeBridgeImpl(
         pending.clear()
         pendingSelection = null
         selectionFlushPosted = false
+        textEditedPosted = false
+        lastThemeSignature = null
         mainHandler.removeCallbacksAndMessages(null)
     }
 
@@ -303,6 +331,7 @@ class ImeBridgeImpl(
                 }
                 "ready" -> {
                     FlutterEngineHost.markDartReady()
+                    lastThemeSignature = null
                     sendTheme()
                     flushPending()
                     onRequestRepaint?.invoke()

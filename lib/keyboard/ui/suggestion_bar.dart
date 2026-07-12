@@ -9,21 +9,11 @@ import '../rules/rule_signal.dart';
 import '../theme/keyboard_theme.dart';
 import 'panel_actions.dart';
 
-/// Soft dark tokens — same family as keyboard, low-contrast alerts.
-abstract final class _TactPanelColors {
-  /// Match native panel bar — no brown/yellow wash.
-  static const surface = Color(0xFF161920);
-  static const chipBg = Color(0xFF2A2E36);
-  static const text = Color(0xFFE8EAED);
-  static const textMuted = Color(0xFF8B929C);
-  static const action = Color(0xFF2A9B8F);
-  static const actionPressed = Color(0xFF238078);
+/// Semantic alert accents — stay recognizable on every keyboard theme.
+abstract final class _PanelAlertColors {
   static const mat = Color(0xFFD07A7A);
   static const toxic = Color(0xFFC9A86A);
-  static const improve = Color(0xFF5BA89E);
   static const undo = Color(0xFF6BC49A);
-  static const border = Color(0xFF252A32);
-  static const suggestionDivider = Color(0xFF3A4048);
 }
 
 /// Responsive sizing for the IME suggestion slot (width + height).
@@ -146,99 +136,53 @@ final class _PanelMetrics {
     );
   }
 
-  TextStyle get titleStyle => switch (titleSize) {
-        11 => _title11,
-        _ => _title12,
-      };
+  TextStyle titleStyle(Color color) => TextStyle(
+        color: color,
+        fontSize: titleSize,
+        fontWeight: FontWeight.w600,
+        height: 1.15,
+        decoration: TextDecoration.none,
+      );
 
-  TextStyle get subtitleStyle => switch (subtitleSize) {
-        10 => _subtitle10,
-        _ => _subtitle11,
-      };
+  TextStyle subtitleStyle(Color color) => TextStyle(
+        color: color,
+        fontSize: subtitleSize,
+        fontWeight: FontWeight.w500,
+        height: 1.15,
+        decoration: TextDecoration.none,
+      );
 
-  TextStyle get chipStyle => switch (chipFontSize) {
-        11 => _chip11,
-        _ => _chip12,
-      };
+  TextStyle chipStyle(Color color) => TextStyle(
+        color: color,
+        fontSize: chipFontSize == 11 ? 13 : 14,
+        fontWeight: FontWeight.w400,
+        height: 1.0,
+        decoration: TextDecoration.none,
+      );
 
-  TextStyle get actionStyle => switch (actionFontSize) {
-        10 => _action10,
-        _ => _action11,
-      };
-
-  static const _title11 = TextStyle(
-    color: _TactPanelColors.text,
-    fontSize: 11,
-    fontWeight: FontWeight.w600,
-    height: 1.15,
-    decoration: TextDecoration.none,
-  );
-  static const _title12 = TextStyle(
-    color: _TactPanelColors.text,
-    fontSize: 12,
-    fontWeight: FontWeight.w600,
-    height: 1.15,
-    decoration: TextDecoration.none,
-  );
-  static const _subtitle10 = TextStyle(
-    color: _TactPanelColors.textMuted,
-    fontSize: 10,
-    fontWeight: FontWeight.w500,
-    height: 1.15,
-    decoration: TextDecoration.none,
-  );
-  static const _subtitle11 = TextStyle(
-    color: _TactPanelColors.textMuted,
-    fontSize: 11,
-    fontWeight: FontWeight.w500,
-    height: 1.15,
-    decoration: TextDecoration.none,
-  );
-  static const _chip11 = TextStyle(
-    color: _TactPanelColors.textMuted,
-    fontSize: 13,
-    fontWeight: FontWeight.w400,
-    height: 1.0,
-    decoration: TextDecoration.none,
-  );
-  static const _chip12 = TextStyle(
-    color: _TactPanelColors.textMuted,
-    fontSize: 14,
-    fontWeight: FontWeight.w400,
-    height: 1.0,
-    decoration: TextDecoration.none,
-  );
-  static const _action10 = TextStyle(
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: FontWeight.w600,
-    decoration: TextDecoration.none,
-  );
-  static const _action11 = TextStyle(
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: FontWeight.w600,
-    decoration: TextDecoration.none,
-  );
+  TextStyle actionStyle(Color color) => TextStyle(
+        color: color,
+        fontSize: actionFontSize,
+        fontWeight: FontWeight.w600,
+        decoration: TextDecoration.none,
+      );
 }
 
 /// Quiet brand mark for the idle suggestion strip — almost a watermark.
 class _TactBrandMark extends StatelessWidget {
-  const _TactBrandMark({required this.onLightSurface});
+  const _TactBrandMark({required this.surface});
 
-  final bool onLightSurface;
+  final KeyboardSurfaceTheme surface;
 
   @override
   Widget build(BuildContext context) {
-    final color = onLightSurface
-        ? const Color(0x592A2E36)
-        : const Color(0x3D8B929C);
+    final alpha = surface.isLight ? 0.35 : 0.24;
     return Center(
       child: Text(
         'Tact',
         key: const Key('tact_brand_mark'),
         style: TextStyle(
-          color: color,
+          color: surface.keyTextMuted.withValues(alpha: alpha),
           fontSize: 9,
           fontWeight: FontWeight.w500,
           letterSpacing: 2.0,
@@ -265,12 +209,11 @@ class SuggestionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onLight = surface.isLight;
     return ColoredBox(
       key: const Key('suggestion_bar_root'),
       color: surface.background,
       child: panel is PanelIdle
-          ? _TactBrandMark(onLightSurface: onLight)
+          ? _TactBrandMark(surface: surface)
           : LayoutBuilder(
               builder: (context, constraints) {
                 final metrics = _PanelMetrics.forConstraints(constraints);
@@ -285,7 +228,6 @@ class SuggestionBar extends StatelessWidget {
                     panel: panel,
                     onAction: onAction,
                     metrics: metrics,
-                    onLightSurface: onLight,
                     surface: surface,
                   ),
                 );
@@ -300,27 +242,25 @@ class _PanelBody extends StatelessWidget {
     required this.panel,
     required this.onAction,
     required this.metrics,
-    required this.onLightSurface,
     required this.surface,
   });
 
   final PanelState panel;
   final Future<void> Function(PanelAction action) onAction;
   final _PanelMetrics metrics;
-  final bool onLightSurface;
   final KeyboardSurfaceTheme surface;
 
   @override
   Widget build(BuildContext context) {
-    final chipColor =
-        onLightSurface ? const Color(0xFF4B5563) : surface.keyTextMuted;
-    final dividerColor = surface.divider.withValues(alpha: onLightSurface ? 1 : 0.55);
+    final dividerColor =
+        surface.divider.withValues(alpha: surface.isLight ? 1 : 0.55);
     final brand = surface.accent;
 
     return switch (panel) {
       PanelIdle() => const SizedBox.shrink(),
       PanelUndo(:final label) => _StatusBar(
-          accent: _TactPanelColors.undo,
+          surface: surface,
+          accent: _PanelAlertColors.undo,
           brandAccent: brand,
           icon: Icons.check_circle_outline,
           title: label,
@@ -329,7 +269,8 @@ class _PanelBody extends StatelessWidget {
           onAction: () => onAction(const PanelActionUndo()),
         ),
       PanelMat p => _StatusBar(
-          accent: _TactPanelColors.mat,
+          surface: surface,
+          accent: _PanelAlertColors.mat,
           brandAccent: brand,
           icon: Icons.block,
           title: 'Мат',
@@ -339,7 +280,8 @@ class _PanelBody extends StatelessWidget {
           onAction: () => onAction(PanelActionRemoveMat(panel: p)),
         ),
       PanelToxic p => _StatusBar(
-          accent: _TactPanelColors.toxic,
+          surface: surface,
+          accent: _PanelAlertColors.toxic,
           brandAccent: brand,
           icon: Icons.warning_amber_rounded,
           title: p.level == ToxicLevel.conflict ? 'Конфликт' : 'Токсично',
@@ -349,6 +291,7 @@ class _PanelBody extends StatelessWidget {
           onAction: () => onAction(PanelActionSoftenToxic(panel: p)),
         ),
       PanelImprove() => _StatusBar(
+          surface: surface,
           accent: brand,
           brandAccent: brand,
           icon: Icons.auto_awesome,
@@ -359,9 +302,8 @@ class _PanelBody extends StatelessWidget {
         ),
       PanelAiAssist() => _AiAssistBar(
           metrics: metrics,
+          surface: surface,
           brandAccent: brand,
-          chipBg: surface.chipBg,
-          textColor: surface.keyText,
           onOrthography: () => onAction(
             const PanelActionAiAssist(chip: AiAssistChip.orthography),
           ),
@@ -374,7 +316,7 @@ class _PanelBody extends StatelessWidget {
         ),
       PanelShortcut(:final trigger, :final expansions) => _EqualChipRow(
           metrics: metrics,
-          chipColor: chipColor,
+          surface: surface,
           dividerColor: dividerColor,
           chips: expansions
               .take(3)
@@ -388,7 +330,7 @@ class _PanelBody extends StatelessWidget {
         ),
       PanelSuggestions(:final words) => _EqualChipRow(
           metrics: metrics,
-          chipColor: chipColor,
+          surface: surface,
           dividerColor: dividerColor,
           chips: words
               .take(3)
@@ -429,6 +371,7 @@ class _PanelText extends StatelessWidget {
 
 class _StatusBar extends StatelessWidget {
   const _StatusBar({
+    required this.surface,
     required this.accent,
     required this.brandAccent,
     required this.icon,
@@ -439,6 +382,7 @@ class _StatusBar extends StatelessWidget {
     required this.onAction,
   });
 
+  final KeyboardSurfaceTheme surface;
   final Color accent;
   final Color brandAccent;
   final IconData icon;
@@ -453,7 +397,6 @@ class _StatusBar extends StatelessWidget {
     final m = metrics;
     final hasSubtitle = subtitle != null && subtitle!.isNotEmpty;
 
-    // Compact centered cluster — not stretched edge-to-edge.
     return Center(
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: m.hPad),
@@ -469,6 +412,7 @@ class _StatusBar extends StatelessWidget {
                 subtitle: hasSubtitle ? subtitle! : null,
                 inline: true,
                 metrics: m,
+                surface: surface,
               ),
             ),
             if (onAction != null) ...[
@@ -477,6 +421,7 @@ class _StatusBar extends StatelessWidget {
                 label: actionLabel,
                 metrics: m,
                 brandAccent: brandAccent,
+                textColor: surface.keyText,
                 onTap: onAction!,
               ),
             ],
@@ -493,17 +438,19 @@ class _StatusMessage extends StatelessWidget {
     required this.subtitle,
     required this.inline,
     required this.metrics,
+    required this.surface,
   });
 
   final String title;
   final String? subtitle;
   final bool inline;
   final _PanelMetrics metrics;
+  final KeyboardSurfaceTheme surface;
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = metrics.titleStyle;
-    final subtitleStyle = metrics.subtitleStyle;
+    final titleStyle = metrics.titleStyle(surface.keyText);
+    final subtitleStyle = metrics.subtitleStyle(surface.keyTextMuted);
 
     if (subtitle == null) {
       return Align(
@@ -554,12 +501,14 @@ class _PanelActionButton extends StatelessWidget {
     required this.label,
     required this.metrics,
     required this.brandAccent,
+    required this.textColor,
     required this.onTap,
   });
 
   final String label;
   final _PanelMetrics metrics;
   final Color brandAccent;
+  final Color textColor;
   final VoidCallback onTap;
 
   @override
@@ -587,10 +536,7 @@ class _PanelActionButton extends StatelessWidget {
               ),
               child: _PanelText(
                 label,
-                style: metrics.actionStyle.copyWith(
-                  color: _TactPanelColors.text,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: metrics.actionStyle(textColor),
               ),
             ),
           ),
@@ -610,18 +556,16 @@ final class _ChipData {
 class _AiAssistBar extends StatelessWidget {
   const _AiAssistBar({
     required this.metrics,
+    required this.surface,
     required this.brandAccent,
-    required this.chipBg,
-    required this.textColor,
     required this.onOrthography,
     required this.onPunctuation,
     required this.onImprove,
   });
 
   final _PanelMetrics metrics;
+  final KeyboardSurfaceTheme surface;
   final Color brandAccent;
-  final Color chipBg;
-  final Color textColor;
   final VoidCallback onOrthography;
   final VoidCallback onPunctuation;
   final VoidCallback onImprove;
@@ -670,27 +614,24 @@ class _AiAssistBar extends StatelessWidget {
                 _AiActionPill(
                   label: PanelAiAssist.chipLabels[0],
                   metrics: metrics,
+                  surface: surface,
                   brandAccent: brandAccent,
-                  chipBg: chipBg,
-                  textColor: textColor,
                   onTap: onOrthography,
                 ),
                 SizedBox(width: metrics.gap),
                 _AiActionPill(
                   label: PanelAiAssist.chipLabels[1],
                   metrics: metrics,
+                  surface: surface,
                   brandAccent: brandAccent,
-                  chipBg: chipBg,
-                  textColor: textColor,
                   onTap: onPunctuation,
                 ),
                 SizedBox(width: metrics.gap),
                 _AiActionPill(
                   label: PanelAiAssist.chipLabels[2],
                   metrics: metrics,
+                  surface: surface,
                   brandAccent: brandAccent,
-                  chipBg: chipBg,
-                  textColor: textColor,
                   onTap: onImprove,
                 ),
               ],
@@ -706,17 +647,15 @@ class _AiActionPill extends StatelessWidget {
   const _AiActionPill({
     required this.label,
     required this.metrics,
+    required this.surface,
     required this.brandAccent,
-    required this.chipBg,
-    required this.textColor,
     required this.onTap,
   });
 
   final String label;
   final _PanelMetrics metrics;
+  final KeyboardSurfaceTheme surface;
   final Color brandAccent;
-  final Color chipBg;
-  final Color textColor;
   final VoidCallback onTap;
 
   @override
@@ -731,7 +670,7 @@ class _AiActionPill extends StatelessWidget {
           borderRadius: BorderRadius.circular(metrics.radius * 0.7),
           child: Ink(
             decoration: BoxDecoration(
-              color: chipBg,
+              color: surface.chipBg,
               borderRadius: BorderRadius.circular(metrics.radius * 0.7),
               border: Border.all(
                 color: brandAccent.withValues(alpha: 0.35),
@@ -745,7 +684,7 @@ class _AiActionPill extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  color: textColor,
+                  color: surface.keyText,
                   fontSize: metrics.chipFontSize.clamp(11, 13).toDouble(),
                   fontWeight: FontWeight.w600,
                   decoration: TextDecoration.none,
@@ -759,34 +698,18 @@ class _AiActionPill extends StatelessWidget {
   }
 }
 
-class _ChipRow extends StatelessWidget {
-  const _ChipRow({required this.chips, required this.metrics});
-
-  final List<_ChipData> chips;
-  final _PanelMetrics metrics;
-
-  @override
-  Widget build(BuildContext context) {
-    return _PanelSurface(
-      metrics: metrics,
-      borderColor: _TactPanelColors.border,
-      child: _ChipScroller(metrics: metrics, chips: chips),
-    );
-  }
-}
-
 /// Gboard-style: equal columns, hairline ticks, full-bleed strip.
 class _EqualChipRow extends StatelessWidget {
   const _EqualChipRow({
     required this.chips,
     required this.metrics,
-    required this.chipColor,
+    required this.surface,
     required this.dividerColor,
   });
 
   final List<_ChipData> chips;
   final _PanelMetrics metrics;
-  final Color chipColor;
+  final KeyboardSurfaceTheme surface;
   final Color dividerColor;
 
   @override
@@ -797,12 +720,15 @@ class _EqualChipRow extends StatelessWidget {
       children: [
         for (var i = 0; i < chips.length; i++) ...[
           if (i > 0)
-            _SuggestionDivider(inset: metrics.dividerInset + 2, color: dividerColor),
+            _SuggestionDivider(
+              inset: metrics.dividerInset + 2,
+              color: dividerColor,
+            ),
           Expanded(
             child: _EqualSuggestionSlot(
               chip: chips[i],
               metrics: metrics,
-              textColor: chipColor,
+              textColor: surface.keyTextMuted,
             ),
           ),
         ],
@@ -855,105 +781,7 @@ class _EqualSuggestionSlot extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: _PanelText(
                 chip.label,
-                style: metrics.chipStyle.copyWith(color: textColor),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PanelSurface extends StatelessWidget {
-  const _PanelSurface({
-    required this.metrics,
-    required this.borderColor,
-    this.accent,
-    required this.child,
-  });
-
-  final _PanelMetrics metrics;
-  final Color borderColor;
-  final Color? accent;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: _TactPanelColors.surface,
-        borderRadius: BorderRadius.circular(metrics.radius),
-        border: Border.all(color: borderColor),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: metrics.hPad,
-          vertical: metrics.vPad,
-        ),
-        child: child,
-      ),
-    );
-  }
-}
-
-class _ChipScroller extends StatelessWidget {
-  const _ChipScroller({required this.metrics, required this.chips});
-
-  final _PanelMetrics metrics;
-  final List<_ChipData> chips;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final chip in chips) ...[
-              _SuggestionChip(chip: chip, metrics: metrics),
-              SizedBox(width: metrics.gap),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SuggestionChip extends StatelessWidget {
-  const _SuggestionChip({required this.chip, required this.metrics});
-
-  final _ChipData chip;
-  final _PanelMetrics metrics;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: chip.onTap != null,
-      label: chip.label,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: chip.onTap,
-          borderRadius: BorderRadius.circular(6),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: _TactPanelColors.chipBg,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: _TactPanelColors.border.withValues(alpha: 0.8),
-              ),
-            ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: metrics.chipPadH,
-                vertical: metrics.chipPadV,
-              ),
-              child: _PanelText(
-                chip.label,
-                style: metrics.chipStyle,
+                style: metrics.chipStyle(textColor),
               ),
             ),
           ),

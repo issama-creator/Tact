@@ -237,10 +237,23 @@ object ThemePrefs {
     private const val COMPANION_KEY = "flutter.tact.companion_prefs"
     private const val SETTINGS_KEY = "flutter.tact.keyboard_settings"
 
+    /** Last index successfully read from disk — avoids JSON parse on every focus. */
+    @Volatile
+    private var cachedIndex: Int? = null
+
+    fun invalidate() {
+        cachedIndex = null
+    }
+
     fun applyFromStorage(context: Context) {
+        val cached = cachedIndex
+        if (cached != null && Theme.colorsApplied && Theme.activeIndex == cached) {
+            return
+        }
         val prefs = context.getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
         // Companion default is Midnight (index 2).
         val index = readThemeIndex(prefs) ?: 2
+        cachedIndex = index
         Theme.applyIndex(index)
     }
 

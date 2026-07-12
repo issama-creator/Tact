@@ -76,7 +76,7 @@ final class LocalIntelligenceEngine {
       undoLabel: _undo.label,
       defaultSuggestions: suggestions,
       nowMs: clock,
-      messageLength: ctx.fullMessage.length,
+      messageLength: ctx.messageLength,
     );
 
     return IntelligenceResult(
@@ -96,7 +96,7 @@ final class LocalIntelligenceEngine {
       undoAvailable: false,
       defaultSuggestions: const [],
       nowMs: clock,
-      messageLength: ctx.fullMessage.length,
+      messageLength: ctx.messageLength,
     );
     return IntelligenceResult(
       normalized: ctx.word,

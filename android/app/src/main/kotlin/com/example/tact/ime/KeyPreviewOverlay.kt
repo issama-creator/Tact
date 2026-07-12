@@ -215,18 +215,32 @@ class KeyPreviewOverlay @JvmOverloads constructor(
         val rect = tmpRectF.also { it.set(left, top, left + width, top + height) }
         val radius = metrics.dp(KeyboardSizing.keyPreviewCornerRadiusDp(cfg))
 
-        val saved = canvas.saveLayerAlpha(rect, (previewAlpha * 255).toInt())
+        val a = (previewAlpha * 255).toInt().coerceIn(0, 255)
+        val bgA = backgroundPaint.alpha
+        val strokeA = strokePaint.alpha
+        val textA = previewTextPaint.alpha
+        backgroundPaint.alpha = a
+        strokePaint.alpha = a
+        previewTextPaint.alpha = a
         canvas.drawRoundRect(rect, radius, radius, backgroundPaint)
         canvas.drawRoundRect(rect, radius, radius, strokePaint)
         val textY = rect.centerY() - (previewTextPaint.descent() + previewTextPaint.ascent()) / 2f
         canvas.drawText(previewLabel, rect.centerX(), textY, previewTextPaint)
-        canvas.restoreToCount(saved)
+        backgroundPaint.alpha = bgA
+        strokePaint.alpha = strokeA
+        previewTextPaint.alpha = textA
     }
 
     private fun drawAlternatives(canvas: Canvas) {
         val cfg = resources.configuration
         val radius = metrics.dp(KeyboardSizing.longPressPopupCornerRadiusDp(cfg))
-        val saved = canvas.saveLayerAlpha(altsPopupRect, (altsAlpha * 255).toInt())
+        val a = (altsAlpha * 255).toInt().coerceIn(0, 255)
+        val popupA = altsPopupPaint.alpha
+        val highlightA = altsHighlightPaint.alpha
+        val textA = altsTextPaint.alpha
+        altsPopupPaint.alpha = a
+        altsHighlightPaint.alpha = a
+        altsTextPaint.alpha = a
         canvas.drawRoundRect(altsPopupRect, radius, radius, altsPopupPaint)
 
         val itemWidth = altsPopupRect.width() / altsLabels.size
@@ -246,8 +260,9 @@ class KeyPreviewOverlay @JvmOverloads constructor(
                 (altsTextPaint.descent() + altsTextPaint.ascent()) / 2f
             canvas.drawText(altsLabels[i], altsItemRect.centerX(), textY, altsTextPaint)
         }
-
-        canvas.restoreToCount(saved)
+        altsPopupPaint.alpha = popupA
+        altsHighlightPaint.alpha = highlightA
+        altsTextPaint.alpha = textA
     }
 
     // ── Geometry ──────────────────────────────────────────────────────
