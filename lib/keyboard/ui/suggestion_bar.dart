@@ -22,7 +22,7 @@ abstract final class _TactPanelColors {
   static const improve = Color(0xFF5BA89E);
   static const undo = Color(0xFF6BC49A);
   static const border = Color(0xFF252A32);
-  static const suggestionDivider = Color(0xFF5A616C);
+  static const suggestionDivider = Color(0xFF3A4048);
 }
 
 /// Responsive sizing for the IME suggestion slot (width + height).
@@ -194,15 +194,17 @@ final class _PanelMetrics {
     decoration: TextDecoration.none,
   );
   static const _chip11 = TextStyle(
-    color: _TactPanelColors.text,
-    fontSize: 11,
-    fontWeight: FontWeight.w500,
+    color: _TactPanelColors.textMuted,
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    height: 1.0,
     decoration: TextDecoration.none,
   );
   static const _chip12 = TextStyle(
-    color: _TactPanelColors.text,
-    fontSize: 12,
-    fontWeight: FontWeight.w500,
+    color: _TactPanelColors.textMuted,
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    height: 1.0,
     decoration: TextDecoration.none,
   );
   static const _action10 = TextStyle(
@@ -219,16 +221,15 @@ final class _PanelMetrics {
   );
 }
 
-/// Quiet brand mark for the idle suggestion strip — identifies Tact without
-/// competing with chips or status content.
+/// Quiet brand mark for the idle suggestion strip — almost a watermark.
 class _TactBrandMark extends StatelessWidget {
   const _TactBrandMark();
 
   static const _style = TextStyle(
-    color: Color(0x669A9AA3),
-    fontSize: 9.5,
+    color: Color(0x3D8B929C),
+    fontSize: 9,
     fontWeight: FontWeight.w500,
-    letterSpacing: 1.8,
+    letterSpacing: 2.0,
     height: 1.0,
     decoration: TextDecoration.none,
   );
@@ -268,10 +269,12 @@ class SuggestionBar extends StatelessWidget {
           : LayoutBuilder(
               builder: (context, constraints) {
                 final metrics = _PanelMetrics.forConstraints(constraints);
+                final gboardStrip =
+                    panel is PanelSuggestions || panel is PanelShortcut;
                 return Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: metrics.outerH,
-                    vertical: metrics.outerV,
+                    horizontal: gboardStrip ? 0 : metrics.outerH,
+                    vertical: gboardStrip ? 0 : metrics.outerV,
                   ),
                   child: _PanelBody(
                     panel: panel,
@@ -575,7 +578,7 @@ class _ChipRow extends StatelessWidget {
   }
 }
 
-/// Gboard-style: suggestions share the bar equally, thin ticks between them.
+/// Gboard-style: equal columns, hairline ticks, full-bleed strip.
 class _EqualChipRow extends StatelessWidget {
   const _EqualChipRow({required this.chips, required this.metrics});
 
@@ -589,7 +592,7 @@ class _EqualChipRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < chips.length; i++) ...[
-          if (i > 0) _SuggestionDivider(inset: metrics.dividerInset),
+          if (i > 0) _SuggestionDivider(inset: metrics.dividerInset + 2),
           Expanded(
             child: _EqualSuggestionSlot(
               chip: chips[i],
@@ -611,11 +614,11 @@ class _SuggestionDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return VerticalDivider(
-      width: 12,
+      width: 1,
       thickness: 1,
       indent: inset,
       endIndent: inset,
-      color: _TactPanelColors.suggestionDivider,
+      color: _TactPanelColors.suggestionDivider.withValues(alpha: 0.55),
     );
   }
 }
@@ -637,7 +640,7 @@ class _EqualSuggestionSlot extends StatelessWidget {
           onTap: chip.onTap,
           child: Center(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: metrics.hPad),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               child: _PanelText(
                 chip.label,
                 style: metrics.chipStyle,

@@ -42,9 +42,9 @@ object Theme {
 
     // --- Dimensions (dp) ----------------------------------------------------
 
-    const val SUGGESTION_BAR_HEIGHT_DP_PHONE: Float = 36f
-    const val SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND: Float = 30f
-    const val SUGGESTION_BAR_HEIGHT_DP_TABLET: Float = 40f
+    const val SUGGESTION_BAR_HEIGHT_DP_PHONE: Float = 34f
+    const val SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND: Float = 28f
+    const val SUGGESTION_BAR_HEIGHT_DP_TABLET: Float = 38f
 
     // Key area height is computed adaptively from the current screen height
     // (see [keyAreaHeightDp]); these are only the clamp bounds so the
@@ -63,28 +63,29 @@ object Theme {
     const val KEY_AREA_FRACTION_TABLET: Float = 0.28f
     const val KEY_AREA_FRACTION_TABLET_LAND: Float = 0.38f
 
-    const val KEYBOARD_BOTTOM_PADDING_DP_PHONE: Float = 14f
-    const val KEYBOARD_BOTTOM_PADDING_DP_PHONE_LAND: Float = 8f
-    const val KEYBOARD_BOTTOM_PADDING_DP_TABLET: Float = 14f
+    const val KEYBOARD_BOTTOM_PADDING_DP_PHONE: Float = 28f
+    const val KEYBOARD_BOTTOM_PADDING_DP_PHONE_LAND: Float = 12f
+    const val KEYBOARD_BOTTOM_PADDING_DP_TABLET: Float = 20f
 
     /**
      * Outer breathing room from screen edges (left/right). Keys stay
-     * distinct islands — not flush to the bezel.
+     * distinct islands — not flush to the bezel / gesture edge.
      */
-    const val KEYBOARD_EDGE_INSET_DP: Float = 5f
+    const val KEYBOARD_EDGE_INSET_DP: Float = 6f
 
     // Match Samsung/Yandex RU geometry: modest gutters, taller keys, soft radius.
     const val KEY_GRID_PADDING_X_DP: Float = 4f
     const val KEY_GRID_PADDING_Y_DP: Float = 4f
     const val KEY_HORIZONTAL_GAP_DP: Float = 5.5f
     const val KEY_VERTICAL_GAP_DP: Float = 6.5f
-    /** Letter-row cap ≈ reference key height on phone. */
-    const val KEY_MAX_ROW_HEIGHT_DP: Float = 54f
+    /** Letter-row cap — keep keys squat, not tall pills. */
+    const val KEY_MAX_ROW_HEIGHT_DP: Float = 44f
     /** Tiny paint inset only — gaps come from KEY_*_GAP, not from shrinking faces. */
     const val KEY_DRAW_INSET_H_DP: Float = 0.5f
     const val KEY_DRAW_INSET_V_DP: Float = 0.75f
     const val KEY_CORNER_RADIUS_DP: Float = 5.5f
     const val KEY_STROKE_WIDTH_DP: Float = 0f
+    /** Same height as letter rows — bottom must not read as a tall slab. */
     const val KEY_BOTTOM_ROW_HEIGHT_WEIGHT: Float = 1f
 
     const val KEY_LABEL_TEXT_SIZE_SP: Float = 21f

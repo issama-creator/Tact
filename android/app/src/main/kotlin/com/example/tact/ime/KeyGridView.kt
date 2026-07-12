@@ -71,6 +71,7 @@ class KeyGridView @JvmOverloads constructor(
 
     // Reused temporaries.
     private val tmpRectF = RectF()
+    private val tmpIconRectF = RectF()
     private val tmpRect = Rect()
     private val iconPath = Path()
 
@@ -244,16 +245,17 @@ class KeyGridView @JvmOverloads constructor(
         val maxRowH = metrics.dp(KeyboardSizing.keyMaxRowHeightDp(cfg))
         val innerWidth = width - paddingX * 2
 
-        val totalHeightWeight = rows.sumOf { it.heightWeight.toDouble() }.toFloat()
-            .coerceAtLeast(0.001f)
         val gapsTotal = vGap * (rows.size - 1).coerceAtLeast(0)
 
-        // Cap row height so keys stay squat (Samsung-like). Leftover → outer pad.
+        // Equal row heights. Tight vertical pads — no empty “second panel”
+        // band above the letter rows (leftover used to pile into paddingYTop).
         val availableForRows = (height - paddingYMin * 2 - gapsTotal).coerceAtLeast(0f)
-        val naturalUnit = availableForRows / totalHeightWeight
+        val naturalUnit = availableForRows / rows.size.coerceAtLeast(1)
         val rowUnitHeight = naturalUnit.coerceAtMost(maxRowH)
-        val contentH = rowUnitHeight * totalHeightWeight + gapsTotal
-        val paddingY = ((height - contentH) / 2f).coerceAtLeast(paddingYMin)
+        val contentH = rowUnitHeight * rows.size + gapsTotal
+        val padTotal = (height - contentH).coerceAtLeast(paddingYMin * 2)
+        val paddingYTop = padTotal / 2f
+        // Bottom pad is the remainder so float math stays exact.
 
         // RU (11-key rows): stretch each row full width — matches Samsung/Yandex.
         // EN: shared unit + center shorter rows.
@@ -272,10 +274,10 @@ class KeyGridView @JvmOverloads constructor(
             if (!sharedUnit.isFinite()) sharedUnit = 0f
         }
 
-        var y = paddingY
+        var y = paddingYTop
         for (rowIndex in rows.indices) {
             val row = rows[rowIndex]
-            val rowHeight = rowUnitHeight * row.heightWeight
+            val rowHeight = rowUnitHeight
             val keyCount = row.keys.size
             val totalKeyWeight = row.keys.sumOf { it.weight.toDouble() }.toFloat()
                 .coerceAtLeast(0.001f)
@@ -332,6 +334,10 @@ class KeyGridView @JvmOverloads constructor(
         tmpRectF.inset(drawInsetH, drawInsetV)
         val rect = tmpRectF
 
+        // Clip icons/labels to the key face — no bleed onto neighbors (Enter).
+        val save = canvas.save()
+        canvas.clipRect(rect)
+
         val (bg, pressedBg, isAccent) = paletteFor(key)
         val paint = if (kr.pressed) pressedBg else bg
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
@@ -349,6 +355,7 @@ class KeyGridView @JvmOverloads constructor(
             is KeyAction.LayerSwitch -> drawLayerLabel(canvas, rect, action)
             KeyAction.Emoji -> drawEmojiIcon(canvas, rect)
         }
+        canvas.restoreToCount(save)
     }
 
     private data class KeyPalette(
@@ -457,16 +464,15 @@ class KeyGridView @JvmOverloads constructor(
     }
 
     private fun drawGlobeIcon(canvas: Canvas, rect: RectF) {
-        val r = minOf(rect.width(), rect.height()) * 0.28f
+        // Keep globe fully inside the key — never spill toward Enter.
+        val r = minOf(rect.width(), rect.height()) * 0.26f
         val cx = rect.centerX()
         val cy = rect.centerY()
         iconPaintStroke.color = Theme.COLOR_KEY_TEXT
         canvas.drawCircle(cx, cy, r, iconPaintStroke)
-        // Vertical meridian.
         canvas.drawLine(cx, cy - r, cx, cy + r, iconPaintStroke)
-        // Curved horizontal.
-        tmpRectF.set(cx - r, cy - r * 0.5f, cx + r, cy + r * 0.5f)
-        canvas.drawOval(tmpRectF, iconPaintStroke)
+        tmpIconRectF.set(cx - r, cy - r * 0.5f, cx + r, cy + r * 0.5f)
+        canvas.drawOval(tmpIconRectF, iconPaintStroke)
     }
 
     private fun drawEnterKey(canvas: Canvas, rect: RectF, isAccent: Boolean) {
@@ -474,8 +480,6 @@ class KeyGridView @JvmOverloads constructor(
         if (label != null) {
             val paint = if (isAccent) accentLabelPaint else functionLabelPaint
             val originalSize = paint.textSize
-            // Auto-fit the label to the key width so "Отправить" / "Search"
-            // never overflow on narrow keys.
             val maxWidth = rect.width() * 0.86f
             var size = originalSize
             while (size > 9f && paint.measureText(label) > maxWidth) {
@@ -491,16 +495,14 @@ class KeyGridView @JvmOverloads constructor(
     }
 
     private fun drawReturnArrow(canvas: Canvas, rect: RectF, isAccent: Boolean) {
-        val size = minOf(rect.width(), rect.height()) * 0.35f
+        val size = minOf(rect.width(), rect.height()) * 0.32f
         val cx = rect.centerX()
         val cy = rect.centerY()
         iconPaintStroke.color = if (isAccent) Theme.COLOR_KEY_TEXT_ACCENT else Theme.COLOR_KEY_TEXT
-        // Vertical stem down + horizontal to left arrowhead.
-        canvas.drawLine(cx + size * 0.7f, cy - size * 0.55f, cx + size * 0.7f, cy, iconPaintStroke)
-        canvas.drawLine(cx + size * 0.7f, cy, cx - size * 0.6f, cy, iconPaintStroke)
-        // Arrowhead.
-        canvas.drawLine(cx - size * 0.6f, cy, cx - size * 0.25f, cy - size * 0.3f, iconPaintStroke)
-        canvas.drawLine(cx - size * 0.6f, cy, cx - size * 0.25f, cy + size * 0.3f, iconPaintStroke)
+        canvas.drawLine(cx + size * 0.55f, cy - size * 0.5f, cx + size * 0.55f, cy, iconPaintStroke)
+        canvas.drawLine(cx + size * 0.55f, cy, cx - size * 0.5f, cy, iconPaintStroke)
+        canvas.drawLine(cx - size * 0.5f, cy, cx - size * 0.18f, cy - size * 0.28f, iconPaintStroke)
+        canvas.drawLine(cx - size * 0.5f, cy, cx - size * 0.18f, cy + size * 0.28f, iconPaintStroke)
     }
 
     private fun drawSpaceLabel(canvas: Canvas, rect: RectF) {
@@ -535,8 +537,8 @@ class KeyGridView @JvmOverloads constructor(
         canvas.drawCircle(cx, cy, r, iconPaintStroke)
         canvas.drawCircle(cx - r * 0.35f, cy - r * 0.1f, r * 0.1f, iconPaintFill)
         canvas.drawCircle(cx + r * 0.35f, cy - r * 0.1f, r * 0.1f, iconPaintFill)
-        tmpRectF.set(cx - r * 0.45f, cy - r * 0.2f, cx + r * 0.45f, cy + r * 0.5f)
-        canvas.drawArc(tmpRectF, 20f, 140f, false, iconPaintStroke)
+        tmpIconRectF.set(cx - r * 0.45f, cy - r * 0.2f, cx + r * 0.45f, cy + r * 0.5f)
+        canvas.drawArc(tmpIconRectF, 20f, 140f, false, iconPaintStroke)
 
         val commaCy =
             rect.centerY() + r * 1.15f - (subLabelPaint.descent() + subLabelPaint.ascent()) / 2f

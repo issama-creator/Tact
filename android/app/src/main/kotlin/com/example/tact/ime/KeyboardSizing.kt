@@ -88,46 +88,22 @@ object KeyboardSizing {
     }
 
     /**
-     * Key-grid height: fraction of screen height with continuous clamps.
+     * Key-grid height sized to fit 4 capped rows + gutters — avoids an empty
+     * dark band under the suggestion bar that looks like a broken panel.
      */
     fun keyAreaHeightDp(configuration: Configuration): Float {
-        val screenH = configuration.screenHeightDp.toFloat().coerceAtLeast(1f)
         val land = isLandscape(configuration)
         val tablet = isTablet(configuration)
         val large = deviceClass(configuration) == DeviceClass.LARGE_PHONE
 
-        val fraction: Float
-        val minH: Float
-        val maxH: Float
+        // 4×44 + 3×6.5 + 2×4 ≈ 203.5dp — keep phone band tight around that.
         when {
-            tablet && land -> {
-                fraction = 0.36f
-                minH = 180f
-                maxH = 280f
-            }
-            tablet -> {
-                fraction = 0.26f
-                minH = 220f
-                maxH = 300f
-            }
-            land -> {
-                fraction = 0.46f
-                minH = 130f
-                maxH = 200f
-            }
-            large -> {
-                // ~4×54 + 3×6.5 + pads ≈ reference keyboard block height.
-                fraction = 0.28f
-                minH = 230f
-                maxH = 280f
-            }
-            else -> {
-                fraction = 0.285f
-                minH = 220f
-                maxH = 270f
-            }
+            tablet && land -> return 240f
+            tablet -> return 260f
+            land -> return 160f
+            large -> return 210f
+            else -> return 204f
         }
-        return (screenH * fraction).coerceIn(minH, maxH)
     }
 
     fun keyboardBottomPaddingDp(configuration: Configuration): Float {
@@ -166,7 +142,8 @@ object KeyboardSizing {
         Theme.KEY_VERTICAL_GAP_DP * keyboardScale(configuration)
 
     fun keyMaxRowHeightDp(configuration: Configuration): Float =
-        Theme.KEY_MAX_ROW_HEIGHT_DP * keyboardScale(configuration)
+        // Don't scale this up on large phones — tall rows are the bug.
+        Theme.KEY_MAX_ROW_HEIGHT_DP.coerceAtMost(44f)
 
     fun keyDrawInsetHDp(configuration: Configuration): Float =
         Theme.KEY_DRAW_INSET_H_DP
