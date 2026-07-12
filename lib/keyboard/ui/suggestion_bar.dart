@@ -10,111 +10,139 @@ import 'panel_actions.dart';
 
 /// Design tokens aligned with companion [PanelPreviewBar].
 abstract final class _TactPanelColors {
-  static const surface = Color(0xFF22212A);
-  static const chipBg = Color(0xFF2E2D36);
-  static const text = Color(0xFFE8E8EA);
-  static const textMuted = Color(0xFF9A9AA3);
-  static const action = Color(0xFF7C5CFF);
-  static const actionPressed = Color(0xFF6A4FE0);
+  static const surface = Color(0xFF1A1D24);
+  static const chipBg = Color(0xFF2A2E36);
+  static const text = Color(0xFFF2F3F5);
+  static const textMuted = Color(0xFF8B929C);
+  static const action = Color(0xFF2A9B8F);
+  static const actionPressed = Color(0xFF238078);
   static const mat = Color(0xFFC94B4B);
   static const toxic = Color(0xFFE8B339);
-  static const improve = Color(0xFF7C5CFF);
+  static const improve = Color(0xFF2A9B8F);
   static const undo = Color(0xFF3DDC97);
-  static const border = Color(0xFF33323C);
-  /// Gboard-style suggestion separators (mid-gray on dark bar).
-  static const suggestionDivider = Color(0xFF6A6A72);
+  static const border = Color(0xFF2F343C);
+  /// Suggestion separators (mid-gray on dark bar).
+  static const suggestionDivider = Color(0xFF5A616C);
 }
 
-/// Responsive sizing for ~38dp IME suggestion slots (320–430+ px wide).
+/// Responsive sizing for the IME suggestion slot (width + height).
 final class _PanelMetrics {
   const _PanelMetrics({
     required this.width,
+    required this.height,
     required this.inlineSubtitle,
     required this.iconSize,
     required this.titleSize,
     required this.subtitleSize,
     required this.actionFontSize,
     required this.chipFontSize,
+    required this.outerH,
+    required this.outerV,
     required this.hPad,
+    required this.vPad,
     required this.gap,
     required this.chipPadH,
     required this.chipPadV,
     required this.actionPadH,
     required this.actionPadV,
     required this.radius,
+    required this.dividerInset,
   });
 
   final double width;
+  final double height;
   final bool inlineSubtitle;
   final double iconSize;
   final double titleSize;
   final double subtitleSize;
   final double actionFontSize;
   final double chipFontSize;
+  final double outerH;
+  final double outerV;
   final double hPad;
+  final double vPad;
   final double gap;
   final double chipPadH;
   final double chipPadV;
   final double actionPadH;
   final double actionPadV;
   final double radius;
+  final double dividerInset;
 
-  static const tight = _PanelMetrics(
-    width: 320,
-    inlineSubtitle: true,
-    iconSize: 16,
-    titleSize: 11,
-    subtitleSize: 10,
-    actionFontSize: 10,
-    chipFontSize: 11,
-    hPad: 6,
-    gap: 5,
-    chipPadH: 8,
-    chipPadV: 4,
-    actionPadH: 8,
-    actionPadV: 4,
-    radius: 7,
-  );
+  /// Bucketed metrics from available slot — width and height both matter.
+  factory _PanelMetrics.forConstraints(BoxConstraints constraints) {
+    final w = constraints.maxWidth;
+    final h = constraints.maxHeight.isFinite && constraints.maxHeight > 0
+        ? constraints.maxHeight
+        : 36.0;
 
-  static const compact = _PanelMetrics(
-    width: 360,
-    inlineSubtitle: true,
-    iconSize: 18,
-    titleSize: 12,
-    subtitleSize: 11,
-    actionFontSize: 11,
-    chipFontSize: 12,
-    hPad: 8,
-    gap: 6,
-    chipPadH: 10,
-    chipPadV: 5,
-    actionPadH: 10,
-    actionPadV: 5,
-    radius: 8,
-  );
-
-  static const comfortable = _PanelMetrics(
-    width: 400,
-    inlineSubtitle: false,
-    iconSize: 18,
-    titleSize: 12,
-    subtitleSize: 11,
-    actionFontSize: 11,
-    chipFontSize: 12,
-    hPad: 8,
-    gap: 6,
-    chipPadH: 10,
-    chipPadV: 5,
-    actionPadH: 10,
-    actionPadV: 5,
-    radius: 8,
-  );
-
-  /// Bucketed metrics — zero alloc after first width class is known.
-  factory _PanelMetrics.forWidth(double width) {
-    if (width < 340) return tight;
-    if (width < 380) return compact;
-    return comfortable;
+    if (w < 340 || h < 34) {
+      return _PanelMetrics(
+        width: w,
+        height: h,
+        inlineSubtitle: true,
+        iconSize: 14,
+        titleSize: 11,
+        subtitleSize: 10,
+        actionFontSize: 10,
+        chipFontSize: 11,
+        outerH: 4,
+        outerV: 2,
+        hPad: 6,
+        vPad: 3,
+        gap: 5,
+        chipPadH: 8,
+        chipPadV: 3,
+        actionPadH: 8,
+        actionPadV: 3,
+        radius: 7,
+        dividerInset: 6,
+      );
+    }
+    if (w < 400 || h < 40) {
+      return _PanelMetrics(
+        width: w,
+        height: h,
+        inlineSubtitle: true,
+        iconSize: 15,
+        titleSize: 11,
+        subtitleSize: 10,
+        actionFontSize: 10,
+        chipFontSize: 11,
+        outerH: 5,
+        outerV: 2,
+        hPad: 7,
+        vPad: 3,
+        gap: 5,
+        chipPadH: 8,
+        chipPadV: 3,
+        actionPadH: 9,
+        actionPadV: 4,
+        radius: 8,
+        dividerInset: 7,
+      );
+    }
+    return _PanelMetrics(
+      width: w,
+      height: h,
+      inlineSubtitle: w < 380,
+      iconSize: 16,
+      titleSize: 12,
+      subtitleSize: 10,
+      actionFontSize: 11,
+      chipFontSize: 12,
+      outerH: 5,
+      outerV: 3,
+      hPad: 8,
+      vPad: 4,
+      gap: 6,
+      chipPadH: 10,
+      chipPadV: 4,
+      actionPadH: 10,
+      actionPadV: 4,
+      radius: 8,
+      dividerInset: 8,
+    );
   }
 
   TextStyle get titleStyle => switch (titleSize) {
@@ -239,11 +267,11 @@ class SuggestionBar extends StatelessWidget {
           ? const _TactBrandMark()
           : LayoutBuilder(
               builder: (context, constraints) {
-                final metrics = _PanelMetrics.forWidth(constraints.maxWidth);
+                final metrics = _PanelMetrics.forConstraints(constraints);
                 return Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: constraints.maxWidth < 340 ? 4 : 6,
-                    vertical: 1,
+                    horizontal: metrics.outerH,
+                    vertical: metrics.outerV,
                   ),
                   child: _PanelBody(
                     panel: panel,
@@ -402,22 +430,23 @@ class _StatusBar extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: EdgeInsets.only(
-            left: m.hPad + 2,
-            right: m.hPad,
-            top: 3,
-            bottom: 3,
+          padding: EdgeInsets.symmetric(
+            horizontal: m.hPad,
+            vertical: m.vPad,
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _AccentIcon(accent: accent, icon: icon, size: m.iconSize),
               SizedBox(width: m.gap),
-              Expanded(child: _StatusMessage(
-                title: title,
-                subtitle: hasSubtitle ? subtitle! : null,
-                inline: m.inlineSubtitle,
-                metrics: m,
-              )),
+              Expanded(
+                child: _StatusMessage(
+                  title: title,
+                  subtitle: hasSubtitle ? subtitle! : null,
+                  inline: m.inlineSubtitle,
+                  metrics: m,
+                ),
+              ),
               if (onAction != null) ...[
                 SizedBox(width: m.gap),
                 _PanelActionButton(
@@ -447,15 +476,17 @@ class _AccentIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size + 6,
-      height: size + 6,
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(6),
+    final box = size + 8;
+    return SizedBox(
+      width: box,
+      height: box,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(size * 0.35),
+        ),
+        child: Center(child: Icon(icon, color: accent, size: size)),
       ),
-      alignment: Alignment.center,
-      child: Icon(icon, color: accent, size: size),
     );
   }
 }
@@ -542,11 +573,11 @@ class _PanelActionButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(metrics.radius * 0.7),
           child: Ink(
             decoration: BoxDecoration(
               color: _TactPanelColors.action,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(metrics.radius * 0.7),
             ),
             child: Padding(
               padding: EdgeInsets.symmetric(
@@ -601,7 +632,7 @@ class _EqualChipRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < chips.length; i++) ...[
-          if (i > 0) const _SuggestionDivider(),
+          if (i > 0) _SuggestionDivider(inset: metrics.dividerInset),
           Expanded(
             child: _EqualSuggestionSlot(
               chip: chips[i],
@@ -614,17 +645,19 @@ class _EqualChipRow extends StatelessWidget {
   }
 }
 
-/// Short vertical tick — does not span the full bar height (like Gboard).
+/// Short vertical tick — inset so it doesn't span the full bar height.
 class _SuggestionDivider extends StatelessWidget {
-  const _SuggestionDivider();
+  const _SuggestionDivider({required this.inset});
+
+  final double inset;
 
   @override
   Widget build(BuildContext context) {
-    return const VerticalDivider(
+    return VerticalDivider(
       width: 12,
       thickness: 1,
-      indent: 8,
-      endIndent: 8,
+      indent: inset,
+      endIndent: inset,
       color: _TactPanelColors.suggestionDivider,
     );
   }
@@ -684,7 +717,7 @@ class _PanelSurface extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: metrics.hPad,
-          vertical: 3,
+          vertical: metrics.vPad,
         ),
         child: child,
       ),

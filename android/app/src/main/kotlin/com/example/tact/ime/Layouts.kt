@@ -118,7 +118,7 @@ object Layouts {
         ),
     )
 
-    // ── Russian (ЙЦУКЕН, Gboard 12-11-9) ─────────────────────────────────
+    // ── Russian (ЙЦУКЕН, 11-11-9 like Samsung/Yandex) ───────────────────
 
     val jcukenRu: KeyboardLayer = KeyboardLayer(
         id = "jcuken_ru",
@@ -134,11 +134,10 @@ object Layouts {
                     c("е", sub = "5", alt = listOf("5", "ё")),
                     c("н", sub = "6", alt = listOf("6")),
                     c("г", sub = "7", alt = listOf("7")),
-                    c("ш", sub = "8", alt = listOf("8", "щ")),
+                    c("ш", sub = "8", alt = listOf("8")),
                     c("щ", sub = "9", alt = listOf("9")),
                     c("з", sub = "0", alt = listOf("0")),
-                    c("х"),
-                    c("ъ"),
+                    c("х", alt = listOf("ъ")),
                 ),
             ),
             KeyRow(

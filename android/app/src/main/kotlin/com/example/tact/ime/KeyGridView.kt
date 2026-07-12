@@ -94,10 +94,14 @@ class KeyGridView @JvmOverloads constructor(
     private val accentKeyPressedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Theme.COLOR_KEY_ACCENT_BG_PRESSED; style = Paint.Style.FILL
     }
+    private val keyStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Theme.COLOR_KEY_STROKE
+        style = Paint.Style.STROKE
+        strokeWidth = 1f
+    }
     private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         color = Theme.COLOR_KEY_TEXT
         textAlign = Paint.Align.CENTER
-        // Medium weight reads closer to Gboard than thin DEFAULT.
         typeface = keyLabelTypeface()
         isElegantTextHeight = true
     }
@@ -134,6 +138,8 @@ class KeyGridView @JvmOverloads constructor(
     private var subLabelTextSize: Float = 0f
     private var functionLabelTextSize: Float = 0f
     private var cornerRadius: Float = 0f
+    private var drawInsetH: Float = 0f
+    private var drawInsetV: Float = 0f
 
     // ── Touch tracking ────────────────────────────────────────────────
 
@@ -215,6 +221,9 @@ class KeyGridView @JvmOverloads constructor(
         subLabelTextSize = metrics.sp(KeyboardSizing.keySubLabelTextSizeSp(cfg))
         functionLabelTextSize = metrics.sp(KeyboardSizing.keyFunctionTextSizeSp(cfg))
         cornerRadius = metrics.dp(KeyboardSizing.keyCornerRadiusDp(cfg))
+        drawInsetH = metrics.dp(KeyboardSizing.keyDrawInsetHDp(cfg))
+        drawInsetV = metrics.dp(KeyboardSizing.keyDrawInsetVDp(cfg))
+        keyStrokePaint.strokeWidth = metrics.dp(KeyboardSizing.keyStrokeWidthDp(cfg))
         labelPaint.textSize = keyLabelTextSize
         subLabelPaint.textSize = subLabelTextSize
         functionLabelPaint.textSize = functionLabelTextSize
@@ -231,30 +240,60 @@ class KeyGridView @JvmOverloads constructor(
         val hGap = metrics.dp(KeyboardSizing.keyHorizontalGapDp(cfg))
         val vGap = metrics.dp(KeyboardSizing.keyVerticalGapDp(cfg))
         val paddingX = metrics.dp(KeyboardSizing.keyGridPaddingXDp(cfg))
-        val paddingY = metrics.dp(KeyboardSizing.keyGridPaddingYDp(cfg))
+        val paddingYMin = metrics.dp(KeyboardSizing.keyGridPaddingYDp(cfg))
+        val maxRowH = metrics.dp(KeyboardSizing.keyMaxRowHeightDp(cfg))
         val innerWidth = width - paddingX * 2
 
         val totalHeightWeight = rows.sumOf { it.heightWeight.toDouble() }.toFloat()
-        val usableHeight = (height - paddingY * 2) - vGap * (rows.size - 1)
-        val rowUnitHeight = usableHeight / totalHeightWeight
+            .coerceAtLeast(0.001f)
+        val gapsTotal = vGap * (rows.size - 1).coerceAtLeast(0)
+
+        // Cap row height so keys stay squat (Samsung-like). Leftover → outer pad.
+        val availableForRows = (height - paddingYMin * 2 - gapsTotal).coerceAtLeast(0f)
+        val naturalUnit = availableForRows / totalHeightWeight
+        val rowUnitHeight = naturalUnit.coerceAtMost(maxRowH)
+        val contentH = rowUnitHeight * totalHeightWeight + gapsTotal
+        val paddingY = ((height - contentH) / 2f).coerceAtLeast(paddingYMin)
+
+        // RU (11-key rows): stretch each row full width — matches Samsung/Yandex.
+        // EN: shared unit + center shorter rows.
+        val stretchRows = layer.language == LanguageKind.RU ||
+            rows.maxOf { it.keys.size } >= 11
+
+        var sharedUnit = Float.POSITIVE_INFINITY
+        if (!stretchRows) {
+            for (row in rows) {
+                val weight = row.keys.sumOf { it.weight.toDouble() }.toFloat()
+                    .coerceAtLeast(0.001f)
+                val gaps = hGap * (row.keys.size - 1).coerceAtLeast(0)
+                val unit = (innerWidth - gaps).coerceAtLeast(0f) / weight
+                if (unit < sharedUnit) sharedUnit = unit
+            }
+            if (!sharedUnit.isFinite()) sharedUnit = 0f
+        }
 
         var y = paddingY
         for (rowIndex in rows.indices) {
             val row = rows[rowIndex]
             val rowHeight = rowUnitHeight * row.heightWeight
+            val keyCount = row.keys.size
             val totalKeyWeight = row.keys.sumOf { it.weight.toDouble() }.toFloat()
                 .coerceAtLeast(0.001f)
-            val rowGaps = hGap * (row.keys.size - 1).coerceAtLeast(0)
-            // Every row spans the full width — no side gutters on shorter
-            // rows (ф/э, a/l). Keys share the row proportionally by weight.
-            val available = (innerWidth - rowGaps).coerceAtLeast(0f)
-            var x = paddingX
+            val rowGaps = hGap * (keyCount - 1).coerceAtLeast(0)
 
+            val (unit, startX) = if (stretchRows) {
+                val available = (innerWidth - rowGaps).coerceAtLeast(0f)
+                (available / totalKeyWeight) to paddingX
+            } else {
+                val rowWidth = sharedUnit * totalKeyWeight + rowGaps
+                sharedUnit to (paddingX + (innerWidth - rowWidth) / 2f)
+            }
+
+            var x = startX
             for (keyIndex in row.keys.indices) {
                 val key = row.keys[keyIndex]
-                val keyW = available * (key.weight / totalKeyWeight)
-                val rect = RectF(x, y, x + keyW, y + rowHeight)
-                keyRects.add(KeyRect(key, rect, rowIndex, keyIndex))
+                val keyW = unit * key.weight
+                keyRects.add(KeyRect(key, RectF(x, y, x + keyW, y + rowHeight), rowIndex, keyIndex))
                 x += keyW + hGap
             }
             y += rowHeight + vGap
@@ -288,14 +327,20 @@ class KeyGridView @JvmOverloads constructor(
 
     private fun drawKey(canvas: Canvas, kr: KeyRect) {
         val key = kr.key
-        val rect = kr.rect
+        // Hit-rect stays full; paint inset so gaps read clearly (not glued).
+        tmpRectF.set(kr.rect)
+        tmpRectF.inset(drawInsetH, drawInsetV)
+        val rect = tmpRectF
 
         val (bg, pressedBg, isAccent) = paletteFor(key)
         val paint = if (kr.pressed) pressedBg else bg
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, paint)
+        if (!isAccent && keyStrokePaint.strokeWidth > 0f) {
+            canvas.drawRoundRect(rect, cornerRadius, cornerRadius, keyStrokePaint)
+        }
 
         when (val action = key.action) {
-            is KeyAction.Character -> drawCharacterKey(canvas, kr, action)
+            is KeyAction.Character -> drawCharacterKey(canvas, rect, kr.key.subLabel, action)
             KeyAction.Shift -> drawShiftIcon(canvas, rect)
             KeyAction.Backspace -> drawBackspaceIcon(canvas, rect)
             KeyAction.Space -> drawSpaceLabel(canvas, rect)
@@ -323,15 +368,18 @@ class KeyGridView @JvmOverloads constructor(
         else -> paletteFunction
     }
 
-    private fun drawCharacterKey(canvas: Canvas, kr: KeyRect, action: KeyAction.Character) {
-        val rect = kr.rect
+    private fun drawCharacterKey(
+        canvas: Canvas,
+        rect: RectF,
+        sub: String?,
+        action: KeyAction.Character,
+    ) {
         // labelUpper is precomputed in Layouts — never allocate uppercase() here.
         val label = if (state.isUpperCase) {
             action.labelUpper ?: action.label
         } else {
             action.label
         }
-        val sub = kr.key.subLabel
         // Optical center: nudge down slightly when a corner number is present.
         val baseline =
             rect.centerY() - (labelPaint.descent() + labelPaint.ascent()) / 2f +

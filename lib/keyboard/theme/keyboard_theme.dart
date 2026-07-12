@@ -1,12 +1,15 @@
-/// Shared keyboard surface colors — must match [Theme.COLOR_KEYBOARD_BG] on Android.
+/// Shared keyboard surface colors — must match Android [Theme] palette.
 library;
 
 import 'package:flutter/material.dart';
 
 abstract final class KeyboardTheme {
-  /// Native `Theme.COLOR_KEYBOARD_BG` / FlutterView + key grid background.
-  static const Color keyboardBackground = Color(0xFF171719);
+  /// Native `Theme.COLOR_KEYBOARD_BG`.
+  static const Color keyboardBackground = Color(0xFF12141A);
 
-  /// Suggestion strip — near keyboard bg so idle bar does not look like a void.
-  static const Color panelBarBackground = Color(0xFF1C1C1F);
+  /// Native `Theme.COLOR_PANEL_BAR_BG`.
+  static const Color panelBarBackground = Color(0xFF161920);
+
+  /// Native `Theme.COLOR_KEY_ACCENT_BG` — enter / panel CTAs.
+  static const Color accent = Color(0xFF2A9B8F);
 }

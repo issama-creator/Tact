@@ -24,6 +24,10 @@ abstract final class TactColors {
   static const purpleDim = Color(0xFF6D28D9);
   static const purpleGlow = Color(0x338B5CF6);
 
+  /// IME brand accent (enter / panel actions) — teal, not Material purple.
+  static const accent = Color(0xFF2A9B8F);
+  static const accentDim = Color(0xFF238078);
+
   static const orange = Color(0xFFF97316);
   static const blue = Color(0xFF3B82F6);
   static const green = Color(0xFF22C55E);

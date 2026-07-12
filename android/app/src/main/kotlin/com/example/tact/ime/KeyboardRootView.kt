@@ -141,15 +141,17 @@ class KeyboardRootView(
     private fun applyAdaptiveChrome(forceLog: Boolean = false) {
         val cfg = resources.configuration
         val bottom = metrics.dpInt(Theme.keyboardBottomPaddingDp(cfg))
+        val edge = metrics.dpInt(KeyboardSizing.edgeInsetDp(cfg))
         val side = if (KeyboardSizing.isTablet(cfg)) {
-            if (width > 0) {
-                val contentPx = metrics.dpInt(KeyboardSizing.contentMaxWidthDp(cfg))
-                ((width - contentPx) / 2).coerceAtLeast(0)
+            val contentPx = if (width > 0) {
+                metrics.dpInt(KeyboardSizing.contentMaxWidthDp(cfg))
             } else {
-                KeyboardSizing.contentSideInsetPx(cfg, metrics)
+                metrics.dpInt(KeyboardSizing.contentMaxWidthDp(cfg))
             }
+            val available = if (width > 0) width else metrics.dpInt(cfg.screenWidthDp.toFloat())
+            maxOf(edge, ((available - contentPx) / 2).coerceAtLeast(0))
         } else {
-            0 // phones: flush edge-to-edge
+            edge
         }
         setPadding(side, 0, side, bottom)
 

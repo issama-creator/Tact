@@ -413,7 +413,7 @@ class MiniKeyboardPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF171719),
+        color: const Color(0xFF12141A),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: TactColors.surfaceBorder),
       ),
@@ -428,15 +428,15 @@ class MiniKeyboardPreview extends StatelessWidget {
             const SizedBox(height: 6),
           ],
           Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 6),
+            padding: const EdgeInsets.fromLTRB(5, 0, 5, 8),
             child: Column(
               children: [
-                _keyRow(['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х', 'ъ']),
-                const SizedBox(height: 3),
+                _keyRow(['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х']),
+                const SizedBox(height: 4),
                 _keyRow(['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д', 'ж', 'э']),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 _keyRow(['⇧', 'я', 'ч', 'с', 'м', 'и', 'т', 'ь', 'б', 'ю', '⌫']),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     _fnKey('?123', flex: 1.35),
@@ -446,10 +446,14 @@ class MiniKeyboardPreview extends StatelessWidget {
                       flex: 48,
                       child: Container(
                         height: 28,
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1F1F22),
-                          borderRadius: BorderRadius.circular(6),
+                          color: const Color(0xFF1C2028),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: const Color(0x28FFFFFF),
+                            width: 1,
+                          ),
                         ),
                         alignment: Alignment.center,
                         child: const Text(
@@ -481,14 +485,15 @@ class MiniKeyboardPreview extends StatelessWidget {
             child: Container(
               height: 28,
               margin: EdgeInsets.only(
-                left: i == 0 ? 0 : 1,
-                right: i == keys.length - 1 ? 0 : 1,
+                left: i == 0 ? 0 : 2,
+                right: i == keys.length - 1 ? 0 : 2,
               ),
               decoration: BoxDecoration(
                 color: i == 0 || i == keys.length - 1
-                    ? const Color(0xFF1F1F22)
-                    : const Color(0xFF2A2A2E),
-                borderRadius: BorderRadius.circular(6),
+                    ? const Color(0xFF1C2028)
+                    : const Color(0xFF2A2E36),
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(color: const Color(0x28FFFFFF), width: 1),
               ),
               alignment: Alignment.center,
               child: Text(
@@ -510,10 +515,13 @@ class MiniKeyboardPreview extends StatelessWidget {
       flex: (flex * 10).round(),
       child: Container(
         height: 28,
-        margin: const EdgeInsets.symmetric(horizontal: 1),
+        margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
-          color: accent ? TactColors.purple : const Color(0xFF1F1F22),
-          borderRadius: BorderRadius.circular(6),
+          color: accent ? TactColors.accent : const Color(0xFF1C2028),
+          borderRadius: BorderRadius.circular(7),
+          border: accent
+              ? null
+              : Border.all(color: const Color(0x28FFFFFF), width: 1),
         ),
         alignment: Alignment.center,
         child: Text(

@@ -10,7 +10,7 @@ class AppearanceScreen extends StatelessWidget {
   final CompanionAppState state;
 
   static const _themes = [
-    _ThemeData('Тёмная', Color(0xFF2A2A2E), Color(0xFF171719)),
+    _ThemeData('Тёмная', Color(0xFF2A2E36), Color(0xFF12141A)),
     _ThemeData('Светлая', Color(0xFFE5E7EB), Color(0xFFF3F4F6)),
     _ThemeData('Midnight', Color(0xFF312E81), Color(0xFF1E1B4B)),
     _ThemeData('Graphite', Color(0xFF52525B), Color(0xFF27272A)),

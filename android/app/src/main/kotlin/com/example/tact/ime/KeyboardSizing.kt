@@ -80,9 +80,9 @@ object KeyboardSizing {
     fun suggestionBarHeightDp(configuration: Configuration): Float {
         val scale = keyboardScale(configuration)
         val base = when {
-            isTablet(configuration) -> 40f
-            isLandscape(configuration) -> 30f
-            else -> 36f
+            isTablet(configuration) -> Theme.SUGGESTION_BAR_HEIGHT_DP_TABLET
+            isLandscape(configuration) -> Theme.SUGGESTION_BAR_HEIGHT_DP_PHONE_LAND
+            else -> Theme.SUGGESTION_BAR_HEIGHT_DP_PHONE
         }
         return (base * scale).coerceIn(28f, 48f)
     }
@@ -116,14 +116,15 @@ object KeyboardSizing {
                 maxH = 200f
             }
             large -> {
-                fraction = 0.255f
-                minH = 200f
-                maxH = 270f
+                // ~4×54 + 3×6.5 + pads ≈ reference keyboard block height.
+                fraction = 0.28f
+                minH = 230f
+                maxH = 280f
             }
             else -> {
-                fraction = 0.27f
-                minH = 180f
-                maxH = 260f
+                fraction = 0.285f
+                minH = 220f
+                maxH = 270f
             }
         }
         return (screenH * fraction).coerceIn(minH, maxH)
@@ -132,19 +133,28 @@ object KeyboardSizing {
     fun keyboardBottomPaddingDp(configuration: Configuration): Float {
         val scale = keyboardScale(configuration)
         val base = when {
-            isTablet(configuration) -> 10f
-            isLandscape(configuration) -> 4f
-            else -> 6f
+            isTablet(configuration) -> Theme.KEYBOARD_BOTTOM_PADDING_DP_TABLET
+            isLandscape(configuration) -> Theme.KEYBOARD_BOTTOM_PADDING_DP_PHONE_LAND
+            else -> Theme.KEYBOARD_BOTTOM_PADDING_DP_PHONE
+        }
+        return base * scale
+    }
+
+    /** Left/right inset so the key block breathes from the bezel. */
+    fun edgeInsetDp(configuration: Configuration): Float {
+        val scale = keyboardScale(configuration)
+        val base = if (isTablet(configuration)) {
+            Theme.KEYBOARD_EDGE_INSET_DP + 4f
+        } else {
+            Theme.KEYBOARD_EDGE_INSET_DP
         }
         return base * scale
     }
 
     // ── Scaled chrome (dp / sp) ──────────────────────────────────────────
 
-    fun keyGridPaddingXDp(configuration: Configuration): Float {
-        // Do not scale side inset up on large phones — keep edge-to-edge.
-        return Theme.KEY_GRID_PADDING_X_DP
-    }
+    fun keyGridPaddingXDp(configuration: Configuration): Float =
+        Theme.KEY_GRID_PADDING_X_DP
 
     fun keyGridPaddingYDp(configuration: Configuration): Float =
         Theme.KEY_GRID_PADDING_Y_DP * keyboardScale(configuration)
@@ -154,6 +164,18 @@ object KeyboardSizing {
 
     fun keyVerticalGapDp(configuration: Configuration): Float =
         Theme.KEY_VERTICAL_GAP_DP * keyboardScale(configuration)
+
+    fun keyMaxRowHeightDp(configuration: Configuration): Float =
+        Theme.KEY_MAX_ROW_HEIGHT_DP * keyboardScale(configuration)
+
+    fun keyDrawInsetHDp(configuration: Configuration): Float =
+        Theme.KEY_DRAW_INSET_H_DP
+
+    fun keyDrawInsetVDp(configuration: Configuration): Float =
+        Theme.KEY_DRAW_INSET_V_DP * keyboardScale(configuration)
+
+    fun keyStrokeWidthDp(configuration: Configuration): Float =
+        Theme.KEY_STROKE_WIDTH_DP
 
     fun keyCornerRadiusDp(configuration: Configuration): Float =
         Theme.KEY_CORNER_RADIUS_DP * keyboardScale(configuration)

@@ -7,33 +7,36 @@ import android.util.TypedValue
 import android.view.View
 
 /**
- * Static Material 3 dark theme for the TACT keyboard surface.
+ * TACT keyboard surface theme — distinct from stock Material / Gboard:
+ * cooler charcoal field, soft key stroke, teal enter (not Material purple).
  *
- * Colors are fixed for MVP. **Sizing** (gaps, heights, content width) lives in
- * [KeyboardSizing] so the layout stays finger-consistent across phones and
- * tablets. Base dp/sp constants below are the scale=1.0 reference values.
+ * **Sizing** (gaps, heights, content width) lives in [KeyboardSizing].
+ * Base dp/sp constants below are the scale=1.0 reference values.
  */
 object Theme {
 
     // --- Palette (ARGB) -----------------------------------------------------
 
-    const val COLOR_KEYBOARD_BG: Int = 0xFF171719.toInt()
-    /** Same family as keyboard bg — empty strip must not look like a purple void. */
-    const val COLOR_PANEL_BAR_BG: Int = 0xFF1C1C1F.toInt()
-    const val COLOR_KEY_LETTER_BG: Int = 0xFF2E2E33.toInt()
-    const val COLOR_KEY_LETTER_BG_PRESSED: Int = 0xFF3E3E45.toInt()
-    const val COLOR_KEY_FUNCTION_BG: Int = 0xFF232328.toInt()
-    const val COLOR_KEY_FUNCTION_BG_PRESSED: Int = 0xFF303036.toInt()
-    const val COLOR_KEY_ACCENT_BG: Int = 0xFF6750A4.toInt()
-    const val COLOR_KEY_ACCENT_BG_PRESSED: Int = 0xFF7B62BE.toInt()
-    const val COLOR_KEY_TEXT: Int = 0xFFFFFFFF.toInt()
-    const val COLOR_KEY_TEXT_MUTED: Int = 0xFF8B9098.toInt()
+    /** Deep cool charcoal — not pure Gboard near-black. */
+    const val COLOR_KEYBOARD_BG: Int = 0xFF12141A.toInt()
+    const val COLOR_PANEL_BAR_BG: Int = 0xFF161920.toInt()
+    const val COLOR_KEY_LETTER_BG: Int = 0xFF2A2E36.toInt()
+    const val COLOR_KEY_LETTER_BG_PRESSED: Int = 0xFF3A3F49.toInt()
+    const val COLOR_KEY_FUNCTION_BG: Int = 0xFF1C2028.toInt()
+    const val COLOR_KEY_FUNCTION_BG_PRESSED: Int = 0xFF2A2F38.toInt()
+    /** Brand enter — muted teal, not Material purple. */
+    const val COLOR_KEY_ACCENT_BG: Int = 0xFF2A9B8F.toInt()
+    const val COLOR_KEY_ACCENT_BG_PRESSED: Int = 0xFF34B3A5.toInt()
+    const val COLOR_KEY_TEXT: Int = 0xFFF2F3F5.toInt()
+    const val COLOR_KEY_TEXT_MUTED: Int = 0xFF8B929C.toInt()
     const val COLOR_KEY_TEXT_ACCENT: Int = 0xFFFFFFFF.toInt()
-    const val COLOR_KEY_PREVIEW_BG: Int = 0xFF3A3A40.toInt()
-    const val COLOR_KEY_PREVIEW_STROKE: Int = 0x33FFFFFF
-    const val COLOR_RIPPLE: Int = 0x33FFFFFF
-    const val COLOR_DIVIDER: Int = 0x1FFFFFFF
-    const val COLOR_LONGPRESS_POPUP_BG: Int = 0xFF2C2C31.toInt()
+    const val COLOR_KEY_PREVIEW_BG: Int = 0xFF363B45.toInt()
+    const val COLOR_KEY_PREVIEW_STROKE: Int = 0x40FFFFFF
+    /** Hairline on letter/function keys — separates from flat Gboard look. */
+    const val COLOR_KEY_STROKE: Int = 0x28FFFFFF
+    const val COLOR_RIPPLE: Int = 0x28FFFFFF
+    const val COLOR_DIVIDER: Int = 0x24FFFFFF
+    const val COLOR_LONGPRESS_POPUP_BG: Int = 0xFF2A2F38.toInt()
     const val COLOR_LONGPRESS_POPUP_HIGHLIGHT: Int = COLOR_KEY_ACCENT_BG
     const val COLOR_TRANSPARENT: Int = Color.TRANSPARENT
 
@@ -46,7 +49,6 @@ object Theme {
     // Key area height is computed adaptively from the current screen height
     // (see [keyAreaHeightDp]); these are only the clamp bounds so the
     // keyboard never becomes unusably small or absurdly tall.
-    // Gboard-like proportions — compact rows, not oversized keys.
     const val KEY_AREA_MIN_DP_PHONE: Float = 188f
     const val KEY_AREA_MAX_DP_PHONE: Float = 248f
     const val KEY_AREA_MIN_DP_PHONE_LAND: Float = 140f
@@ -61,17 +63,29 @@ object Theme {
     const val KEY_AREA_FRACTION_TABLET: Float = 0.28f
     const val KEY_AREA_FRACTION_TABLET_LAND: Float = 0.38f
 
-    const val KEYBOARD_BOTTOM_PADDING_DP_PHONE: Float = 6f
-    const val KEYBOARD_BOTTOM_PADDING_DP_PHONE_LAND: Float = 4f
-    const val KEYBOARD_BOTTOM_PADDING_DP_TABLET: Float = 10f
+    const val KEYBOARD_BOTTOM_PADDING_DP_PHONE: Float = 14f
+    const val KEYBOARD_BOTTOM_PADDING_DP_PHONE_LAND: Float = 8f
+    const val KEYBOARD_BOTTOM_PADDING_DP_TABLET: Float = 14f
 
-    // Flush to screen edges (Gboard). Gap between keys only — no side gutter.
-    const val KEY_GRID_PADDING_X_DP: Float = 0f
-    const val KEY_GRID_PADDING_Y_DP: Float = 2f
-    const val KEY_HORIZONTAL_GAP_DP: Float = 4.5f
-    const val KEY_VERTICAL_GAP_DP: Float = 5f
-    const val KEY_CORNER_RADIUS_DP: Float = 8f
-    const val KEY_BOTTOM_ROW_HEIGHT_WEIGHT: Float = 0.88f
+    /**
+     * Outer breathing room from screen edges (left/right). Keys stay
+     * distinct islands — not flush to the bezel.
+     */
+    const val KEYBOARD_EDGE_INSET_DP: Float = 5f
+
+    // Match Samsung/Yandex RU geometry: modest gutters, taller keys, soft radius.
+    const val KEY_GRID_PADDING_X_DP: Float = 4f
+    const val KEY_GRID_PADDING_Y_DP: Float = 4f
+    const val KEY_HORIZONTAL_GAP_DP: Float = 5.5f
+    const val KEY_VERTICAL_GAP_DP: Float = 6.5f
+    /** Letter-row cap ≈ reference key height on phone. */
+    const val KEY_MAX_ROW_HEIGHT_DP: Float = 54f
+    /** Tiny paint inset only — gaps come from KEY_*_GAP, not from shrinking faces. */
+    const val KEY_DRAW_INSET_H_DP: Float = 0.5f
+    const val KEY_DRAW_INSET_V_DP: Float = 0.75f
+    const val KEY_CORNER_RADIUS_DP: Float = 5.5f
+    const val KEY_STROKE_WIDTH_DP: Float = 0f
+    const val KEY_BOTTOM_ROW_HEIGHT_WEIGHT: Float = 1f
 
     const val KEY_LABEL_TEXT_SIZE_SP: Float = 21f
     const val KEY_LABEL_TEXT_SIZE_SP_TABLET: Float = 23f
@@ -81,12 +95,12 @@ object Theme {
     const val KEY_PREVIEW_TEXT_SIZE_SP: Float = 30f
     const val KEY_PREVIEW_HEIGHT_DP: Float = 64f
     const val KEY_PREVIEW_LIFT_DP: Float = 6f
-    const val KEY_PREVIEW_CORNER_RADIUS_DP: Float = 10f
+    const val KEY_PREVIEW_CORNER_RADIUS_DP: Float = 8f
     const val KEY_PREVIEW_STROKE_WIDTH_DP: Float = 1f
 
     const val LONGPRESS_POPUP_ITEM_WIDTH_DP: Float = 44f
     const val LONGPRESS_POPUP_ITEM_HEIGHT_DP: Float = 52f
-    const val LONGPRESS_POPUP_CORNER_RADIUS_DP: Float = 10f
+    const val LONGPRESS_POPUP_CORNER_RADIUS_DP: Float = 8f
     const val LONGPRESS_POPUP_TEXT_SIZE_SP: Float = 22f
     const val LONGPRESS_POPUP_PADDING_DP: Float = 6f
 
