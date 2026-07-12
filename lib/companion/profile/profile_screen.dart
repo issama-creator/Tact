@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../settings/settings_screen.dart';
 import '../state/app_state.dart';
 import '../theme/tact_theme.dart';
 import '../widgets/tact_widgets.dart';
 
+/// Quiet account screen — no marketing chrome, no duplicate limits.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.state});
 
@@ -17,105 +19,130 @@ class ProfileScreen extends StatelessWidget {
           listenable: state,
           builder: (context, _) {
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
-                const TactSectionHeader(
-                  title: 'Профиль',
-                  subtitle: 'Статистика и лимиты использования',
-                ),
-                const SizedBox(height: 24),
-                const TactSectionLabel('Лимиты на сегодня'),
-                const SizedBox(height: 12),
-                TactCard(
-                  child: Column(
-                    children: [
-                      _limitRow(
-                        'Смягчить',
-                        state.softenUsed,
-                        state.softenLimit,
-                        TactColors.orange,
-                      ),
-                      const SizedBox(height: 16),
-                      _limitRow(
-                        'Исправить',
-                        state.correctUsed,
-                        state.correctLimit,
-                        TactColors.purple,
-                      ),
-                      const SizedBox(height: 16),
-                      _limitRow(
-                        'Улучшить',
-                        state.improveUsed,
-                        state.improveLimit,
-                        TactColors.blue,
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'Лимиты обновятся через 14:32:11',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: TactColors.textMuted,
-                        ),
-                      ),
-                    ],
+                const Text(
+                  'Профиль',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: TactColors.textPrimary,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 4),
+                const Text(
+                  'Аккаунт и план',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: TactColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 28),
                 TactCard(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                   child: Row(
                     children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: TactColors.surfaceElevated,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: TactColors.surfaceBorder,
+                            width: 0.5,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'T',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: TactColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
                       const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Текущий план',
+                              'Гость',
                               style: TextStyle(
-                                fontSize: 13,
-                                color: TactColors.textSecondary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: TactColors.textPrimary,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            SizedBox(height: 2),
                             Text(
-                              'Free',
+                              'План Free',
                               style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: TactColors.textPrimary,
+                                fontSize: 13,
+                                color: TactColors.textMuted,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      FilledButton(
+                      TextButton(
                         onPressed: () {},
-                        style: FilledButton.styleFrom(
-                          backgroundColor: TactColors.purple,
+                        style: TextButton.styleFrom(
+                          foregroundColor: TactColors.textSecondary,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          minimumSize: const Size(0, TactLayout.minTouchTarget),
+                        ),
+                        child: const Text(
+                          'Улучшить',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        child: const Text('Улучшить план'),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
                 TactCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Column(
                     children: [
                       TactSettingsRow(
                         title: 'История активности',
+                        subtitle: 'Недавние действия',
                         onTap: () {},
                       ),
-                      const Divider(height: 1),
+                      const Divider(height: 1, indent: 12, endIndent: 12),
                       TactSettingsRow(
-                        title: 'Настройки аккаунта',
-                        onTap: () {},
+                        title: 'Настройки',
+                        subtitle: 'Клавиатура, звук, язык',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => SettingsScreen(state: state),
+                            ),
+                          );
+                        },
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                const Center(
+                  child: Text(
+                    'TACT · 1.0.0',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: TactColors.textMuted,
+                      letterSpacing: 0.3,
+                    ),
                   ),
                 ),
               ],
@@ -123,44 +150,6 @@ class ProfileScreen extends StatelessWidget {
           },
         ),
       ),
-    );
-  }
-
-  Widget _limitRow(String label, int used, int limit, Color color) {
-    final progress = used / limit;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                color: TactColors.textPrimary,
-              ),
-            ),
-            Text(
-              '$used / $limit',
-              style: const TextStyle(
-                fontSize: 13,
-                color: TactColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 6,
-            backgroundColor: const Color(0xFF27272A),
-            color: color,
-          ),
-        ),
-      ],
     );
   }
 }

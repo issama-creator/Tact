@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../platform/ime_platform.dart';
 import '../theme/tact_theme.dart';
+import 'keyboard_picker_sheet.dart';
 import 'tact_widgets.dart';
 
-/// Shows which keyboard is active and helps switch TACT ↔ Gboard.
+/// One light card: open in-app keyboard chooser (no system picker by default).
 class ImeStatusCard extends StatefulWidget {
   const ImeStatusCard({super.key});
 
@@ -43,13 +44,14 @@ class _ImeStatusCardState extends State<ImeStatusCard>
     });
   }
 
-  Future<void> _activateTact() async {
-    await ImePlatform.activateTact();
-    _refresh();
-  }
-
-  Future<void> _activateGboard() async {
-    await ImePlatform.activateGboard();
+  Future<void> _openPicker() async {
+    final status = await ImePlatform.getImeStatus();
+    if (!mounted) return;
+    if (!status.tactEnabled) {
+      await ImePlatform.openImeSettings();
+      return;
+    }
+    await showKeyboardPickerSheet(context, onChanged: _refresh);
     _refresh();
   }
 
@@ -61,15 +63,16 @@ class _ImeStatusCardState extends State<ImeStatusCard>
         if (snap.hasError) {
           return const TactCard(
             child: Text(
-              'Не удалось прочитать статус клавиатур',
-              style: TextStyle(fontSize: 12, color: TactColors.textSecondary),
+              'Не удалось прочитать статус клавиатуры',
+              style: TextStyle(fontSize: 13, color: TactColors.textSecondary),
             ),
           );
         }
-        if (snap.connectionState == ConnectionState.waiting) {
+        if (snap.connectionState == ConnectionState.waiting &&
+            snap.data == null) {
           return const TactCard(
             child: SizedBox(
-              height: 48,
+              height: 56,
               child: Center(
                 child: SizedBox(
                   width: 20,
@@ -83,196 +86,82 @@ class _ImeStatusCardState extends State<ImeStatusCard>
 
         final status = snap.data ?? ImeStatus.empty();
         final tactEnabled = status.tact?.enabled ?? status.tactEnabled;
-        final gboardInstalled =
-            status.gboardInstalled || status.gboard != null;
-        final gboardEnabled =
-            status.gboard?.enabled ?? status.gboardEnabled;
-        final allOff = status.allSoftKeyboardsDisabled ||
-            (gboardInstalled && !gboardEnabled && !tactEnabled);
-
-        final tactWrong = tactEnabled && !status.isTactActive;
-        final gboardWrong =
-            !tactEnabled && gboardEnabled && !status.isGboardActive;
+        final on = status.isTactActive;
 
         return TactCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                'Клавиатура',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: TactColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
               Row(
                 children: [
-                  const Expanded(
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: !tactEnabled
+                          ? TactColors.textMuted
+                          : on
+                              ? TactColors.green
+                              : TactColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      'Активная клавиатура',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: TactColors.textPrimary,
+                      !tactEnabled
+                          ? 'TACT не разрешена в системе'
+                          : on
+                              ? 'Сейчас: TACT'
+                              : status.isGboardActive
+                                  ? 'Сейчас: Gboard'
+                                  : 'Сейчас: ${status.activeKeyboardLabel}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: TactColors.textSecondary,
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                    color: TactColors.textMuted,
-                    tooltip: 'Обновить статус',
-                    onPressed: _refresh,
-                  ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                status.activeKeyboardLabel,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: status.isTactActive
-                      ? TactColors.purple
-                      : status.isGboardActive
-                          ? TactColors.green
-                          : TactColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _statusRow('TACT', tactEnabled, status.isTactActive),
-              const SizedBox(height: 6),
-              _statusRow(
-                'Gboard',
-                gboardEnabled,
-                status.isGboardActive,
-                missing: !gboardInstalled,
-              ),
-              if (tactWrong) ...[
-                const SizedBox(height: 10),
-                _warning(
-                  'TACT включён, но сейчас показывается другая клавиатура.',
-                  TactColors.orange,
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _activateTact,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: TactColors.purple,
-                    ),
-                    child: const Text('Сделать TACT активной'),
-                  ),
-                ),
-              ] else if (gboardWrong) ...[
-                const SizedBox(height: 10),
-                _warning(
-                  'TACT выключен — нужно активировать Gboard.',
-                  TactColors.orange,
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _activateGboard,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: TactColors.green,
-                    ),
-                    child: const Text('Сделать Gboard активной'),
-                  ),
-                ),
-              ] else if (allOff) ...[
-                const SizedBox(height: 10),
-                _warning(
-                  'Все клавиатуры выключены. Включите Gboard или TACT '
-                  'в системных настройках.',
-                  TactColors.red,
-                ),
-                const SizedBox(height: 8),
+              const SizedBox(height: 14),
+              if (!tactEnabled)
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: ImePlatform.openImeSettings,
                     style: FilledButton.styleFrom(
                       backgroundColor: TactColors.purple,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('Управление клавиатурами'),
+                    child: const Text('Разрешить в настройках'),
+                  ),
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _openPicker,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: TactColors.purple,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Выбрать клавиатуру'),
                   ),
                 ),
-              ],
-              const SizedBox(height: 8),
-              const Text(
-                'Gboard и TACT могут работать вместе — обе клавиатуры '
-                'остаются включёнными. Смена: кнопки ниже или удержание 🌐.',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: TactColors.textMuted,
-                  height: 1.3,
-                ),
-              ),
             ],
           ),
         );
       },
-    );
-  }
-
-  Widget _warning(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 11,
-          color: TactColors.textSecondary,
-          height: 1.35,
-        ),
-      ),
-    );
-  }
-
-  Widget _statusRow(
-    String name,
-    bool enabled,
-    bool isActive, {
-    bool missing = false,
-  }) {
-    final Color dot;
-    final String text;
-    if (missing) {
-      dot = TactColors.textMuted;
-      text = 'не установлен';
-    } else if (!enabled) {
-      dot = TactColors.red;
-      text = 'выключен в системе';
-    } else if (isActive) {
-      dot = TactColors.green;
-      text = 'показывается сейчас';
-    } else {
-      dot = TactColors.orange;
-      text = 'включён, но не активен';
-    }
-
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          name,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: TactColors.textPrimary,
-          ),
-        ),
-        const Spacer(),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 12, color: TactColors.textSecondary),
-        ),
-      ],
     );
   }
 }

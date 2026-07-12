@@ -25,6 +25,17 @@ final class PanelActionImprove extends PanelAction {
   const PanelActionImprove();
 }
 
+enum AiAssistChip {
+  orthography,
+  punctuation,
+  improve,
+}
+
+final class PanelActionAiAssist extends PanelAction {
+  const PanelActionAiAssist({required this.chip});
+  final AiAssistChip chip;
+}
+
 final class PanelActionShortcut extends PanelAction {
   const PanelActionShortcut({required this.expansion});
   final String expansion;

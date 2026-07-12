@@ -166,7 +166,9 @@ final class LocalIntelligenceEngine {
   void applySettings(KeyboardSettings settings) {
     _analyzer.setAntiMatEnabled(settings.antiMat);
     _analyzer.setAntiToxicEnabled(settings.antiToxic);
-    _analyzer.setImproveEnabled(settings.textImprovement);
+    _analyzer.setImproveEnabled(settings.textImprovement && !settings.aiAssistant);
+    _analyzer.setAiAssistantEnabled(settings.aiAssistant);
+    _analyzer.setAiIntensity(settings.aiIntensity);
     _analyzer.setFillerWordsEnabled(settings.fillerWords);
   }
 

@@ -56,11 +56,23 @@ class MainActivity : FlutterActivity() {
                     }
                     "activateTact" -> {
                         suppressResumeReconcile = true
-                        result.success(ImeCoordinator.activateTact(this).name.lowercase())
+                        val showPicker = call.argument<Boolean>("showPicker") ?: false
+                        result.success(
+                            ImeCoordinator.activateTact(
+                                this,
+                                showPickerOnFailure = showPicker,
+                            ).name.lowercase(),
+                        )
                     }
                     "activateGboard" -> {
                         suppressResumeReconcile = true
-                        result.success(ImeCoordinator.activateGboard(this).name.lowercase())
+                        val showPicker = call.argument<Boolean>("showPicker") ?: false
+                        result.success(
+                            ImeCoordinator.activateGboard(
+                                this,
+                                showPickerOnFailure = showPicker,
+                            ).name.lowercase(),
+                        )
                     }
                     "reconcileKeyboard" -> {
                         val showPicker = call.argument<Boolean>("showPicker") ?: true

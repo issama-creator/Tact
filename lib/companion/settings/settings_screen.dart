@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../platform/ime_platform.dart';
 import '../state/app_state.dart';
 import '../theme/tact_theme.dart';
+import '../widgets/keyboard_picker_sheet.dart';
 import '../widgets/tact_widgets.dart';
 import 'personal_words_screen.dart';
 
@@ -34,9 +35,9 @@ class SettingsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     TactSettingsRow(
-                      title: 'Сменить на Gboard / другую',
-                      subtitle: 'Выбор клавиатуры',
-                      onTap: ImePlatform.showInputMethodPicker,
+                      title: 'Сменить клавиатуру',
+                      subtitle: 'TACT или Gboard',
+                      onTap: () => showKeyboardPickerSheet(context),
                     ),
                     const Divider(height: 1),
                     TactSettingsRow(

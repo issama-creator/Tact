@@ -64,4 +64,28 @@ abstract final class TextActions {
       replacement: improved,
     );
   }
+
+  static Result<ReplacementPlan, ActionError> fixOrthography({
+    required String before,
+    required String after,
+  }) {
+    final fixed = LocalTextTransform.fixOrthography('$before$after');
+    return TextReplacement.planFullMessageReplace(
+      before: before,
+      after: after,
+      replacement: fixed,
+    );
+  }
+
+  static Result<ReplacementPlan, ActionError> fixPunctuation({
+    required String before,
+    required String after,
+  }) {
+    final fixed = LocalTextTransform.fixPunctuation('$before$after');
+    return TextReplacement.planFullMessageReplace(
+      before: before,
+      after: after,
+      replacement: fixed,
+    );
+  }
 }

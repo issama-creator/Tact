@@ -1,8 +1,6 @@
 /// Picks exactly one panel state from engine signals.
 library;
 
-import '../dictionaries/mat_lexicon.dart';
-import '../input/text_context.dart';
 import '../intelligence/undo_tracker.dart';
 import '../panel/panel_state.dart';
 import '../rules/rule_signal.dart';
@@ -29,6 +27,7 @@ final class RulesEngine {
     RuleSignal? mat;
     RuleSignal? toxic;
     RuleSignal? improve;
+    RuleSignal? aiAssist;
     RuleSignal? shortcut;
 
     for (final s in signals) {
@@ -39,6 +38,8 @@ final class RulesEngine {
           toxic ??= s;
         case SignalKind.improve:
           improve ??= s;
+        case SignalKind.aiAssist:
+          aiAssist ??= s;
         case SignalKind.shortcutMatch:
           shortcut ??= s;
         case SignalKind.nextWord:
@@ -72,6 +73,13 @@ final class RulesEngine {
           score: payload.score,
           range: toxic.range,
         ),
+        producedAtMs: nowMs,
+      );
+    }
+
+    if (aiAssist != null) {
+      return PanelDecision(
+        state: PanelAiAssist(messageLength: messageLength),
         producedAtMs: nowMs,
       );
     }

@@ -10,6 +10,7 @@ enum SignalKind {
   mat,
   toxic,
   improve,
+  aiAssist,
   shortcutMatch,
   nextWord,
 }

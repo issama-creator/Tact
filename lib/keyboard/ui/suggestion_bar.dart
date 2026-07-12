@@ -337,6 +337,18 @@ class _PanelBody extends StatelessWidget {
           metrics: metrics,
           onAction: () => onAction(const PanelActionImprove()),
         ),
+      PanelAiAssist() => _AiAssistBar(
+          metrics: metrics,
+          onOrthography: () => onAction(
+            const PanelActionAiAssist(chip: AiAssistChip.orthography),
+          ),
+          onPunctuation: () => onAction(
+            const PanelActionAiAssist(chip: AiAssistChip.punctuation),
+          ),
+          onImprove: () => onAction(
+            const PanelActionAiAssist(chip: AiAssistChip.improve),
+          ),
+        ),
       PanelShortcut(:final trigger, :final expansions) => _EqualChipRow(
           metrics: metrics,
           chips: expansions
@@ -560,6 +572,138 @@ final class _ChipData {
   const _ChipData(this.label, {this.onTap});
   final String label;
   final VoidCallback? onTap;
+}
+
+/// AI actions — clearly not dictionary suggestions: badge + accent pills.
+class _AiAssistBar extends StatelessWidget {
+  const _AiAssistBar({
+    required this.metrics,
+    required this.onOrthography,
+    required this.onPunctuation,
+    required this.onImprove,
+  });
+
+  final _PanelMetrics metrics;
+  final VoidCallback onOrthography;
+  final VoidCallback onPunctuation;
+  final VoidCallback onImprove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+          decoration: BoxDecoration(
+            color: _TactPanelColors.improve.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(metrics.radius * 0.7),
+            border: Border.all(
+              color: _TactPanelColors.improve.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: metrics.iconSize * 0.85,
+                color: _TactPanelColors.improve,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'ИИ',
+                style: TextStyle(
+                  color: _TactPanelColors.improve,
+                  fontSize: metrics.actionFontSize,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: metrics.gap),
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _AiActionPill(
+                  label: PanelAiAssist.chipLabels[0],
+                  metrics: metrics,
+                  onTap: onOrthography,
+                ),
+                SizedBox(width: metrics.gap),
+                _AiActionPill(
+                  label: PanelAiAssist.chipLabels[1],
+                  metrics: metrics,
+                  onTap: onPunctuation,
+                ),
+                SizedBox(width: metrics.gap),
+                _AiActionPill(
+                  label: PanelAiAssist.chipLabels[2],
+                  metrics: metrics,
+                  onTap: onImprove,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AiActionPill extends StatelessWidget {
+  const _AiActionPill({
+    required this.label,
+    required this.metrics,
+    required this.onTap,
+  });
+
+  final String label;
+  final _PanelMetrics metrics;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'ИИ: $label',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(metrics.radius * 0.7),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: _TactPanelColors.chipBg,
+              borderRadius: BorderRadius.circular(metrics.radius * 0.7),
+              border: Border.all(
+                color: _TactPanelColors.improve.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: metrics.actionPadH,
+                vertical: metrics.actionPadV,
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: _TactPanelColors.text,
+                  fontSize: metrics.chipFontSize.clamp(11, 13).toDouble(),
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ChipRow extends StatelessWidget {

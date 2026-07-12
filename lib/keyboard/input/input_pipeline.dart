@@ -299,6 +299,7 @@ final class InputPipeline {
 
     // Improve / chips have no word anchor — check emptiness via surrounding text.
     if (panel is PanelImprove ||
+        panel is PanelAiAssist ||
         panel is PanelSuggestions ||
         panel is PanelShortcut) {
       final snap = await _bridge.getSurroundingText(before: 48, after: 8);
@@ -357,6 +358,7 @@ final class InputPipeline {
       range: EditRange(before.length, before.length + word.length),
       locale: event.locale,
       fullMessage: '$before$word$after',
+      boundary: event.boundary,
     );
     final result = _engine.process(ctx);
     if (gen != _generation) return;

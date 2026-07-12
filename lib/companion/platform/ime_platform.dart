@@ -40,13 +40,23 @@ abstract final class ImePlatform {
   static Future<void> showInputMethodPicker() =>
       _channel.invokeMethod<void>('showInputMethodPicker');
 
-  static Future<ImeActivateResult> activateTact() async {
-    final raw = await _channel.invokeMethod<String>('activateTact');
+  static Future<ImeActivateResult> activateTact({
+    bool showPicker = false,
+  }) async {
+    final raw = await _channel.invokeMethod<String>(
+      'activateTact',
+      <String, dynamic>{'showPicker': showPicker},
+    );
     return ImeActivateResult.from(raw);
   }
 
-  static Future<ImeActivateResult> activateGboard() async {
-    final raw = await _channel.invokeMethod<String>('activateGboard');
+  static Future<ImeActivateResult> activateGboard({
+    bool showPicker = false,
+  }) async {
+    final raw = await _channel.invokeMethod<String>(
+      'activateGboard',
+      <String, dynamic>{'showPicker': showPicker},
+    );
     return ImeActivateResult.from(raw);
   }
 

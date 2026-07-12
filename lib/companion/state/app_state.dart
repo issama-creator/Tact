@@ -2,21 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/companion_prefs/companion_prefs.dart';
+import '../../core/companion_prefs/companion_prefs_repository.dart';
+import '../../core/hotwords/hotwords_repository.dart';
 import '../../core/keyboard_settings/keyboard_settings.dart';
 import '../../core/keyboard_settings/keyboard_settings_repository.dart';
+import '../appearance/keyboard_theme.dart';
 
-/// Companion UI state — persists keyboard mode toggles to shared KV.
+/// Companion UI state — loads/saves modes, theme, stats and limits locally.
 class CompanionAppState extends ChangeNotifier {
   KeyboardSettingsRepository? _settingsRepo;
+  CompanionPrefsRepository? _prefsRepo;
 
-  // ── Keyboard modes ────────────────────────────────────────────────
+  // ── Keyboard modes (also in KeyboardSettings for IME) ─────────────
   bool antiMat = true;
   bool antiToxic = true;
-  bool fillerWords = true;
-  bool textImprovement = true;
+  bool aiAssistant = true;
+  double aiIntensity = 0.55;
+  bool matVibration = true;
 
   // ── Appearance ────────────────────────────────────────────────────
-  int selectedThemeIndex = 2; // Midnight
+  int selectedThemeIndex = 2;
   int selectedPanelColorIndex = 0;
   double panelHeight = 0.55;
 
@@ -26,42 +32,111 @@ class CompanionAppState extends ChangeNotifier {
   bool sound = false;
   bool showTips = true;
 
-  // ── Stats (demo values from mockup) ───────────────────────────────
-  final int communicationScore = 87;
-  final int correctedCount = 124;
-  final int softenedCount = 37;
-  final int improvedCount = 82;
-  final int streakDays = 7;
+  // ── Dashboard stats / limits ──────────────────────────────────────
+  int communicationScore = 87;
+  int matBlockedCount = 48;
+  int toxicSoftenedCount = 23;
+  int aiAssistCount = 31;
+  int cleanStreakDays = 12;
+  int cleanRecordDays = 28;
 
-  final int softenUsed = 12;
-  final int softenLimit = 30;
-  final int correctUsed = 18;
-  final int correctLimit = 50;
-  final int improveUsed = 7;
-  final int improveLimit = 30;
+  int hotwordsCount = 0;
 
+  int orthographyUsed = 3;
+  int orthographyLimit = 10;
+  int punctuationUsed = 5;
+  int punctuationLimit = 10;
+  int improveTextUsed = 2;
+  int improveTextLimit = 10;
+
+  /// Opens shared stores and hydrates UI from disk.
+  Future<void> bindRepositories({
+    required KeyboardSettingsRepository settingsRepo,
+    required CompanionPrefsRepository prefsRepo,
+  }) async {
+    _settingsRepo = settingsRepo;
+    _prefsRepo = prefsRepo;
+    applyKeyboardSettings(await settingsRepo.load());
+    applyCompanionPrefs(await prefsRepo.load());
+    await refreshHotwordsCount();
+  }
+
+  /// Backward-compatible entry used by older call sites.
   Future<void> bindSettingsRepository(KeyboardSettingsRepository repo) async {
-    _settingsRepo = repo;
-    applyKeyboardSettings(await repo.load());
+    final prefs = await CompanionPrefsRepository.open();
+    await bindRepositories(settingsRepo: repo, prefsRepo: prefs);
+  }
+
+  Future<void> refreshHotwordsCount() async {
+    try {
+      await HotwordsRepository.open();
+      final all = await HotwordsRepository.instance.loadAll();
+      hotwordsCount = all.length;
+      notifyListeners();
+    } catch (_) {}
   }
 
   void applyKeyboardSettings(KeyboardSettings settings) {
     antiMat = settings.antiMat;
     antiToxic = settings.antiToxic;
-    fillerWords = settings.fillerWords;
-    textImprovement = settings.textImprovement;
+    aiAssistant = settings.aiAssistant;
+    aiIntensity = settings.aiIntensity;
+    matVibration = settings.matVibration;
     vibration = settings.vibration;
     sound = settings.sound;
+    notifyListeners();
+  }
+
+  void applyCompanionPrefs(CompanionPrefs prefs) {
+    selectedThemeIndex =
+        prefs.selectedThemeIndex.clamp(0, KeyboardThemeStyle.all.length - 1);
+    selectedPanelColorIndex = prefs.selectedPanelColorIndex;
+    panelHeight = prefs.panelHeight;
+    keyboardLanguage = prefs.keyboardLanguage;
+    showTips = prefs.showTips;
+    communicationScore = prefs.communicationScore;
+    matBlockedCount = prefs.matBlockedCount;
+    toxicSoftenedCount = prefs.toxicSoftenedCount;
+    aiAssistCount = prefs.aiAssistCount;
+    cleanStreakDays = prefs.cleanStreakDays;
+    cleanRecordDays = prefs.cleanRecordDays;
+    orthographyUsed = prefs.orthographyUsed;
+    orthographyLimit = prefs.orthographyLimit;
+    punctuationUsed = prefs.punctuationUsed;
+    punctuationLimit = prefs.punctuationLimit;
+    improveTextUsed = prefs.improveTextUsed;
+    improveTextLimit = prefs.improveTextLimit;
     notifyListeners();
   }
 
   KeyboardSettings toKeyboardSettings() => KeyboardSettings(
         antiMat: antiMat,
         antiToxic: antiToxic,
-        fillerWords: fillerWords,
-        textImprovement: textImprovement,
+        aiAssistant: aiAssistant,
+        aiIntensity: aiIntensity,
+        matVibration: matVibration,
         vibration: vibration,
         sound: sound,
+      );
+
+  CompanionPrefs toCompanionPrefs() => CompanionPrefs(
+        selectedThemeIndex: selectedThemeIndex,
+        selectedPanelColorIndex: selectedPanelColorIndex,
+        panelHeight: panelHeight,
+        keyboardLanguage: keyboardLanguage,
+        showTips: showTips,
+        communicationScore: communicationScore,
+        matBlockedCount: matBlockedCount,
+        toxicSoftenedCount: toxicSoftenedCount,
+        aiAssistCount: aiAssistCount,
+        cleanStreakDays: cleanStreakDays,
+        cleanRecordDays: cleanRecordDays,
+        orthographyUsed: orthographyUsed,
+        orthographyLimit: orthographyLimit,
+        punctuationUsed: punctuationUsed,
+        punctuationLimit: punctuationLimit,
+        improveTextUsed: improveTextUsed,
+        improveTextLimit: improveTextLimit,
       );
 
   void _persistKeyboardModes() {
@@ -70,8 +145,20 @@ class CompanionAppState extends ChangeNotifier {
     unawaited(repo.save(toKeyboardSettings()));
   }
 
+  void _persistCompanionPrefs() {
+    final repo = _prefsRepo;
+    if (repo == null) return;
+    unawaited(repo.save(toCompanionPrefs()));
+  }
+
   void setAntiMat(bool v) {
     antiMat = v;
+    notifyListeners();
+    _persistKeyboardModes();
+  }
+
+  void setMatVibration(bool v) {
+    matVibration = v;
     notifyListeners();
     _persistKeyboardModes();
   }
@@ -82,31 +169,34 @@ class CompanionAppState extends ChangeNotifier {
     _persistKeyboardModes();
   }
 
-  void setFillerWords(bool v) {
-    fillerWords = v;
+  void setAiAssistant(bool v) {
+    aiAssistant = v;
     notifyListeners();
     _persistKeyboardModes();
   }
 
-  void setTextImprovement(bool v) {
-    textImprovement = v;
+  void setAiIntensity(double v) {
+    aiIntensity = v.clamp(0.0, 1.0);
     notifyListeners();
     _persistKeyboardModes();
   }
 
   void setThemeIndex(int i) {
-    selectedThemeIndex = i;
+    selectedThemeIndex = i.clamp(0, KeyboardThemeStyle.all.length - 1);
     notifyListeners();
+    _persistCompanionPrefs();
   }
 
   void setPanelColorIndex(int i) {
     selectedPanelColorIndex = i;
     notifyListeners();
+    _persistCompanionPrefs();
   }
 
   void setPanelHeight(double v) {
     panelHeight = v;
     notifyListeners();
+    _persistCompanionPrefs();
   }
 
   void setVibration(bool v) {
@@ -124,10 +214,41 @@ class CompanionAppState extends ChangeNotifier {
   void setShowTips(bool v) {
     showTips = v;
     notifyListeners();
+    _persistCompanionPrefs();
   }
 
   void setKeyboardLanguage(String lang) {
     keyboardLanguage = lang;
     notifyListeners();
+    _persistCompanionPrefs();
+  }
+
+  /// Persist dashboard counters after IME / local updates.
+  void updateStats({
+    int? communicationScore,
+    int? matBlockedCount,
+    int? toxicSoftenedCount,
+    int? aiAssistCount,
+    int? cleanStreakDays,
+    int? cleanRecordDays,
+    int? orthographyUsed,
+    int? punctuationUsed,
+    int? improveTextUsed,
+  }) {
+    if (communicationScore != null) {
+      this.communicationScore = communicationScore.clamp(0, 100);
+    }
+    if (matBlockedCount != null) this.matBlockedCount = matBlockedCount;
+    if (toxicSoftenedCount != null) {
+      this.toxicSoftenedCount = toxicSoftenedCount;
+    }
+    if (aiAssistCount != null) this.aiAssistCount = aiAssistCount;
+    if (cleanStreakDays != null) this.cleanStreakDays = cleanStreakDays;
+    if (cleanRecordDays != null) this.cleanRecordDays = cleanRecordDays;
+    if (orthographyUsed != null) this.orthographyUsed = orthographyUsed;
+    if (punctuationUsed != null) this.punctuationUsed = punctuationUsed;
+    if (improveTextUsed != null) this.improveTextUsed = improveTextUsed;
+    notifyListeners();
+    _persistCompanionPrefs();
   }
 }

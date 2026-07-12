@@ -29,6 +29,7 @@ final class TextContext {
     required this.locale,
     required this.fullMessage,
     this.lexiconKey,
+    this.boundary = '',
   });
 
   /// The completed word as typed (trimmed, not normalized).
@@ -52,6 +53,9 @@ final class TextContext {
   /// Precomputed [Normalizer.normalizeForLexicon] — set once in the pipeline.
   final String? lexiconKey;
 
+  /// Boundary character that closed the word (space, `.`, `!`, `?`, …).
+  final String boundary;
+
   TextContext copyWith({
     String? word,
     String? before,
@@ -60,6 +64,7 @@ final class TextContext {
     String? locale,
     String? fullMessage,
     String? lexiconKey,
+    String? boundary,
   }) {
     return TextContext(
       word: word ?? this.word,
@@ -69,6 +74,7 @@ final class TextContext {
       locale: locale ?? this.locale,
       fullMessage: fullMessage ?? this.fullMessage,
       lexiconKey: lexiconKey ?? this.lexiconKey,
+      boundary: boundary ?? this.boundary,
     );
   }
 }

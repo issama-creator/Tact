@@ -48,10 +48,12 @@ final class WordBoundaryAnalyzer {
   final int improveMinChars;
   bool antiMatEnabled = true;
   bool antiToxicEnabled = true;
-  bool improveEnabled = true;
+  bool improveEnabled = false;
+  bool aiAssistantEnabled = true;
+  double aiIntensity = 0.55;
 
   /// Reserved for filler-word detection (toggle wired, engine TBD).
-  bool fillerWordsEnabled = true;
+  bool fillerWordsEnabled = false;
 
   String? _autoCacheKey;
   List<String> _autoCache = const [];
@@ -72,6 +74,10 @@ final class WordBoundaryAnalyzer {
   void setAntiToxicEnabled(bool enabled) => antiToxicEnabled = enabled;
 
   void setImproveEnabled(bool enabled) => improveEnabled = enabled;
+
+  void setAiAssistantEnabled(bool enabled) => aiAssistantEnabled = enabled;
+
+  void setAiIntensity(double value) => aiIntensity = value.clamp(0.0, 1.0);
 
   void setFillerWordsEnabled(bool enabled) => fillerWordsEnabled = enabled;
 
@@ -159,6 +165,12 @@ final class WordBoundaryAnalyzer {
           _trailingWindow(ctx.fullMessage),
         ),
       );
+    }
+
+    // AI chips: after . ! ? once the message is long enough — independent of lexicon.
+    _checkAiAssist(signals: signals, ctx: ctx);
+    // Legacy improve status bar — only if AI assistant is off.
+    if (!aiAssistantEnabled) {
       _checkImprove(signals: signals, ctx: ctx);
     }
 
@@ -247,6 +259,32 @@ final class WordBoundaryAnalyzer {
         kind: SignalKind.improve,
         severity: 40,
         confidence: 0.6,
+        range: ctx.range,
+      ),
+    );
+  }
+
+  static const _sentenceEnds = {'.', '!', '?'};
+
+  /// Min chars before AI chips — fixed ~20.
+  static const _aiMinChars = 20;
+
+  void _checkAiAssist({
+    required List<RuleSignal> signals,
+    required TextContext ctx,
+  }) {
+    if (!aiAssistantEnabled) return;
+    final b = ctx.boundary.trim();
+    if (b.isEmpty || !_sentenceEnds.contains(b)) return;
+    // Include the terminator so "…текст." counts toward the threshold.
+    final len = ctx.fullMessage.length + b.length;
+    if (len < _aiMinChars) return;
+
+    signals.add(
+      RuleSignal(
+        kind: SignalKind.aiAssist,
+        severity: 45,
+        confidence: 0.7,
         range: ctx.range,
       ),
     );

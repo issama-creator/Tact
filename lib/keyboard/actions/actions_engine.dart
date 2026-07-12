@@ -7,6 +7,7 @@ import '../../core/bridge/ime_bridge_facade.dart';
 import '../../core/result.dart';
 import '../intelligence/undo_tracker.dart';
 import '../panel/panel_state.dart';
+import '../ui/panel_actions.dart';
 import 'text_actions.dart';
 import 'text_replacement.dart';
 import 'undo_stack.dart';
@@ -133,6 +134,36 @@ final class ActionsEngine {
       plan.valueOrNull!,
       blockOnPassword: true,
       undoLabel: UndoLabels.improved,
+    );
+  }
+
+  Future<Result<TextEdit, ActionError>> runAiAssistChip(AiAssistChip chip) async {
+    final snap = await _bridge.getSurroundingText();
+    if (snap == null) return const Result.err(ActionError.noConnection);
+    final plan = switch (chip) {
+      AiAssistChip.orthography => TextActions.fixOrthography(
+          before: snap.before,
+          after: snap.after,
+        ),
+      AiAssistChip.punctuation => TextActions.fixPunctuation(
+          before: snap.before,
+          after: snap.after,
+        ),
+      AiAssistChip.improve => TextActions.improveMessage(
+          before: snap.before,
+          after: snap.after,
+        ),
+    };
+    if (plan.isErr) return Result.err(plan.errorOrNull!);
+    final label = switch (chip) {
+      AiAssistChip.orthography => UndoLabels.improved,
+      AiAssistChip.punctuation => UndoLabels.improved,
+      AiAssistChip.improve => UndoLabels.improved,
+    };
+    return applyPlan(
+      plan.valueOrNull!,
+      blockOnPassword: true,
+      undoLabel: label,
     );
   }
 

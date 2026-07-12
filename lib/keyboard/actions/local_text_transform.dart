@@ -26,6 +26,27 @@ abstract final class LocalTextTransform {
     return _capitalizeFirst(trimmed);
   }
 
+  /// Light punctuation pass: spaces after .,!? and collapse doubles.
+  static String fixPunctuation(String message) {
+    if (message.isEmpty) return message;
+    var s = _collapseSpaces(message.trim());
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      final ch = s[i];
+      buf.write(ch);
+      if ((ch == '.' || ch == '!' || ch == '?') && i + 1 < s.length) {
+        final next = s.codeUnitAt(i + 1);
+        final nextIsSpace = next == 0x20 || next == 0x0A || next == 0x09;
+        final nextIsEnd = next == 0x2E || next == 0x21 || next == 0x3F;
+        if (!nextIsSpace && !nextIsEnd) buf.write(' ');
+      }
+    }
+    return _collapseSpaces(buf.toString());
+  }
+
+  /// Orthography stub offline: capitalize + collapse spaces.
+  static String fixOrthography(String message) => improveMessage(message);
+
   static String matReplacement(String word) {
     if (word.isEmpty) return '***';
     final stars = '*' * word.runes.length.clamp(3, 8);

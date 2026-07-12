@@ -22,11 +22,19 @@ class KeyboardHaptics(context: Context) {
     var vibrationEnabled: Boolean = true
 
     @Volatile
+    var matVibrationEnabled: Boolean = true
+
+    @Volatile
     var soundEnabled: Boolean = false
 
-    fun setEnabled(vibration: Boolean, sound: Boolean) {
+    fun setEnabled(
+        vibration: Boolean,
+        sound: Boolean,
+        matVibration: Boolean = matVibrationEnabled,
+    ) {
         vibrationEnabled = vibration
         soundEnabled = sound
+        matVibrationEnabled = matVibration
     }
 
     /**
@@ -53,6 +61,24 @@ class KeyboardHaptics(context: Context) {
             HapticFeedbackConstants.LONG_PRESS,
             HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
         )
+    }
+
+    /**
+     * Warning pulse when mat is detected — independent of key-tap vibration.
+     */
+    fun matWarning(view: View) {
+        if (!matVibrationEnabled) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            view.performHapticFeedback(
+                HapticFeedbackConstants.REJECT,
+                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
+            )
+        } else {
+            view.performHapticFeedback(
+                HapticFeedbackConstants.LONG_PRESS,
+                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
+            )
+        }
     }
 
     /**

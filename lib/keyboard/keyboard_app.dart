@@ -44,6 +44,7 @@ class _KeyboardAppState extends State<KeyboardApp> {
   Timer? _repaintDebounce;
   Future<void>? _reloadInFlight;
   var _lastVibration = true;
+  var _lastMatVibration = true;
   var _lastSound = false;
   /// Panel-only listenable — updates never call [setState] on the app shell.
   final ValueNotifier<PanelState> _panel =
@@ -119,13 +120,17 @@ class _KeyboardAppState extends State<KeyboardApp> {
   }
 
   Future<void> _applyFeedback(KeyboardSettings settings) async {
-    if (settings.vibration == _lastVibration && settings.sound == _lastSound) {
+    if (settings.vibration == _lastVibration &&
+        settings.matVibration == _lastMatVibration &&
+        settings.sound == _lastSound) {
       return;
     }
     _lastVibration = settings.vibration;
+    _lastMatVibration = settings.matVibration;
     _lastSound = settings.sound;
     await _bridge.setFeedback(
       vibration: settings.vibration,
+      matVibration: settings.matVibration,
       sound: settings.sound,
     );
   }
@@ -147,7 +152,12 @@ class _KeyboardAppState extends State<KeyboardApp> {
     if (kDebugMode) {
       debugPrint('[TACT UI] render panel=${state.runtimeType}');
     }
+    final becameMat =
+        state is PanelMat && _panel.value is! PanelMat;
     _panel.value = state;
+    if (becameMat && _lastMatVibration) {
+      unawaited(_bridge.matWarningHaptic());
+    }
     _scheduleRepaint();
   }
 
@@ -175,6 +185,8 @@ class _KeyboardAppState extends State<KeyboardApp> {
         await _actions.softenToxic(panel);
       case PanelActionImprove():
         await _actions.improve();
+      case PanelActionAiAssist(:final chip):
+        await _actions.runAiAssistChip(chip);
       case PanelActionShortcut(:final expansion):
         await _actions.expandShortcut(expansion);
       case PanelActionSuggestion(:final word):

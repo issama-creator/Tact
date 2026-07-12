@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../appearance/keyboard_theme.dart';
 import '../theme/tact_theme.dart';
 
 /// Consistent section title used below page headers.
@@ -270,6 +271,8 @@ class CommunicationScoreRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = score / maxScore;
+    final scoreSize = (size * 0.28).clamp(12.0, 28.0);
+    final maxSize = (size * 0.13).clamp(9.0, 13.0);
     return SizedBox(
       width: size,
       height: size,
@@ -281,20 +284,21 @@ class CommunicationScoreRing extends StatelessWidget {
             children: [
               Text(
                 '$score',
-                style: const TextStyle(
-                  fontSize: 28,
+                style: TextStyle(
+                  fontSize: scoreSize,
                   fontWeight: FontWeight.w800,
                   color: TactColors.textPrimary,
                   height: 1,
                 ),
               ),
-              Text(
-                '/$maxScore',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: TactColors.textSecondary,
+              if (size >= 72)
+                Text(
+                  '/$maxScore',
+                  style: TextStyle(
+                    fontSize: maxSize,
+                    color: TactColors.textSecondary,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -411,68 +415,119 @@ class PanelPreviewBar extends StatelessWidget {
 }
 
 class MiniKeyboardPreview extends StatelessWidget {
-  const MiniKeyboardPreview({super.key, this.showPanel = true});
+  const MiniKeyboardPreview({
+    super.key,
+    this.style = KeyboardThemeStyle.dark,
+    this.showPanel = true,
+    this.compact = false,
+  });
 
+  final KeyboardThemeStyle style;
   final bool showPanel;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final keyH = compact ? 15.0 : 28.0;
+    final gap = compact ? 2.0 : 4.0;
+    final pad = compact
+        ? const EdgeInsets.fromLTRB(4, 4, 4, 5)
+        : const EdgeInsets.fromLTRB(5, 0, 5, 8);
+    final radius = compact ? 3.5 : 7.0;
+    final letterSize = compact ? 7.0 : 11.0;
+    final fnSize = compact ? 6.0 : 10.0;
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF12141A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: TactColors.surfaceBorder),
+        color: style.background,
+        borderRadius: BorderRadius.circular(compact ? 10 : 12),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showPanel) ...[
-            const Padding(
-              padding: EdgeInsets.fromLTRB(8, 8, 8, 0),
-              child: PanelPreviewBar(),
+          if (showPanel && !compact) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              child: ColoredBox(
+                color: style.panel,
+                child: const PanelPreviewBar(),
+              ),
             ),
             const SizedBox(height: 6),
           ],
+          if (showPanel && compact)
+            Container(
+              height: 10,
+              margin: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+              decoration: BoxDecoration(
+                color: style.panel,
+                borderRadius: BorderRadius.circular(3),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                'Tact',
+                style: TextStyle(
+                  fontSize: 5,
+                  letterSpacing: 0.6,
+                  color: style.keyTextMuted.withValues(alpha: 0.55),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(5, 0, 5, 8),
+            padding: pad,
             child: Column(
               children: [
-                _keyRow(['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х']),
-                const SizedBox(height: 4),
-                _keyRow(['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д', 'ж', 'э']),
-                const SizedBox(height: 4),
-                _keyRow(['⇧', 'я', 'ч', 'с', 'м', 'и', 'т', 'ь', 'б', 'ю', '⌫']),
-                const SizedBox(height: 4),
+                if (compact) SizedBox(height: gap),
+                _keyRow(
+                  ['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х'],
+                  keyH: keyH,
+                  radius: radius,
+                  fontSize: letterSize,
+                ),
+                SizedBox(height: gap),
+                _keyRow(
+                  ['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д', 'ж', 'э'],
+                  keyH: keyH,
+                  radius: radius,
+                  fontSize: letterSize,
+                ),
+                SizedBox(height: gap),
+                _keyRow(
+                  ['⇧', 'я', 'ч', 'с', 'м', 'и', 'т', 'ь', 'б', 'ю', '⌫'],
+                  keyH: keyH,
+                  radius: radius,
+                  fontSize: letterSize,
+                  endsAreFunction: true,
+                ),
+                SizedBox(height: gap),
                 Row(
                   children: [
-                    _fnKey('?123', flex: 1.35),
-                    _fnKey('🙂,', flex: 1),
-                    _fnKey('🌐', flex: 1),
+                    _fnKey('?123', flex: 1.35, keyH: keyH, radius: radius, fontSize: fnSize),
+                    _fnKey(compact ? ',' : '🙂,', flex: 1, keyH: keyH, radius: radius, fontSize: fnSize),
+                    if (!compact) _fnKey('🌐', flex: 1, keyH: keyH, radius: radius, fontSize: fnSize),
                     Expanded(
-                      flex: 48,
+                      flex: compact ? 36 : 48,
                       child: Container(
-                        height: 28,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        height: keyH,
+                        margin: EdgeInsets.symmetric(horizontal: compact ? 1 : 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1C2028),
-                          borderRadius: BorderRadius.circular(7),
-                          border: Border.all(
-                            color: const Color(0x28FFFFFF),
-                            width: 1,
-                          ),
+                          color: style.letterKey,
+                          borderRadius: BorderRadius.circular(radius),
+                          border: Border.all(color: style.stroke, width: 0.5),
                         ),
                         alignment: Alignment.center,
-                        child: const Text(
-                          'Русский',
+                        child: Text(
+                          compact ? '' : 'Русский',
                           style: TextStyle(
-                            fontSize: 8,
-                            color: TactColors.textMuted,
+                            fontSize: compact ? 5 : 8,
+                            color: style.keyTextMuted,
                           ),
                         ),
                       ),
                     ),
-                    _fnKey('.', flex: 1),
-                    _fnKey('↵', flex: 1.6, accent: true),
+                    _fnKey('.', flex: 1, keyH: keyH, radius: radius, fontSize: fnSize),
+                    _fnKey('↵', flex: 1.6, keyH: keyH, radius: radius, fontSize: fnSize, accent: true),
                   ],
                 ),
               ],
@@ -483,31 +538,38 @@ class MiniKeyboardPreview extends StatelessWidget {
     );
   }
 
-  Widget _keyRow(List<String> keys, {bool flexLast = false}) {
+  Widget _keyRow(
+    List<String> keys, {
+    required double keyH,
+    required double radius,
+    required double fontSize,
+    bool endsAreFunction = false,
+  }) {
     return Row(
       children: [
         for (var i = 0; i < keys.length; i++)
           Expanded(
             child: Container(
-              height: 28,
+              height: keyH,
               margin: EdgeInsets.only(
-                left: i == 0 ? 0 : 2,
-                right: i == keys.length - 1 ? 0 : 2,
+                left: i == 0 ? 0 : (compact ? 0.8 : 2),
+                right: i == keys.length - 1 ? 0 : (compact ? 0.8 : 2),
               ),
               decoration: BoxDecoration(
-                color: i == 0 || i == keys.length - 1
-                    ? const Color(0xFF1C2028)
-                    : const Color(0xFF2A2E36),
-                borderRadius: BorderRadius.circular(7),
-                border: Border.all(color: const Color(0x28FFFFFF), width: 1),
+                color: endsAreFunction && (i == 0 || i == keys.length - 1)
+                    ? style.functionKey
+                    : style.letterKey,
+                borderRadius: BorderRadius.circular(radius),
+                border: Border.all(color: style.stroke, width: 0.5),
               ),
               alignment: Alignment.center,
               child: Text(
                 keys[i],
                 style: TextStyle(
-                  fontSize: keys[i].length > 1 ? 9 : 11,
-                  color: TactColors.textPrimary,
+                  fontSize: keys[i].length > 1 ? fontSize * 0.85 : fontSize,
+                  color: style.keyText,
                   fontWeight: FontWeight.w500,
+                  height: 1,
                 ),
               ),
             ),
@@ -516,26 +578,32 @@ class MiniKeyboardPreview extends StatelessWidget {
     );
   }
 
-  Widget _fnKey(String label, {required double flex, bool accent = false}) {
+  Widget _fnKey(
+    String label, {
+    required double flex,
+    required double keyH,
+    required double radius,
+    required double fontSize,
+    bool accent = false,
+  }) {
     return Expanded(
       flex: (flex * 10).round(),
       child: Container(
-        height: 28,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
+        height: keyH,
+        margin: EdgeInsets.symmetric(horizontal: compact ? 1 : 2),
         decoration: BoxDecoration(
-          color: accent ? TactColors.accent : const Color(0xFF1C2028),
-          borderRadius: BorderRadius.circular(7),
-          border: accent
-              ? null
-              : Border.all(color: const Color(0x28FFFFFF), width: 1),
+          color: accent ? style.accent : style.functionKey,
+          borderRadius: BorderRadius.circular(radius),
+          border: accent ? null : Border.all(color: style.stroke, width: 0.5),
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            fontSize: label.length > 2 ? 8 : 10,
-            color: accent ? Colors.white : TactColors.textSecondary,
+            fontSize: label.length > 2 ? fontSize * 0.85 : fontSize,
+            color: accent ? Colors.white : style.keyTextMuted,
             fontWeight: FontWeight.w600,
+            height: 1,
           ),
         ),
       ),

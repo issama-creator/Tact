@@ -10,7 +10,9 @@ import 'platform/ime_platform.dart';
 import 'state/app_state.dart';
 import 'theme/tact_theme.dart';
 import 'widgets/tact_bottom_nav.dart';
+import '../core/companion_prefs/companion_prefs_repository.dart';
 import '../core/keyboard_settings/keyboard_settings_repository.dart';
+import '../core/hotwords/hotwords_repository.dart';
 
 /// Companion app shell — bottom navigation + shared state.
 class CompanionShell extends StatefulWidget {
@@ -69,8 +71,13 @@ class _CompanionAppState extends State<CompanionApp> {
   }
 
   Future<void> _loadKeyboardSettings() async {
-    final repo = await KeyboardSettingsRepository.open();
-    await _state.bindSettingsRepository(repo);
+    final settingsRepo = await KeyboardSettingsRepository.open();
+    final prefsRepo = await CompanionPrefsRepository.open();
+    await HotwordsRepository.open();
+    await _state.bindRepositories(
+      settingsRepo: settingsRepo,
+      prefsRepo: prefsRepo,
+    );
   }
 
   @override

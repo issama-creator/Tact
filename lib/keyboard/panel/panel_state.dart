@@ -50,6 +50,19 @@ final class PanelImprove extends PanelState {
   final int messageLength;
 }
 
+/// Sentence-end AI chips: орфография / пунктуация / улучшить текст.
+final class PanelAiAssist extends PanelState {
+  const PanelAiAssist({required this.messageLength});
+
+  final int messageLength;
+
+  static const chipLabels = <String>[
+    'орфография',
+    'пунктуация',
+    'улучшить текст',
+  ];
+}
+
 final class PanelShortcut extends PanelState {
   const PanelShortcut({
     required this.trigger,
@@ -120,6 +133,8 @@ bool panelModesEqual(PanelState a, PanelState b) {
       ta.word == tb.word && ta.level == tb.level,
     (PanelImprove ia, PanelImprove ib) =>
       ia.messageLength == ib.messageLength,
+    (PanelAiAssist aa, PanelAiAssist ab) =>
+      aa.messageLength == ab.messageLength,
     (PanelShortcut sa, PanelShortcut sb) =>
       sa.trigger == sb.trigger &&
       sa.expansions.length == sb.expansions.length &&

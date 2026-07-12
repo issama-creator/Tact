@@ -1,13 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../settings/settings_screen.dart';
+import '../shortcuts/shortcuts_screen.dart';
 import '../state/app_state.dart';
 import '../theme/tact_theme.dart';
 import '../widgets/tact_widgets.dart';
-import '../settings/settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+/// Main dashboard — streak first, then protection facts.
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.state});
 
   final CompanionAppState state;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  CompanionAppState get state => widget.state;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(state.refreshHotwordsCount());
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,57 +39,18 @@ class HomeScreen extends StatelessWidget {
           builder: (context, _) {
             return CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.menu_rounded,
-                              color: TactColors.textPrimary),
-                          tooltip: 'Настройки',
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    SettingsScreen(state: state),
-                              ),
-                            );
-                          },
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'TACT',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: TactColors.textPrimary,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.workspace_premium_rounded,
-                              color: TactColors.gold, size: 26),
-                          tooltip: 'Премиум',
-                          onPressed: () {},
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                SliverToBoxAdapter(child: _header(context)),
                 SliverPadding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _scoreCard(),
-                      const SizedBox(height: 16),
-                      _statsRow(),
-                      const SizedBox(height: 16),
-                      _streakCard(),
-                      const SizedBox(height: 16),
-                      _tipCard(),
+                      _streakHero(),
+                      const SizedBox(height: 14),
+                      _protectionCard(),
+                      const SizedBox(height: 14),
+                      _scoreCompact(),
+                      const SizedBox(height: 14),
+                      _hotwordsRow(context),
                     ]),
                   ),
                 ),
@@ -81,34 +62,230 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _scoreCard() {
+  Widget _header(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.menu_rounded, color: TactColors.textPrimary),
+            tooltip: 'Настройки',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => SettingsScreen(state: state),
+                ),
+              );
+            },
+          ),
+          const Expanded(
+            child: Text(
+              'TACT',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: TactColors.textPrimary,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.workspace_premium_rounded,
+              color: TactColors.gold,
+              size: 26,
+            ),
+            tooltip: 'Премиум',
+            onPressed: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _streakHero() {
+    final progress = state.cleanRecordDays <= 0
+        ? 0.0
+        : (state.cleanStreakDays / state.cleanRecordDays).clamp(0.0, 1.0);
+
     return TactCard(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Без мата и токсичности',
+            style: TextStyle(
+              fontSize: 13,
+              color: TactColors.textMuted,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${state.cleanStreakDays}',
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  color: TactColors.textPrimary,
+                  height: 1,
+                  letterSpacing: -1.2,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8, left: 8),
+                child: Text(
+                  'дн.',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: TactColors.textSecondary,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'рекорд ${state.cleanRecordDays}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: TactColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 4,
+              backgroundColor: TactColors.green.withValues(alpha: 0.12),
+              color: TactColors.green,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _protectionCard() {
+    return TactCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        children: [
+          _protectionRow(
+            color: TactColors.red,
+            label: 'Мат',
+            detail: 'заблокировано',
+            value: state.matBlockedCount,
+          ),
+          const Divider(height: 1),
+          _protectionRow(
+            color: TactColors.orange,
+            label: 'Токсичность',
+            detail: 'смягчено',
+            value: state.toxicSoftenedCount,
+          ),
+          const Divider(height: 1),
+          _protectionRow(
+            color: TactColors.accent,
+            label: 'ИИ-помощь',
+            detail: 'раз',
+            value: state.aiAssistCount,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _protectionRow({
+    required Color color,
+    required String label,
+    required String detail,
+    required int value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: label,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: TactColors.textPrimary,
+                    ),
+                  ),
+                  TextSpan(
+                    text: '  ·  $detail',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: TactColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scoreCompact() {
+    return TactCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
       child: Row(
         children: [
           CommunicationScoreRing(
             score: state.communicationScore,
             maxScore: 100,
+            size: 56,
           ),
-          const SizedBox(width: 16),
-          const Expanded(
+          const SizedBox(width: 14),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Ваш Communication Score',
+                const Text(
+                  'Communication Score',
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: TactColors.textPrimary,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Text(
-                  'Отличная работа! Вы общаетесь четко и уважительно',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: TactColors.textSecondary,
-                    height: 1.4,
+                  _scoreSubtitle(state.communicationScore),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: TactColors.textMuted,
                   ),
                 ),
               ],
@@ -119,203 +296,109 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _statsRow() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 340) {
-          return Column(
-            children: [
-              _statTile(
-                icon: Icons.edit_rounded,
-                color: TactColors.purple,
-                label: 'Исправлено',
-                value: '${state.correctedCount}',
-              ),
-              const SizedBox(height: 10),
-              _statTile(
-                icon: Icons.favorite_rounded,
-                color: TactColors.orange,
-                label: 'Смягчено',
-                value: '${state.softenedCount}',
-              ),
-              const SizedBox(height: 10),
-              _statTile(
-                icon: Icons.auto_awesome_rounded,
-                color: TactColors.blue,
-                label: 'Улучшено',
-                value: '${state.improvedCount}',
-              ),
-            ],
-          );
-        }
-        return Row(
-          children: [
-            Expanded(
-              child: _statTile(
-                icon: Icons.edit_rounded,
-                color: TactColors.purple,
-                label: 'Исправлено',
-                value: '${state.correctedCount}',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _statTile(
-                icon: Icons.favorite_rounded,
-                color: TactColors.orange,
-                label: 'Смягчено',
-                value: '${state.softenedCount}',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _statTile(
-                icon: Icons.auto_awesome_rounded,
-                color: TactColors.blue,
-                label: 'Улучшено',
-                value: '${state.improvedCount}',
-              ),
-            ),
-          ],
-        );
-      },
-    );
+  String _scoreSubtitle(int score) {
+    if (score >= 80) return 'Спокойно и уважительно';
+    if (score >= 50) return 'Есть прогресс';
+    return 'TACT помогает с тоном';
   }
 
-  Widget _statTile({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required String value,
-  }) {
+  Widget _hotwordsRow(BuildContext context) {
+    final count = state.hotwordsCount;
+    final hasAny = count > 0;
+    final countLabel = count == 0
+        ? 'Пока нет своих'
+        : count == 1
+            ? '1 сокращение'
+            : '$count сокращений';
+
     return TactCard(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: TactColors.purple.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.bolt_rounded,
+                  color: TactColors.purple,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Hotwords',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: TactColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                countLabel,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: TactColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Горячие слова — короткие триггеры, которые '
+            'разворачиваются в готовую фразу на клавиатуре.',
+            style: TextStyle(
+              fontSize: 13,
+              color: TactColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Например: др → Добрый день',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
               color: TactColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: TactColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _streakCard() {
-    const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-    return TactCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.local_fire_department_rounded,
-                  color: TactColors.orange, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                'Серия ${state.streakDays} дней',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: TactColors.textPrimary,
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: TactLayout.minTouchTarget,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ShortcutsScreen(),
+                  ),
+                );
+                await state.refreshHotwordsCount();
+              },
+              icon: Icon(
+                hasAny ? Icons.edit_rounded : Icons.add_rounded,
+                size: 18,
+              ),
+              label: Text(
+                hasAny ? 'Управлять hotwords' : 'Создать hotword',
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: TactColors.purple,
+                side: BorderSide(
+                  color: TactColors.purple.withValues(alpha: 0.55),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(7, (i) {
-              final done = i < state.streakDays;
-              return Column(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: done
-                          ? TactColors.purple.withValues(alpha: 0.2)
-                          : const Color(0xFF27272A),
-                      border: Border.all(
-                        color: done ? TactColors.purple : TactColors.surfaceBorder,
-                      ),
-                    ),
-                    child: done
-                        ? const Icon(Icons.check, size: 16, color: TactColors.purple)
-                        : null,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    days[i],
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: TactColors.textMuted,
-                    ),
-                  ),
-                ],
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tipCard() {
-    return TactCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: TactColors.purple.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.emoji_emotions_outlined,
-                color: TactColors.purple, size: 20),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Совет дня',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: TactColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Перед отправкой важного сообщения сделайте паузу — '
-                  'TACT подскажет, если тон звучит резко.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: TactColors.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
             ),
           ),
         ],

@@ -275,10 +275,18 @@ class ImeBridgeImpl(
                     }
                     result.success(null)
                 }
+                "matWarningHaptic" -> {
+                    val view = hapticView
+                    if (view != null && haptics != null) {
+                        haptics.matWarning(view)
+                    }
+                    result.success(null)
+                }
                 "setFeedback" -> {
                     val vibration = call.argument<Boolean>("vibration") ?: true
                     val sound = call.argument<Boolean>("sound") ?: false
-                    haptics?.setEnabled(vibration, sound)
+                    val matVibration = call.argument<Boolean>("matVibration") ?: true
+                    haptics?.setEnabled(vibration, sound, matVibration)
                     result.success(null)
                 }
                 "setSelection" -> {

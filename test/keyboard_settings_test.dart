@@ -100,7 +100,10 @@ void main() {
         antiToxic: true,
         fillerWords: false,
         textImprovement: false,
+        aiAssistant: true,
+        aiIntensity: 0.8,
         vibration: false,
+        matVibration: false,
         sound: true,
       ),
     );
@@ -108,9 +111,57 @@ void main() {
     expect(loaded.antiMat, isFalse);
     expect(loaded.fillerWords, isFalse);
     expect(loaded.textImprovement, isFalse);
+    expect(loaded.aiAssistant, isTrue);
+    expect(loaded.aiIntensity, 0.8);
     expect(loaded.antiToxic, isTrue);
     expect(loaded.vibration, isFalse);
+    expect(loaded.matVibration, isFalse);
     expect(loaded.sound, isTrue);
+  });
+
+  test('ai assistant chips after sentence end with enough text', () {
+    final engine = LocalIntelligenceEngine();
+    engine.applySettings(
+      const KeyboardSettings(aiAssistant: true, aiIntensity: 1.0),
+    );
+    final before = 'Это достаточно длинное сообщение для теста';
+    final result = engine.process(
+      TextContext(
+        word: 'тест',
+        before: before,
+        after: '',
+        range: EditRange(before.length, before.length + 4),
+        locale: 'ru',
+        fullMessage: '$before${'тест'}',
+        boundary: '.',
+      ),
+    );
+    expect(
+      result.signals.where((s) => s.kind == SignalKind.aiAssist),
+      isNotEmpty,
+    );
+    expect(result.decision.state, isA<PanelAiAssist>());
+  });
+
+  test('ai assistant off skips sentence chips', () {
+    final engine = LocalIntelligenceEngine();
+    engine.applySettings(const KeyboardSettings(aiAssistant: false));
+    final before = 'Это достаточно длинное сообщение для теста';
+    final result = engine.process(
+      TextContext(
+        word: 'тест',
+        before: before,
+        after: '',
+        range: EditRange(before.length, before.length + 4),
+        locale: 'ru',
+        fullMessage: '$before${'тест'}',
+        boundary: '!',
+      ),
+    );
+    expect(
+      result.signals.where((s) => s.kind == SignalKind.aiAssist),
+      isEmpty,
+    );
   });
 
   test('peekRaw skips refresh when caller already refreshed', () async {

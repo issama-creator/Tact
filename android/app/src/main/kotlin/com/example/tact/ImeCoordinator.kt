@@ -161,12 +161,15 @@ object ImeCoordinator {
     }
 
     /** User explicitly asked for TACT. */
-    fun activateTact(context: Context): Result = runCatching {
+    fun activateTact(
+        context: Context,
+        showPickerOnFailure: Boolean = true,
+    ): Result = runCatching {
         val tactId = findTactId(context) ?: return@runCatching Result.TACT_DISABLED
         if (!isEnabled(context, tactId)) return@runCatching Result.TACT_DISABLED
         activateIme(
             context, tactId, defaultImeId(context), Result.TACT_DISABLED,
-            showPickerOnFailure = true,
+            showPickerOnFailure = showPickerOnFailure,
         )
     }.getOrElse {
         Log.e(TAG, "activateTact failed", it)
@@ -174,12 +177,15 @@ object ImeCoordinator {
     }
 
     /** User explicitly asked for Gboard. */
-    fun activateGboard(context: Context): Result = runCatching {
+    fun activateGboard(
+        context: Context,
+        showPickerOnFailure: Boolean = true,
+    ): Result = runCatching {
         val gboardId = findGboardId(context) ?: return@runCatching Result.GBOARD_DISABLED
         if (!isEnabled(context, gboardId)) return@runCatching Result.GBOARD_DISABLED
         activateIme(
             context, gboardId, defaultImeId(context), Result.GBOARD_DISABLED,
-            showPickerOnFailure = true,
+            showPickerOnFailure = showPickerOnFailure,
         )
     }.getOrElse {
         Log.e(TAG, "activateGboard failed", it)

@@ -242,15 +242,24 @@ class ImeBridge {
     } catch (_) {}
   }
 
+  Future<void> matWarningHaptic() async {
+    if (_fake != null) return;
+    try {
+      await _channel.invokeMethod<void>('matWarningHaptic');
+    } catch (_) {}
+  }
+
   Future<void> setFeedback({
     required bool vibration,
     required bool sound,
+    bool matVibration = true,
   }) async {
     if (_fake != null) return;
     try {
       await _channel.invokeMethod<void>('setFeedback', {
         'vibration': vibration,
         'sound': sound,
+        'matVibration': matVibration,
       });
     } catch (_) {}
   }
